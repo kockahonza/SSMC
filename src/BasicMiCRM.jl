@@ -1,0 +1,270 @@
+module BasicMiCRM
+using ..SSMC
+using ..SSMC.MLSolver
+
+using Printf, PrettyTables
+using StaticArrays
+using DifferentialEquations
+
+using Makie
+
+################################################################################
+# Internals
+################################################################################
+struct MiCRMParams{Ns,Nr,F} # number of strains and resource types
+    # these are usually all 1 from dimensional reduction
+    g::SVector{Ns,F}
+    w::SVector{Nr,F}
+
+    # strain props
+    m::SVector{Ns,F}
+
+    # resource props
+    l::SVector{Nr,F}
+    K::SVector{Nr,F}
+    r::SVector{Nr,F}
+
+    # complex, matrix params
+    c::SMatrix{Ns,Nr,F}
+    D::SMatrix{Nr,Nr,F}
+end
+function micrmfunc!(du, u, p::MiCRMParams{Ns,Nr}, _=0) where {Ns,Nr}
+    N = @view u[1:Ns]
+    R = @view u[Ns+1:Ns+Nr]
+    dN = @view du[1:Ns]
+    dR = @view du[Ns+1:Ns+Nr]
+
+    for i in 1:Ns
+        sumterm = 0.0
+        for a in 1:Nr
+            sumterm += p.w[a] * (1.0 - p.l[a]) * p.c[i, a] * R[a]
+        end
+        dN[i] = p.g[i] * N[i] * (sumterm - p.m[i])
+    end
+
+    for a in 1:Nr
+        sumterm1 = 0.0
+        for i in 1:Ns
+            sumterm1 += N[i] * p.c[i, a] * R[a]
+        end
+        sumterm2 = 0.0
+        for i in 1:Ns
+            for b in 1:Nr
+                sumterm2 += p.D[a, b] * (p.w[b] / p.w[a]) * p.l[b] * N[i] * p.c[i, b] * R[b]
+            end
+        end
+
+        dR[a] = p.K[a] - p.r[a] * R[a] - sumterm1 + sumterm2
+    end
+    du
+end
+export MiCRMParams, micrmfunc!
+
+# For testing
+function trivmicrmparams(Ns, Nr;
+    m=1.0, l=0.0, K=1.0, r=0.0, c=1.0
+)
+    MiCRMParams(
+        (@SVector fill(1.0, Ns)),
+        (@SVector fill(1.0, Nr)),
+        (@SVector fill(m, Ns)),
+        (@SVector fill(l, Nr)),
+        (@SVector fill(K, Nr)),
+        (@SVector fill(r, Nr)),
+        (@SMatrix fill(c, Ns, Nr)),
+        (@SMatrix fill(1 / Nr, Nr, Nr))
+    )
+end
+export trivmicrmparams
+
+################################################################################
+# Smart functions
+################################################################################
+"""Smart function for making the params"""
+function make_micrmparams_smart(Ns, Nr;
+    g=nothing, w=nothing,
+    m=nothing, l=nothing, K=nothing, r=nothing,
+    c=:uniform, D=:euniform
+)
+    # Setup the MiCRMParams
+    if isa(c, Number) || isa(c, AbstractArray)
+        c = smart_sval(c, 0.0, Ns, Nr)
+    else
+        cname, cargs = split_name_args(c)
+
+        if cname == :uniform
+            c = make_c_uniform(Ns, Nr, cargs...)
+        elseif cname == :oto
+            c = make_c_oto(Ns, Nr, cargs...)
+        else
+            throw(ArgumentError(@sprintf "cannot correctly parse cname %s" string(cname)))
+        end
+    end
+
+    if isa(D, Number) || isa(D, AbstractArray)
+        D = smart_sval(D, nothing, Nr, Nr)
+    else
+        Dname, Dargs = split_name_args(D)
+
+        if Dname == :uniform
+            D = make_D_uniform(Nr, Dargs...)
+        elseif Dname == :euniform
+            D = make_D_euniform(Nr, Dargs...)
+        else
+            throw(ArgumentError(@sprintf "cannot correctly parse Dname %s" string(Dname)))
+        end
+    end
+
+    MiCRMParams(
+        smart_sval(g, 1.0, Ns),
+        smart_sval(w, 1.0, Nr),
+        smart_sval(m, 1.0, Ns),
+        smart_sval(l, 0.0, Nr),
+        smart_sval(K, 1.0, Nr),
+        smart_sval(r, 1.0, Nr),
+        c, D
+    )
+end
+make_c_uniform(Ns, Nr, val=1.0) = @SMatrix fill(val, Ns, Nr)
+function make_c_oto(Ns, Nr, val=1.0) # strain i eats resource i if it exists
+    mat = zeros(Ns, Nr)
+    for i in 1:min(Ns, Nr)
+        mat[i, i] = val
+    end
+    SMatrix{Ns,Nr}(mat)
+end
+make_D_uniform(Nr) = @SMatrix fill(1 / Nr, Nr, Nr)
+function make_D_euniform(Nr)
+    if Nr == 1
+        @warn "using euniform D with only 1 resource, this violates certain assumptions"
+    end
+    mat = fill(1 / (Nr - 1), Nr, Nr)
+    for a in 1:Nr
+        mat[a, a] = 0.0
+    end
+    SMatrix{Nr,Nr}(mat)
+end
+
+"""Smart function for making an initial state"""
+function make_micrmu0_smart(params::MiCRMParams{Ns,Nr};
+    u0=:steadyR, u0rand=nothing
+) where {Ns,Nr}
+    if isa(u0, Number) || isa(u0, AbstractArray)
+        u0 = smart_val(u0, make_u0_steadyR(params), Ns + Nr)
+    else
+        u0name, u0args = split_name_args(u0)
+
+        if u0name == :uniE
+            u0 = make_u0_uniE(params)
+        elseif u0name == :steadyR
+            u0 = make_u0_steadyR(params)
+        elseif u0name == :onlyN
+            u0 = make_u0_onlyN(params)
+        else
+            throw(ArgumentError(@sprintf "cannot correctly parse u0name %s" string(u0name)))
+        end
+    end
+
+    if !isnothing(u0rand)
+        for i in eachindex(u0)
+            u0[i] *= 1 + u0rand * (2 * rand() - 1)
+        end
+    end
+
+    u0
+end
+make_u0_uniE(p::MiCRMParams{Ns,Nr}) where {Ns,Nr} = Vector(vcat(p.g, 1.0 ./ p.w))
+make_u0_steadyR(p::MiCRMParams{Ns,Nr}) where {Ns,Nr} = Vector(vcat(p.g, p.K ./ p.r))
+make_u0_onlyN(p::MiCRMParams{Ns,Nr}) where {Ns,Nr} = vcat(p.g, fill(0.0, Nr))
+
+"""Make the problem directly"""
+function make_micrm_smart(Ns, Nr, T=1.0;
+    u0=:steadyR, u0rand=nothing, kwargs...
+)
+    params = make_micrmparams_smart(Ns, Nr; kwargs...)
+    u0 = make_micrmu0_smart(params; u0, u0rand)
+
+    # make problem
+    ODEProblem(micrmfunc!, u0, (0.0, T), params)
+end
+export make_micrm_smart, make_micrmparams_smart, make_micrmu0_smart
+
+function make_solve_plot_return(args...; kwargs...)
+    p = make_micrm_smart(args...; kwargs...)
+    x = solve(p)
+    fap = lines(x)
+    display(fap)
+    axislegend(fap.axis)
+    p, x
+end
+export make_solve_plot_return
+
+################################################################################
+# Physical calculations
+################################################################################
+"""Calculates the total energy density in the system"""
+function calc_E(u, p::MiCRMParams{Ns,Nr}) where {Ns,Nr}
+    N = @view u[1:Ns]
+    R = @view u[Ns+1:Ns+Nr]
+
+    E = 0.0
+    for i in 1:Ns
+        E += N[i] / p.g[i]
+    end
+    for a in 1:Nr
+        E += p.w[a] * R[a]
+    end
+    E
+end
+export calc_E
+
+"""Print physicsy info about a system"""
+function param_summary(p::MiCRMParams{Ns,Nr}) where {Ns,Nr}
+    for a in 1:Nr
+        println(@sprintf "Resource %d iseq is %f" a p.K[a] / p.r[a])
+    end
+
+    tab = Matrix{String}(undef, Ns, Nr + 2)
+    for i in 1:Ns
+        tab[i, 1] = @sprintf "%d" i
+        for a in 1:Nr
+            tab[i, 1+a] = @sprintf "%f" ((p.K[a] / p.r[a]) * p.w[a] * (1 - p.l[a]) * p.c[i, a])
+        end
+        tab[i, end] = @sprintf "%f" p.m[i]
+    end
+    pretty_table(tab; header=vcat("Strain i", [@sprintf "ss prod by %d" a for a in 1:Nr], "Upkeep"))
+end
+param_summary(p::ODEProblem) = param_summary(p.p)
+export param_summary
+
+################################################################################
+# Old demo
+################################################################################
+function supersimple()
+    # these are kinda legit 1.
+    g1 = 1.0
+    w1 = 1.0
+
+    m1 = 1.0
+
+    l1 = 0.0
+    K1 = 1.0
+    r1 = 0.0
+
+    c11 = 1.0
+
+    D11 = 1.0
+
+    function diffeq!(du, u, p, t)
+        N1, R1 = u
+
+        du[1] = g1 * N1 * (w1 * (1.0 - l1) * c11 * R1 - m1)
+        du[2] = K1 - r1 * R1 - N1 * c11 * R1 + D11 * (w1 / w1) * l1 * N1 * c11 * R1
+    end
+
+    u0 = [1.0, 0.0]
+
+    prob = ODEProblem(diffeq!, u0, (0.0, 10.0))
+end
+
+end
