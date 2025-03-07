@@ -1,8 +1,9 @@
 using SSMC
 using SSMC.BasicMiCRM
+using SSMC.MLSolver
 
-using StaticArrays
-using DifferentialEquations
+using DataFrames
+
 using GLMakie
 
 function make_cosmo2(T=1.0; solveandplot=true)
@@ -11,15 +12,19 @@ function make_cosmo2(T=1.0; solveandplot=true)
     func(2, 2, T)
 end
 
-function make_cosmo3(T; solveandplot=true, kwargs...)
-    func = solveandplot ? make_solve_plot_return : make_micrm_smart
+################################################################################
+# Cosmo like system with 3 resources, the last being glucose
+################################################################################
+function make_cosmo3(T; kwargs...)
+    params = makep_cosmo3direct(; kwargs...)
+    u0 = make_micrmu0_smart(params; u0=:onlyN, u0rand=0.1)
+    p = ODEProblem(micrmfunc!, u0, (0, T), params)
 
-    func(2, 3, T;
-        u0rand=0.1,
-        D=[0.0 1.0 0.5; 1.0 0.0 0.5; 0.0 0.0 0.0],
-        K=[0.0, 0.0, 1.0],
-        kwargs...
-    )
+    s = solve(p)
+    fap = lines(s)
+    display(fap)
+    axislegend(fap.axis)
+    p, s
 end
 function makep_cosmo3direct(
     K,
@@ -47,20 +52,23 @@ function makep_cosmo3direct(;
     makep_cosmo3direct(K, r1, r2, rg, l1, l2, lg, m1, m2, c1, c2, cg1, cg2)
 end
 
-function nb_c3_ssensemble()
+################################################################################
+# Runs an steady states ensemble run
+################################################################################
+function steadystateensemble()
     Ks = [1.0]
     r1s = [0.0]
     r2s = [0.0]
-    rgs = [1.0]
+    rgs = LinRange(1.0, 11.0, 5)
     l1s = [0.0]
     l2s = [0.0]
     lgs = [1.0]
-    m1s = [1.0]
-    m2s = [1.0]
-    c1s = LinRange(1.0, 15.0, 5)
-    c2s = LinRange(1.0, 15.0, 5)
-    cg1s = LinRange(1.0, 15.0, 5)
-    cg2s = LinRange(1.0, 15.0, 5)
+    m1s = LinRange(0.0, 10, 5)
+    m2s = LinRange(0.0, 10, 5)
+    c1s = LinRange(0.0, 20.0, 5)
+    c2s = LinRange(0.0, 20.0, 5)
+    cg1s = LinRange(0.0, 20.0, 5)
+    cg2s = LinRange(0.0, 20.0, 5)
 
     rl, range_cis = setup_ranges(Ks, r1s, r2s, rgs, l1s, l2s, lgs, m1s, m2s, c1s, c2s, cg1s, cg2s)
     numruns = length(range_cis)
@@ -72,45 +80,50 @@ function nb_c3_ssensemble()
     end
     prob = make_prob(1)
 
-    data = [Array{Float64,ndims(range_cis)}(undef, size(range_cis)) for _ in 1:5]
-
-    @info "Making the ensemble"
+    fast_info("Making the ensemble")
     ep = EnsembleProblem(prob;
-        prob_func=(_, i, _) -> make_prob(i),
-        output_func=(sol, i) -> (sol, false),
-        reduction=function (u, data, I)
-            for (d, i) in zip(data, I)
-                for ui in 1:5
-                    u[ui][range_cis[i]] = d.u[ui]
-                end
-            end
-
-            (u, false)
+        prob_func=function (_, i, _)
+            make_prob(i)
         end,
-        u_init=data,
         safetycopy=false
     )
 
-    @info "Solving the ensemble"
-    es = solve(ep, DynamicSS(), EnsembleThreads(); trajectories=numruns, batch_size=30)
-
-    es, rl, range_cis
-end
-
-function make_cosmo3_ens(T=100.0;
-    Ks=[1.0],
-    r1s=[0.0], r2s=[0.0], rgs=[1.0],
-    l1s=[0.0], l2s=[0.0], lgs=[1.0],
-    m1s=[1.0], m2s=[1.0],
-    c1s=[10.0], c2s=[10.0], cg1s=[10.0], cg2s=[10.0],
-    output_func=(sol, i) -> (sol, false),
-)
-    rl, numruns = setup_range_lookup(Ks, r1s, r2s, rgs, l1s, l2s, lgs, m1s, m2s, c1s, c2s, cg1s, cg2s)
-
-    prob = make_cosmo3direct(T, rl(1)...; solveandplot=false)
-
-    EnsembleProblem(prob; output_func,
-        prob_func=(_, i, _) -> make_cosmo3direct(T, rl(i)...; solveandplot=false),
-        safetycopy=false
+    fast_info("Solving the ensemble")
+    esraw = solve(ep, DynamicSS(), EnsembleThreads();
+        trajectories=numruns,
+        maxiters=1e3,
     )
+
+    fast_info("Building df of results")
+    df = DataFrame(
+        N1=Float64[],
+        N2=Float64[],
+        R1=Float64[],
+        R2=Float64[],
+        R3=Float64[],
+        retcode=[],
+        K=Float64[],
+        r1=Float64[],
+        r2=Float64[],
+        rg=Float64[],
+        l1=Float64[],
+        l2=Float64[],
+        lg=Float64[],
+        m1=Float64[],
+        m2=Float64[],
+        c1=Float64[],
+        c2=Float64[],
+        cg1=Float64[],
+        cg2=Float64[],
+    )
+
+    for (run_i, sol) in enumerate(esraw.u)
+        push!(df, (sol.u..., sol.retcode, rl(run_i)...))
+    end
+
+    if any(x -> x != ReturnCode.Success, df.retcode)
+        fast_warn("Some solvers did not succeed")
+    end
+
+    df
 end

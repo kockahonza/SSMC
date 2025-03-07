@@ -1,6 +1,7 @@
 module SSMC
 
 using REPL.TerminalMenus
+using Logging
 
 using StaticArrays
 
@@ -44,6 +45,17 @@ function wait_till_confirm()
     request(menu) == 1
 end
 export wait_till_confirm
+
+# These are needed for Jupyter...
+function fast_info(msg)
+    @info msg
+    flush(Logging.current_logger().stream)
+end
+function fast_warn(msg)
+    @warn msg
+    flush(Logging.current_logger().stream)
+end
+export fast_info, fast_warn
 
 ################################################################################
 # Other modules/files

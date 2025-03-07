@@ -2,9 +2,11 @@ module BasicMiCRM
 using ..SSMC
 using ..SSMC.MLSolver
 
+using Reexport
+
 using Printf, PrettyTables
-using StaticArrays
-using DifferentialEquations
+@reexport using StaticArrays
+@reexport using DifferentialEquations
 
 using Makie
 
@@ -28,6 +30,7 @@ struct MiCRMParams{Ns,Nr,F} # number of strains and resource types
     c::SMatrix{Ns,Nr,F}
     D::SMatrix{Nr,Nr,F}
 end
+get_Ns(_::MiCRMParams{Ns,Nr}) where {Ns,Nr} = (Ns, Nr)
 function micrmfunc!(du, u, p::MiCRMParams{Ns,Nr}, _=0) where {Ns,Nr}
     N = @view u[1:Ns]
     R = @view u[Ns+1:Ns+Nr]
@@ -58,7 +61,7 @@ function micrmfunc!(du, u, p::MiCRMParams{Ns,Nr}, _=0) where {Ns,Nr}
     end
     du
 end
-export MiCRMParams, micrmfunc!
+export MiCRMParams, get_Ns, micrmfunc!
 
 # For testing
 function trivmicrmparams(Ns, Nr;
@@ -189,13 +192,56 @@ function make_micrm_smart(Ns, Nr, T=1.0;
 end
 export make_micrm_smart, make_micrmparams_smart, make_micrmu0_smart
 
+function plot_micrm_sol(sol; singleax=false, plote=false)
+    params = sol.prob.p
+    if !isa(params, MiCRMParams)
+        throw(ArgumentError("plot_micrm_sol can only plot solutions of MiCRM problems"))
+    end
+    Ns, Nr = get_Ns(params)
+
+    fig = Figure()
+    if singleax
+        strainax = resax = Axis(fig[1, 1])
+        if plote
+            eax = strainax
+        end
+    else
+        strainax = Axis(fig[1, 1])
+        resax = Axis(fig[2, 1])
+        if plote
+            eax = Axis(fig[3, 1])
+        end
+    end
+
+    # plot data
+    for i in 1:Ns
+        lines!(strainax, sol.t, sol[i, :]; label=@sprintf "str %d" i)
+    end
+    for a in 1:Nr
+        lines!(resax, sol.t, sol[Ns+a, :]; label=@sprintf "res %d" a)
+    end
+    if plote
+        lines!(eax, sol.t, calc_E.(sol.u, Ref(params)); label="energy")
+    end
+
+    if singleax
+        axislegend(strainax)
+    else
+        axislegend(strainax)
+        axislegend(resax)
+        if plote
+            axislegend(eax)
+        end
+    end
+    fig
+end
+export plot_micrm_sol
+
 function make_solve_plot_return(args...; kwargs...)
     p = make_micrm_smart(args...; kwargs...)
-    x = solve(p)
-    fap = lines(x)
-    display(fap)
-    axislegend(fap.axis)
-    p, x
+    s = solve(p)
+    display(plot_micrm_sol(s))
+    p, s
 end
 export make_solve_plot_return
 
