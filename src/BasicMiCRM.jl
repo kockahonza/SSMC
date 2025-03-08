@@ -6,9 +6,10 @@ using Reexport
 
 using Printf, PrettyTables
 @reexport using StaticArrays
-@reexport using DifferentialEquations
+@reexport using DifferentialEquations, NonlinearSolve, Optimization
+@reexport using LinearAlgebra
 
-using Makie
+using Makie, LaTeXStrings
 
 ################################################################################
 # Internals
@@ -221,7 +222,7 @@ function plot_micrm_sol(sol; singleax=false, plote=false)
         lines!(resax, sol.t, sol[Ns+a, :]; label=@sprintf "res %d" a)
     end
     if plote
-        lines!(eax, sol.t, calc_E.(sol.u, Ref(params)); label="energy")
+        lines!(eax, sol.t, calc_E.(sol.u, Ref(params)); label=L"\epsilon")
     end
 
     if singleax
@@ -244,6 +245,112 @@ function make_solve_plot_return(args...; kwargs...)
     p, s
 end
 export make_solve_plot_return
+
+################################################################################
+# Linear stability analysis
+################################################################################
+function do_linstab_for_ks(ks, p::MiCRMParams{Ns,Nr,F}, Ds, ss; kwargs...) where {Ns,Nr,F}
+    lambda_func = linstab_make_lambda_func(p, Ds, ss; kwargs...)
+    rslt = Matrix{Complex{F}}(undef, length(ks), length(ss))
+    for (i, k) in enumerate(ks)
+        rslt[i, :] .= lambda_func(k)
+    end
+    rslt
+end
+function do_linstab_for_ks(ks, p::ODEProblem, Ds, ss=nothing; kwargs...)
+    if isnothing(ss)
+        ssprob = SteadyStateProblem(p)
+        sssol = solve(ssprob, DynamicSS())
+        if sssol.retcode != ReturnCode.Success
+            @error "the steady state solver did not succeed"
+        end
+        ss = sssol.u
+    end
+    do_linstab_for_ks(ks, p.p, Ds, ss; kwargs...)
+end
+export do_linstab_for_ks
+
+function linstab_make_lambda_func(p::MiCRMParams{Ns,Nr}, Ds, ss; kwargs...) where {Ns,Nr}
+    let M1 = calc_M1(p, ss)
+        function (k)
+            eigvals(M1 + Diagonal(-(k^2) .* Ds); kwargs...)
+        end
+    end
+end
+export linstab_make_lambda_func
+
+function calc_M1!(M1, p::MiCRMParams{Ns,Nr}, ss) where {Ns,Nr}
+    Nss = @view ss[1:Ns]
+    Rss = @view ss[Ns+1:Ns+Nr]
+
+    for i in 1:Ns
+        # 0 everywhere
+        for j in 1:Ns
+            M1[i, j] = 0.0
+        end
+        # add things to the diagonal - this is T
+        for a in 1:Nr
+            M1[i, i] += p.g[i] * (1 - p.l[a]) * p.w[a] * p.c[i, a] * Rss[a]
+        end
+        M1[i, i] -= p.g[i] * p.m[i]
+    end
+    for i in 1:Ns
+        for a in 1:Nr
+            # this is U
+            M1[i, Ns+a] = p.g[i] * (1 - p.l[a]) * p.w[a] * p.c[i, a] * Nss[i]
+            # this is V
+            M1[Ns+a, i] = 0.0
+            for b in 1:Nr
+                M1[Ns+a, i] += p.D[a, b] * p.l[b] * (p.w[b] / p.w[a]) * p.c[i, b] * Rss[b]
+            end
+            M1[Ns+a, i] -= p.c[i, a] * Rss[a]
+        end
+    end
+    for a in 1:Nr
+        for b in 1:Nr
+            # makes sure everything is initialized
+            M1[Ns+a, Ns+b] = 0.0
+            # this does the complex part of W
+            for i in 1:Ns
+                M1[Ns+a, Ns+b] += p.D[a, b] * p.l[b] * (p.w[b] / p.w[a]) * p.c[i, b] * Nss[i]
+            end
+        end
+        # and add the diagonal bit of W
+        for i in 1:Ns
+            M1[Ns+a, Ns+a] -= p.c[i, a] * Nss[i]
+        end
+        M1[Ns+a, Ns+a] -= p.r[a]
+    end
+end
+function calc_M1(p::MiCRMParams{Ns,Nr,F}, args...) where {Ns,Nr,F}
+    M1 = Matrix{F}(undef, Ns + Nr, Ns + Nr)
+    calc_M1!(M1, p, args...)
+    M1
+end
+export calc_M1!, calc_M1
+
+function plot_linstab_lambdas(ks, lambdas; imthreshold=1e-8)
+    fig = Figure()
+    ax = Axis(fig[1, 1])
+    for li in axes(lambdas, 2)
+        lines!(ax, ks, real(lambdas[:, li]);
+            color=Cycled(li),
+            label=latexstring(@sprintf "\\Re(\\lambda_%d)" li)
+        )
+        ims = imag(lambdas[:, li])
+        if maximum(ims) > imthreshold
+            @warn "we are getting non-zero imaginary parts"
+            lines!(ax, ks, ims;
+                color=Cycled(li),
+                linestyle=:dash,
+                label=latexstring(@sprintf "\\Im(\\lambda_%d)" li)
+            )
+        end
+    end
+    axislegend(ax)
+    FigureAxisAnything(fig, ax, lambdas)
+end
+export plot_linstab_lambdas
 
 ################################################################################
 # Physical calculations

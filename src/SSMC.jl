@@ -4,6 +4,9 @@ using REPL.TerminalMenus
 using Logging
 
 using StaticArrays
+using Makie
+
+import Base: show
 
 ################################################################################
 # Utility bits
@@ -56,6 +59,15 @@ function fast_warn(msg)
     flush(Logging.current_logger().stream)
 end
 export fast_info, fast_warn
+
+struct FigureAxisAnything
+    figure::Figure
+    axis::Any
+    obj::Any
+end
+show(io::IO, faa::FigureAxisAnything) = show(io, faa.figure)
+show(io::IO, mime, faa::FigureAxisAnything) = show(io, mime, faa.figure)
+export FigureAxisAnything
 
 ################################################################################
 # Other modules/files
