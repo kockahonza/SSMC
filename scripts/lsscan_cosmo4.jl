@@ -96,7 +96,7 @@ function run_scan_par(; unstable_threshold=0.0)
 
     df = reduce(vcat, local_dfs)
 
-    if any(df.unstable)
+    if any(x -> x == true, df.unstable)
         @info "Found some unstable configs"
     end
 
