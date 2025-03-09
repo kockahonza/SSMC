@@ -1,5 +1,5 @@
 module BasicMiCRM
-using ..SSMC
+using ..SSMCMain
 
 using Reexport
 

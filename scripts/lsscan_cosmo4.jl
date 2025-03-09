@@ -1,4 +1,4 @@
-using SSMC, SSMC.BasicMiCRM
+using SSMCMain, SSMCMain.BasicMiCRM
 
 using Printf
 using Base.Threads
