@@ -251,11 +251,11 @@ export make_solve_plot_return
 ################################################################################
 function do_linstab_for_ks(ks, p::MiCRMParams{Ns,Nr,F}, Ds, ss; kwargs...) where {Ns,Nr,F}
     lambda_func = linstab_make_lambda_func(p, Ds, ss; kwargs...)
-    rslt = Matrix{Complex{F}}(undef, length(ks), length(ss))
+    lambdas = Matrix{Complex{F}}(undef, length(ks), length(ss))
     for (i, k) in enumerate(ks)
-        rslt[i, :] .= lambda_func(k)
+        lambdas[i, :] .= lambda_func(k)
     end
-    rslt
+    lambdas
 end
 function do_linstab_for_ks(ks, p::ODEProblem, Ds, ss=nothing; kwargs...)
     if isnothing(ss)
@@ -271,7 +271,7 @@ end
 export do_linstab_for_ks
 
 function linstab_make_lambda_func(p::MiCRMParams{Ns,Nr}, Ds, ss; kwargs...) where {Ns,Nr}
-    let M1 = calc_M1(p, ss)
+    let M1 = make_M1(p, ss)
         function (k)
             eigvals(M1 + Diagonal(-(k^2) .* Ds); kwargs...)
         end
@@ -279,7 +279,7 @@ function linstab_make_lambda_func(p::MiCRMParams{Ns,Nr}, Ds, ss; kwargs...) wher
 end
 export linstab_make_lambda_func
 
-function calc_M1!(M1, p::MiCRMParams{Ns,Nr}, ss) where {Ns,Nr}
+function make_M1!(M1, p::MiCRMParams{Ns,Nr}, ss) where {Ns,Nr}
     Nss = @view ss[1:Ns]
     Rss = @view ss[Ns+1:Ns+Nr]
 
@@ -322,12 +322,12 @@ function calc_M1!(M1, p::MiCRMParams{Ns,Nr}, ss) where {Ns,Nr}
         M1[Ns+a, Ns+a] -= p.r[a]
     end
 end
-function calc_M1(p::MiCRMParams{Ns,Nr,F}, args...) where {Ns,Nr,F}
+function make_M1(p::MiCRMParams{Ns,Nr,F}, args...) where {Ns,Nr,F}
     M1 = Matrix{F}(undef, Ns + Nr, Ns + Nr)
-    calc_M1!(M1, p, args...)
+    make_M1!(M1, p, args...)
     M1
 end
-export calc_M1!, calc_M1
+export make_M1!, make_M1
 
 function plot_linstab_lambdas(ks, lambdas; imthreshold=1e-8)
     fig = Figure()
@@ -338,8 +338,9 @@ function plot_linstab_lambdas(ks, lambdas; imthreshold=1e-8)
             label=latexstring(@sprintf "\\Re(\\lambda_%d)" li)
         )
         ims = imag(lambdas[:, li])
-        if maximum(ims) > imthreshold
-            @warn "we are getting non-zero imaginary parts"
+        mims = maximum(ims)
+        if mims > imthreshold
+            @info @sprintf "we are getting non-zero imaginary parts, max is %f" mims
             lines!(ax, ks, ims;
                 color=Cycled(li),
                 linestyle=:dash,

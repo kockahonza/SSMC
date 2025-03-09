@@ -8,6 +8,11 @@ using Makie
 
 import Base: show
 
+projectdir(args...) = joinpath(pkgdir(LuriaDelbruck), args...)
+scriptsdir(args...) = joinpath(projectdir(), "scripts", args...)
+datadir(args...) = joinpath(projectdir(), "data", args...)
+export projectdir, scriptsdir, datadir
+
 ################################################################################
 # Utility bits
 ################################################################################
@@ -35,6 +40,27 @@ split_name_args(x) = x, ()
 split_name_args(t::Tuple) = t[1], t[2:end]
 export smart_val, smart_sval, split_name_args
 
+function prep_paramscan(; param_ranges...)
+    ranges_only = []
+    df_colspecs = Pair{Symbol,Any}[]
+    for (pname, prange) in param_ranges
+        if !isa(prange, AbstractVector)
+            prange = [prange]
+        end
+        push!(ranges_only, prange)
+        push!(df_colspecs, pname => empty(prange))
+    end
+
+    cis = CartesianIndices(Tuple(length.(ranges_only)))
+    itoparams = function (i)
+        [r[i] for (r, i) in zip(ranges_only, cis[i].I)]
+    end
+
+    df_colspecs, itoparams, cis
+end
+export prep_paramscan
+
+# FIX: Should be removed as prep_paramscan is a better version of it
 function setup_ranges(ranges...; func=identity)
     cis = CartesianIndices(length.(ranges))
     function (i)
