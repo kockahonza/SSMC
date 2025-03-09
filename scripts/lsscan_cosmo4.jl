@@ -1,36 +1,44 @@
 using SSMC, SSMC.BasicMiCRM
 
 using Printf
+using Base.Threads
+using Logging
+
+using OhMyThreads
 using DataFrames
 using JLD2
 
-using Base.Threads
-using OhMyThreads
-
-function run_scan_par(; unstable_threshold=0.0)
+function run_scan(;
+    # resources
+    K1=[1.0],
+    K2=[1.0],
+    r1=[1.0],
+    r2=[1.0],
+    l1=[1.0],
+    l2=[1.0],
+    # uptake rates
+    c11=[1.0], # uptake rate of 1 of its glucose
+    c13=[1.0], # uptake rate of 1 of its growth resources
+    c22=[1.0], # uptake rate of 2 of its glucose
+    c24=[1.0], # uptake rate of 2 of its growth resources
+    # strain death rates
+    m1=[1.0],
+    m2=[1.0],
+    # diffusion rates
+    Ds1=[0.0],
+    Ds2=[0.0],
+    Dr1=[1.0],
+    Dr2=[1.0],
+    Dr3=[1.0],
+    Dr4=[1.0],
+    unstable_threshold=0.0,
+    disable_warnings=true
+)
     df_param_cols, itoparams, paramcis = prep_paramscan(;
-        # resources
-        K1=[1.0],
-        K2=[1.0],
-        r1=[1.0],
-        r2=[1.0],
-        l1=[1.0],
-        l2=[1.0],
-        # uptake rates
-        c11=LinRange(0.5, 20, 2), # uptake rate of 1 of its glucose
-        c13=LinRange(0.5, 20, 2), # uptake rate of 1 of its growth resources
-        c22=LinRange(0.5, 20, 2), # uptake rate of 2 of its glucose
-        c24=LinRange(0.5, 20, 2), # uptake rate of 2 of its growth resources
-        # strain death rates
-        m1=LinRange(1e-6, 2.0, 2),
-        m2=LinRange(1e-6, 2.0, 2),
-        # diffusion rates
-        Ds1=LinRange(0.0, 5.0, 2),
-        Ds2=LinRange(0.0, 5.0, 2),
-        Dr1=LinRange(0.0, 100.0, 2),
-        Dr2=LinRange(0.0, 100.0, 2),
-        Dr3=LinRange(0.0, 100.0, 2),
-        Dr4=LinRange(0.0, 100.0, 2),
+        K1, K2, r1, r2, l1, l2,
+        c11, c13, c22, c24,
+        m1, m2,
+        Ds1, Ds2, Dr1, Dr2, Dr3, Dr4
     )
 
     ks = LinRange(0.0, 5.0, 10)
@@ -52,6 +60,10 @@ function run_scan_par(; unstable_threshold=0.0)
 
     i_chunks = chunks(1:length(paramcis); n=nthreads())
     local_dfs = [copy(df) for _ in 1:length(i_chunks)]
+
+    if disable_warnings
+        disable_logging(Warn)
+    end
 
     @sync for (is, local_df) in zip(i_chunks, local_dfs)
         @spawn begin
@@ -94,6 +106,10 @@ function run_scan_par(; unstable_threshold=0.0)
         end
     end
 
+    if disable_warnings
+        disable_logging(Debug)
+    end
+
     df = reduce(vcat, local_dfs)
 
     if any(x -> x == true, df.unstable)
@@ -101,4 +117,32 @@ function run_scan_par(; unstable_threshold=0.0)
     end
 
     df
+end
+
+function ltest1()
+    run_scan(;
+        # resources
+        K1=[1.0],
+        K2=[1.0],
+        r1=[1.0],
+        r2=[1.0],
+        l1=[1.0],
+        l2=[1.0],
+        # uptake rates
+        c11=LinRange(0.5, 20, 2), # uptake rate of 1 of its glucose
+        c13=LinRange(0.5, 20, 2), # uptake rate of 1 of its growth resources
+        c22=LinRange(0.5, 20, 2), # uptake rate of 2 of its glucose
+        c24=LinRange(0.5, 20, 2), # uptake rate of 2 of its growth resources
+        # strain death rates
+        m1=LinRange(1e-6, 2.0, 2),
+        m2=LinRange(1e-6, 2.0, 2),
+        # diffusion rates
+        Ds1=LinRange(0.0, 5.0, 2),
+        Ds2=LinRange(0.0, 5.0, 2),
+        Dr1=LinRange(0.0, 100.0, 2),
+        Dr2=LinRange(0.0, 100.0, 2),
+        Dr3=LinRange(0.0, 100.0, 2),
+        Dr4=LinRange(0.0, 100.0, 2),
+        unstable_threshold=0.0
+    )
 end

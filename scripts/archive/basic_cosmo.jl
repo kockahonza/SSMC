@@ -1,6 +1,6 @@
 using SSMC
 using SSMC.BasicMiCRM
-using SSMC.MLSolver
+using MLSolver
 
 using DataFrames
 

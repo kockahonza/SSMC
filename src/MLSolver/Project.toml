@@ -1,0 +1,10 @@
+name = "MLSolver"
+uuid = "1cf19c7e-fd6d-4ed4-b1e7-5c492774278f"
+authors = ["Jan Kocka <kockahonza@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
+SymbolicsMathLink = "7963cd39-1b62-4514-9cf0-788fb5452611"

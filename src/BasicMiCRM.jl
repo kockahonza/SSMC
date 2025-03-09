@@ -1,6 +1,5 @@
 module BasicMiCRM
 using ..SSMC
-using ..SSMC.MLSolver
 
 using Reexport
 
