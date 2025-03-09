@@ -22,7 +22,7 @@ struct MMiCRMParams{Ns,Nr,F} # number of strains and resource types
     # complex, matrix params
     l::SMatrix{Ns,Nr,F}
     c::SMatrix{Ns,Nr,F}
-    D::SArray{Tuple{Ns,Nr,Nr},F}
+    D::SArray{Tuple{Ns,Nr,Nr},F} # D[1,a,b] corresponds to b -> a
 end
 get_Ns(_::MMiCRMParams{Ns,Nr}) where {Ns,Nr} = (Ns, Nr)
 function mmicrmfunc!(du, u, p::MMiCRMParams{Ns,Nr}, _=0) where {Ns,Nr}
@@ -246,7 +246,7 @@ export make_solve_plot_return
 # Linear stability analysis
 ################################################################################
 function do_linstab_for_ks(ks, p::MMiCRMParams{Ns,Nr,F}, Ds, ss; kwargs...) where {Ns,Nr,F}
-    lambda_func = linstab_make_lambda_func(p, Ds, ss; kwargs...)
+    lambda_func = linstab_make_lambda_func(p, ss, Ds; kwargs...)
     lambdas = Matrix{Complex{F}}(undef, length(ks), length(ss))
     for (i, k) in enumerate(ks)
         lambdas[i, :] .= lambda_func(k)
@@ -266,14 +266,26 @@ function do_linstab_for_ks(ks, p::ODEProblem, Ds, ss=nothing; kwargs...)
 end
 export do_linstab_for_ks
 
-function linstab_make_lambda_func(p::MMiCRMParams{Ns,Nr}, Ds, ss; kwargs...) where {Ns,Nr}
-    let M1 = make_M1(p, ss)
-        function (k)
-            eigvals(M1 + Diagonal(-(k^2) .* Ds); kwargs...)
+function linstab_make_lambda_func(p::MMiCRMParams{Ns,Nr}, ss, Ds=nothing; kwargs...) where {Ns,Nr}
+    if !isnothing(Ds)
+        let M1 = make_M1(p, ss)
+            function (k)
+                eigvals(M1 + Diagonal(-(k^2) .* Ds); kwargs...)
+            end
+        end
+    else
+        let M1 = make_M1(p, ss)
+            function (k, Ds)
+                eigvals(M1 + Diagonal(-(k^2) .* Ds); kwargs...)
+            end
         end
     end
 end
 export linstab_make_lambda_func
+
+function linstab_benchmark(p::MMiCRMParams, ss; kwargs...)
+end
+export linstab_benchmark
 
 function make_M1!(M1, p::MMiCRMParams{Ns,Nr}, ss) where {Ns,Nr}
     Nss = @view ss[1:Ns]
