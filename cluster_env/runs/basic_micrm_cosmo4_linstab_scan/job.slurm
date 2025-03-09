@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -p BIOP
-#SBATCH --time 48:00:00
+#SBATCH --time 72:00:00
 #requesting one task of ? cpus (on one node implied)
 #SBATCH --cpus-per-task=128
 
