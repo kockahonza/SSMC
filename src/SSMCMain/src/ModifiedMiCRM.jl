@@ -1,4 +1,5 @@
-module BasicMiCRM
+"""Modified MiCRM model"""
+module ModifiedMiCRM
 
 using Reexport
 @reexport using ..SSMCMain
@@ -6,7 +7,7 @@ using Reexport
 ################################################################################
 # Internals
 ################################################################################
-struct MiCRMParams{Ns,Nr,F} # number of strains and resource types
+struct MMiCRMParams{Ns,Nr,F} # number of strains and resource types
     # these are usually all 1 from dimensional reduction
     g::SVector{Ns,F}
     w::SVector{Nr,F}
@@ -15,16 +16,16 @@ struct MiCRMParams{Ns,Nr,F} # number of strains and resource types
     m::SVector{Ns,F}
 
     # resource props
-    l::SVector{Nr,F}
     K::SVector{Nr,F}
     r::SVector{Nr,F}
 
     # complex, matrix params
+    l::SMatrix{Ns,Nr,F}
     c::SMatrix{Ns,Nr,F}
-    D::SMatrix{Nr,Nr,F}
+    D::SArray{Tuple{Ns,Nr,Nr},F}
 end
-get_Ns(_::MiCRMParams{Ns,Nr}) where {Ns,Nr} = (Ns, Nr)
-function micrmfunc!(du, u, p::MiCRMParams{Ns,Nr}, _=0) where {Ns,Nr}
+get_Ns(_::MMiCRMParams{Ns,Nr}) where {Ns,Nr} = (Ns, Nr)
+function mmicrmfunc!(du, u, p::MMiCRMParams{Ns,Nr}, _=0) where {Ns,Nr}
     N = @view u[1:Ns]
     R = @view u[Ns+1:Ns+Nr]
     dN = @view du[1:Ns]
@@ -33,7 +34,7 @@ function micrmfunc!(du, u, p::MiCRMParams{Ns,Nr}, _=0) where {Ns,Nr}
     for i in 1:Ns
         sumterm = 0.0
         for a in 1:Nr
-            sumterm += p.w[a] * (1.0 - p.l[a]) * p.c[i, a] * R[a]
+            sumterm += p.w[a] * (1.0 - p.l[i, a]) * p.c[i, a] * R[a]
         end
         dN[i] = p.g[i] * N[i] * (sumterm - p.m[i])
     end
@@ -46,7 +47,7 @@ function micrmfunc!(du, u, p::MiCRMParams{Ns,Nr}, _=0) where {Ns,Nr}
         sumterm2 = 0.0
         for i in 1:Ns
             for b in 1:Nr
-                sumterm2 += p.D[a, b] * (p.w[b] / p.w[a]) * p.l[b] * N[i] * p.c[i, b] * R[b]
+                sumterm2 += p.D[i, a, b] * (p.w[b] / p.w[a]) * p.l[i, b] * N[i] * p.c[i, b] * R[b]
             end
         end
 
@@ -54,35 +55,35 @@ function micrmfunc!(du, u, p::MiCRMParams{Ns,Nr}, _=0) where {Ns,Nr}
     end
     du
 end
-export MiCRMParams, get_Ns, micrmfunc!
+export MMiCRMParams, get_Ns, mmicrmfunc!
 
-# For testing
-function trivmicrmparams(Ns, Nr;
+#For testing
+function trivmmicrmparams(Ns, Nr;
     m=1.0, l=0.0, K=1.0, r=0.0, c=1.0
 )
-    MiCRMParams(
+    MMiCRMParams(
         (@SVector fill(1.0, Ns)),
         (@SVector fill(1.0, Nr)),
         (@SVector fill(m, Ns)),
-        (@SVector fill(l, Nr)),
         (@SVector fill(K, Nr)),
         (@SVector fill(r, Nr)),
+        (@SMatrix fill(l, Ns, Nr)),
         (@SMatrix fill(c, Ns, Nr)),
-        (@SMatrix fill(1 / Nr, Nr, Nr))
+        (@SArray fill(1 / Nr, Ns, Nr, Nr))
     )
 end
-export trivmicrmparams
-
-################################################################################
-# Smart functions
-################################################################################
+export trivmmicrmparams
+#
+# ################################################################################
+# # Smart functions
+# ################################################################################
 """Smart function for making the params"""
-function make_micrmparams_smart(Ns, Nr;
+function make_mmicrmparams_smart(Ns, Nr;
     g=nothing, w=nothing,
     m=nothing, l=nothing, K=nothing, r=nothing,
     c=:uniform, D=:euniform
 )
-    # Setup the MiCRMParams
+    # Setup the MMiCRMParams
     if isa(c, Number) || isa(c, AbstractArray)
         c = smart_sval(c, 0.0, Ns, Nr)
     else
@@ -98,26 +99,26 @@ function make_micrmparams_smart(Ns, Nr;
     end
 
     if isa(D, Number) || isa(D, AbstractArray)
-        D = smart_sval(D, nothing, Nr, Nr)
+        D = smart_sval(D, nothing, Ns, Nr, Nr)
     else
         Dname, Dargs = split_name_args(D)
 
         if Dname == :uniform
-            D = make_D_uniform(Nr, Dargs...)
+            D = make_D_uniform(Ns, Nr, Dargs...)
         elseif Dname == :euniform
-            D = make_D_euniform(Nr, Dargs...)
+            D = make_D_euniform(Ns, Nr, Dargs...)
         else
             throw(ArgumentError(@sprintf "cannot correctly parse Dname %s" string(Dname)))
         end
     end
 
-    MiCRMParams(
+    MMiCRMParams(
         smart_sval(g, 1.0, Ns),
         smart_sval(w, 1.0, Nr),
         smart_sval(m, 1.0, Ns),
-        smart_sval(l, 0.0, Nr),
         smart_sval(K, 1.0, Nr),
         smart_sval(r, 1.0, Nr),
+        smart_sval(l, 0.0, Ns, Nr),
         c, D
     )
 end
@@ -129,20 +130,22 @@ function make_c_oto(Ns, Nr, val=1.0) # strain i eats resource i if it exists
     end
     SMatrix{Ns,Nr}(mat)
 end
-make_D_uniform(Nr) = @SMatrix fill(1 / Nr, Nr, Nr)
-function make_D_euniform(Nr)
+make_D_uniform(Ns, Nr) = @SArray fill(1 / Nr, Ns, Nr, Nr)
+function make_D_euniform(Ns, Nr)
     if Nr == 1
         @warn "using euniform D with only 1 resource, this violates certain assumptions"
     end
-    mat = fill(1 / (Nr - 1), Nr, Nr)
-    for a in 1:Nr
-        mat[a, a] = 0.0
+    mat = fill(1 / (Nr - 1), Ns, Nr, Nr)
+    for i in 1:Ns
+        for a in 1:Nr
+            mat[i, a, a] = 0.0
+        end
     end
-    SMatrix{Nr,Nr}(mat)
+    SArray{Tuple{Ns,Nr,Nr}}(mat)
 end
 
 """Smart function for making an initial state"""
-function make_micrmu0_smart(params::MiCRMParams{Ns,Nr};
+function make_mmicrmu0_smart(params::MMiCRMParams{Ns,Nr};
     u0=:steadyR, u0rand=nothing
 ) where {Ns,Nr}
     if isa(u0, Number) || isa(u0, AbstractArray)
@@ -169,26 +172,26 @@ function make_micrmu0_smart(params::MiCRMParams{Ns,Nr};
 
     u0
 end
-make_u0_uniE(p::MiCRMParams{Ns,Nr}) where {Ns,Nr} = Vector(vcat(p.g, 1.0 ./ p.w))
-make_u0_steadyR(p::MiCRMParams{Ns,Nr}) where {Ns,Nr} = Vector(vcat(p.g, p.K ./ p.r))
-make_u0_onlyN(p::MiCRMParams{Ns,Nr}) where {Ns,Nr} = vcat(p.g, fill(0.0, Nr))
+make_u0_uniE(p::MMiCRMParams{Ns,Nr}) where {Ns,Nr} = Vector(vcat(p.g, 1.0 ./ p.w))
+make_u0_steadyR(p::MMiCRMParams{Ns,Nr}) where {Ns,Nr} = Vector(vcat(p.g, p.K ./ p.r))
+make_u0_onlyN(p::MMiCRMParams{Ns,Nr}) where {Ns,Nr} = vcat(p.g, fill(0.0, Nr))
 
 """Make the problem directly"""
-function make_micrm_smart(Ns, Nr, T=1.0;
+function make_mmicrm_smart(Ns, Nr, T=1.0;
     u0=:steadyR, u0rand=nothing, kwargs...
 )
-    params = make_micrmparams_smart(Ns, Nr; kwargs...)
-    u0 = make_micrmu0_smart(params; u0, u0rand)
+    params = make_mmicrmparams_smart(Ns, Nr; kwargs...)
+    u0 = make_mmicrmu0_smart(params; u0, u0rand)
 
     # make problem
-    ODEProblem(micrmfunc!, u0, (0.0, T), params)
+    ODEProblem(mmicrmfunc!, u0, (0.0, T), params)
 end
-export make_micrm_smart, make_micrmparams_smart, make_micrmu0_smart
+export make_mmicrm_smart, make_mmicrmparams_smart, make_mmicrmu0_smart
 
-function plot_micrm_sol(sol; singleax=false, plote=false)
+function plot_mmicrm_sol(sol; singleax=false, plote=false)
     params = sol.prob.p
-    if !isa(params, MiCRMParams)
-        throw(ArgumentError("plot_micrm_sol can only plot solutions of MiCRM problems"))
+    if !isa(params, MMiCRMParams)
+        throw(ArgumentError("plot_mmicrm_sol can only plot solutions of MMiCRM problems"))
     end
     Ns, Nr = get_Ns(params)
 
@@ -214,7 +217,8 @@ function plot_micrm_sol(sol; singleax=false, plote=false)
         lines!(resax, sol.t, sol[Ns+a, :]; label=@sprintf "res %d" a)
     end
     if plote
-        lines!(eax, sol.t, calc_E.(sol.u, Ref(params)); label=L"\epsilon")
+        # TODO: uncomment
+        # lines!(eax, sol.t, calc_E.(sol.u, Ref(params)); label=L"\epsilon")
     end
 
     if singleax
@@ -228,12 +232,12 @@ function plot_micrm_sol(sol; singleax=false, plote=false)
     end
     fig
 end
-export plot_micrm_sol
-
+export plot_mmicrm_sol
+#
 function make_solve_plot_return(args...; kwargs...)
-    p = make_micrm_smart(args...; kwargs...)
+    p = make_mmicrm_smart(args...; kwargs...)
     s = solve(p)
-    display(plot_micrm_sol(s))
+    display(plot_mmicrm_sol(s))
     p, s
 end
 export make_solve_plot_return
@@ -241,7 +245,7 @@ export make_solve_plot_return
 ################################################################################
 # Linear stability analysis
 ################################################################################
-function do_linstab_for_ks(ks, p::MiCRMParams{Ns,Nr,F}, Ds, ss; kwargs...) where {Ns,Nr,F}
+function do_linstab_for_ks(ks, p::MMiCRMParams{Ns,Nr,F}, Ds, ss; kwargs...) where {Ns,Nr,F}
     lambda_func = linstab_make_lambda_func(p, Ds, ss; kwargs...)
     lambdas = Matrix{Complex{F}}(undef, length(ks), length(ss))
     for (i, k) in enumerate(ks)
@@ -262,7 +266,7 @@ function do_linstab_for_ks(ks, p::ODEProblem, Ds, ss=nothing; kwargs...)
 end
 export do_linstab_for_ks
 
-function linstab_make_lambda_func(p::MiCRMParams{Ns,Nr}, Ds, ss; kwargs...) where {Ns,Nr}
+function linstab_make_lambda_func(p::MMiCRMParams{Ns,Nr}, Ds, ss; kwargs...) where {Ns,Nr}
     let M1 = make_M1(p, ss)
         function (k)
             eigvals(M1 + Diagonal(-(k^2) .* Ds); kwargs...)
@@ -271,7 +275,7 @@ function linstab_make_lambda_func(p::MiCRMParams{Ns,Nr}, Ds, ss; kwargs...) wher
 end
 export linstab_make_lambda_func
 
-function make_M1!(M1, p::MiCRMParams{Ns,Nr}, ss) where {Ns,Nr}
+function make_M1!(M1, p::MMiCRMParams{Ns,Nr}, ss) where {Ns,Nr}
     Nss = @view ss[1:Ns]
     Rss = @view ss[Ns+1:Ns+Nr]
 
@@ -282,18 +286,18 @@ function make_M1!(M1, p::MiCRMParams{Ns,Nr}, ss) where {Ns,Nr}
         end
         # add things to the diagonal - this is T
         for a in 1:Nr
-            M1[i, i] += p.g[i] * (1 - p.l[a]) * p.w[a] * p.c[i, a] * Rss[a]
+            M1[i, i] += p.g[i] * (1 - p.l[i, a]) * p.w[a] * p.c[i, a] * Rss[a]
         end
         M1[i, i] -= p.g[i] * p.m[i]
     end
     for i in 1:Ns
         for a in 1:Nr
             # this is U
-            M1[i, Ns+a] = p.g[i] * (1 - p.l[a]) * p.w[a] * p.c[i, a] * Nss[i]
+            M1[i, Ns+a] = p.g[i] * (1 - p.l[i, a]) * p.w[a] * p.c[i, a] * Nss[i]
             # this is V
             M1[Ns+a, i] = 0.0
             for b in 1:Nr
-                M1[Ns+a, i] += p.D[a, b] * p.l[b] * (p.w[b] / p.w[a]) * p.c[i, b] * Rss[b]
+                M1[Ns+a, i] += p.D[i, a, b] * p.l[i, b] * (p.w[b] / p.w[a]) * p.c[i, b] * Rss[b]
             end
             M1[Ns+a, i] -= p.c[i, a] * Rss[a]
         end
@@ -304,7 +308,7 @@ function make_M1!(M1, p::MiCRMParams{Ns,Nr}, ss) where {Ns,Nr}
             M1[Ns+a, Ns+b] = 0.0
             # this does the complex part of W
             for i in 1:Ns
-                M1[Ns+a, Ns+b] += p.D[a, b] * p.l[b] * (p.w[b] / p.w[a]) * p.c[i, b] * Nss[i]
+                M1[Ns+a, Ns+b] += p.D[i, a, b] * p.l[i, b] * (p.w[b] / p.w[a]) * p.c[i, b] * Nss[i]
             end
         end
         # and add the diagonal bit of W
@@ -314,41 +318,11 @@ function make_M1!(M1, p::MiCRMParams{Ns,Nr}, ss) where {Ns,Nr}
         M1[Ns+a, Ns+a] -= p.r[a]
     end
 end
-function make_M1(p::MiCRMParams{Ns,Nr,F}, args...) where {Ns,Nr,F}
+function make_M1(p::MMiCRMParams{Ns,Nr,F}, args...) where {Ns,Nr,F}
     M1 = Matrix{F}(undef, Ns + Nr, Ns + Nr)
     make_M1!(M1, p, args...)
     M1
 end
 export make_M1!, make_M1
-
-################################################################################
-# Old demo
-################################################################################
-function supersimple()
-    # these are kinda legit 1.
-    g1 = 1.0
-    w1 = 1.0
-
-    m1 = 1.0
-
-    l1 = 0.0
-    K1 = 1.0
-    r1 = 0.0
-
-    c11 = 1.0
-
-    D11 = 1.0
-
-    function diffeq!(du, u, p, t)
-        N1, R1 = u
-
-        du[1] = g1 * N1 * (w1 * (1.0 - l1) * c11 * R1 - m1)
-        du[2] = K1 - r1 * R1 - N1 * c11 * R1 + D11 * (w1 / w1) * l1 * N1 * c11 * R1
-    end
-
-    u0 = [1.0, 0.0]
-
-    prob = ODEProblem(diffeq!, u0, (0.0, 10.0))
-end
 
 end
