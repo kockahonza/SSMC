@@ -57,7 +57,6 @@ function run_scan(;
     )
     metadata!(df, "ks", ks)
 
-
     i_chunks = chunks(1:length(paramcis); n=nthreads())
     local_dfs = [copy(df) for _ in 1:length(i_chunks)]
 
