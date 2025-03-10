@@ -33,7 +33,7 @@ function run_scan(;
     Dr2=[1.0],
     Dr3=[1.0],
     Dr4=[1.0],
-    ks=LinRange(0.0, 5.0, 1000),
+    ks=LinRange(0.0, 5.0, 100),
     unstable_threshold=0.0,
     disable_warnings=true
 )
