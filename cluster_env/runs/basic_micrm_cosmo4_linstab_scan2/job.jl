@@ -173,8 +173,8 @@ function run_test()
         K2=[1.0],
         r1=[1.0],
         r2=[1.0],
-        # r3=LinRange(0.0, 1.0, 2),
-        # r4=LinRange(0.0, 1.0, 2),
+        r3=LinRange(0.0, 1.0, 2),
+        r4=LinRange(0.0, 1.0, 2),
         l1=[1.0],
         l2=[1.0],
         # uptake rates
