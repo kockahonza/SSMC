@@ -6,6 +6,9 @@ using Printf
 using DifferentialEquations
 using Symbolics, SymbolicsMathLink
 
+using Reexport
+@reexport import Symbolics, SymbolicsMathLink
+
 function symbolic_solve_ode_ml(p::ODEProblem; raw=true)
     n = length(p.u0)
     su = [Symbolics.variable(Symbol(@sprintf "u%d" i)) for i in 1:n]

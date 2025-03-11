@@ -267,25 +267,38 @@ end
 export do_linstab_for_ks
 
 function linstab_make_lambda_func(p::MMiCRMParams{Ns,Nr}, ss, Ds=nothing; kwargs...) where {Ns,Nr}
+    sortby = l -> (-real(l), imag(l))
     if !isnothing(Ds)
         let M1 = make_M1(p, ss)
             function (k)
-                eigvals(M1 + Diagonal(-(k^2) .* Ds); kwargs...)
+                eigvals(M1 + Diagonal(-(k^2) .* Ds); sortby, kwargs...)
             end
         end
     else
         let M1 = make_M1(p, ss)
             function (k, Ds)
-                eigvals(M1 + Diagonal(-(k^2) .* Ds); kwargs...)
+                eigvals(M1 + Diagonal(-(k^2) .* Ds); sortby, kwargs...)
             end
         end
     end
 end
-export linstab_make_lambda_func
-
-function linstab_benchmark(p::MMiCRMParams, ss; kwargs...)
+function linstab_make_full_func(p::MMiCRMParams{Ns,Nr}, ss, Ds=nothing; kwargs...) where {Ns,Nr}
+    sortby = l -> (-real(l), imag(l))
+    if !isnothing(Ds)
+        let M1 = make_M1(p, ss)
+            function (k)
+                eigen(M1 + Diagonal(-(k^2) .* Ds); sortby, kwargs...)
+            end
+        end
+    else
+        let M1 = make_M1(p, ss)
+            function (k, Ds)
+                eigen(M1 + Diagonal(-(k^2) .* Ds); sortby, kwargs...)
+            end
+        end
+    end
 end
-export linstab_benchmark
+export linstab_make_lambda_func, linstab_make_full_func
 
 function make_M1!(M1, p::MMiCRMParams{Ns,Nr}, ss) where {Ns,Nr}
     Nss = @view ss[1:Ns]

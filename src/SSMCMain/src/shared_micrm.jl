@@ -52,9 +52,9 @@ function plot_linstab_lambdas(ks, lambdas; imthreshold=1e-8)
             label=latexstring(@sprintf "\\Re(\\lambda_%d)" li)
         )
         ims = imag(lambdas[:, li])
-        mims = maximum(ims)
+        mims = maximum(abs, ims)
         if mims > imthreshold
-            @info @sprintf "we are getting non-zero imaginary parts, max is %f" mims
+            @info @sprintf "we are getting non-zero imaginary parts, max(abs(.)) is %f" mims
             lines!(ax, ks, ims;
                 color=Cycled(li),
                 linestyle=:dash,
