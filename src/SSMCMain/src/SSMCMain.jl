@@ -23,9 +23,14 @@ export projectdir, scriptsdir, datadir
 # Other modules/files
 ################################################################################
 include("util.jl")
+
+# No space (/well mixed), ODEs only
 include("BasicMiCRM.jl")
 include("ModifiedMiCRM.jl")
 import .BasicMiCRM, .ModifiedMiCRM
 include("shared_micrm.jl")
+
+# Space stuff
+include("SpaceMMiCRM.jl")
 
 end # module SSMCMain
