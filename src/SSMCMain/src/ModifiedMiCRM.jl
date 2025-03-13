@@ -73,10 +73,10 @@ function trivmmicrmparams(Ns, Nr;
     )
 end
 export trivmmicrmparams
-#
-# ################################################################################
-# # Smart functions
-# ################################################################################
+
+################################################################################
+# Smart functions
+################################################################################
 """Smart function for making the params"""
 function make_mmicrmparams_smart(Ns, Nr;
     g=nothing, w=nothing,
@@ -217,8 +217,7 @@ function plot_mmicrm_sol(sol; singleax=false, plote=false)
         lines!(resax, sol.t, sol[Ns+a, :]; label=@sprintf "res %d" a)
     end
     if plote
-        # TODO: uncomment
-        # lines!(eax, sol.t, calc_E.(sol.u, Ref(params)); label=L"\epsilon")
+        lines!(eax, sol.t, calc_E.(sol.u, Ref(params)); label=L"\epsilon")
     end
 
     if singleax
@@ -233,7 +232,7 @@ function plot_mmicrm_sol(sol; singleax=false, plote=false)
     fig
 end
 export plot_mmicrm_sol
-#
+
 function make_solve_plot_return(args...; kwargs...)
     p = make_mmicrm_smart(args...; kwargs...)
     s = solve(p)

@@ -2,7 +2,7 @@
 
 julia_version = "1.10.8"
 manifest_format = "2.0"
-project_hash = "ae61fa8e3e318bc79d6f50ef0c96d6f945c4efaf"
+project_hash = "191ac2797010dc2c005b18deef67eb14c4053aa3"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -2631,7 +2631,7 @@ uuid = "94e857df-77ce-4151-89e5-788b33177be4"
 version = "0.1.0"
 
 [[deps.SSMCMain]]
-deps = ["DifferentialEquations", "LaTeXStrings", "LinearAlgebra", "Logging", "Makie", "NonlinearSolve", "Optimization", "PrettyTables", "Printf", "REPL", "Reexport", "StaticArrays"]
+deps = ["DifferentialEquations", "LaTeXStrings", "LinearAlgebra", "Logging", "Makie", "NonlinearSolve", "Optimization", "PrettyTables", "Printf", "REPL", "Reexport", "StaticArrays", "StatsBase"]
 path = "src/SSMCMain"
 uuid = "a75ad852-21c5-4a12-a12f-b1392bb0ea4b"
 version = "0.1.0"
