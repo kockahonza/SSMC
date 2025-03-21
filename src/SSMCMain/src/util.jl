@@ -10,20 +10,36 @@ function uninplace(f)
 end
 export uninplace
 
-function smart_val(passed_val, default, shape...)
+function smart_val(passed_val, default, target_size...)
     val = isnothing(passed_val) ? default : passed_val
     if isnothing(val)
         throw(ArgumentError("encountered a nothing argument which does not have a default"))
     end
     if !isa(val, AbstractArray)
-        val = fill(val, shape)
+        val = fill(val, target_size)
+    end
+    if size(val) != target_size
+        throw(ArgumentError("could not correctly size passed argument"))
     end
     val
 end
-smart_sval(pv, d, shape...) = SArray{Tuple{shape...}}(smart_val(pv, d, shape...))
+smart_sval(pv, d, target_size...) = SArray{Tuple{target_size...}}(smart_val(pv, d, target_size...))
 split_name_args(x) = x, ()
 split_name_args(t::Tuple) = t[1], t[2:end]
 export smart_val, smart_sval, split_name_args
+
+function splitkwargs(kwargs, args...)
+    out = []
+    unused_keys = keys(kwargs)
+    for kwarg in args
+        some_keys = intersect(keys(kwargs), kwarg)
+        unused_keys = filter(k -> !(k in some_keys), unused_keys)
+        push!(out, (; [(key, kwargs[key]) for key in some_keys]...))
+    end
+    push!(out, (; [(key, kwargs[key]) for key in unused_keys]...))
+    out
+end
+export splitkwargs
 
 function prep_paramscan(; param_ranges...)
     ranges_only = []
@@ -79,3 +95,30 @@ end
 show(io::IO, faa::FigureAxisAnything) = show(io, faa.figure)
 show(io::IO, mime, faa::FigureAxisAnything) = show(io, mime, faa.figure)
 export FigureAxisAnything
+
+################################################################################
+# Plotting
+################################################################################
+function plot_linstab_lambdas(ks, lambdas; imthreshold=1e-8)
+    fig = Figure()
+    ax = Axis(fig[1, 1])
+    for li in axes(lambdas, 2)
+        lines!(ax, ks, real(lambdas[:, li]);
+            color=Cycled(li),
+            label=latexstring(@sprintf "\\Re(\\lambda_%d)" li)
+        )
+        ims = imag(lambdas[:, li])
+        mims = maximum(abs, ims)
+        if mims > imthreshold
+            @info @sprintf "we are getting non-zero imaginary parts, max(abs(.)) is %f" mims
+            lines!(ax, ks, ims;
+                color=Cycled(li),
+                linestyle=:dash,
+                label=latexstring(@sprintf "\\Im(\\lambda_%d)" li)
+            )
+        end
+    end
+    axislegend(ax)
+    FigureAxisAnything(fig, ax, lambdas)
+end
+export plot_linstab_lambdas

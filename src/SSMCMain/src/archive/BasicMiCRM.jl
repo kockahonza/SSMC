@@ -185,51 +185,6 @@ function make_micrm_smart(Ns, Nr, T=1.0;
 end
 export make_micrm_smart, make_micrmparams_smart, make_micrmu0_smart
 
-function plot_micrm_sol(sol; singleax=false, plote=false)
-    params = sol.prob.p
-    if !isa(params, MiCRMParams)
-        throw(ArgumentError("plot_micrm_sol can only plot solutions of MiCRM problems"))
-    end
-    Ns, Nr = get_Ns(params)
-
-    fig = Figure()
-    if singleax
-        strainax = resax = Axis(fig[1, 1])
-        if plote
-            eax = strainax
-        end
-    else
-        strainax = Axis(fig[1, 1])
-        resax = Axis(fig[2, 1])
-        if plote
-            eax = Axis(fig[3, 1])
-        end
-    end
-
-    # plot data
-    for i in 1:Ns
-        lines!(strainax, sol.t, sol[i, :]; label=@sprintf "str %d" i)
-    end
-    for a in 1:Nr
-        lines!(resax, sol.t, sol[Ns+a, :]; label=@sprintf "res %d" a)
-    end
-    if plote
-        lines!(eax, sol.t, calc_E.(sol.u, Ref(params)); label=L"\epsilon")
-    end
-
-    if singleax
-        axislegend(strainax)
-    else
-        axislegend(strainax)
-        axislegend(resax)
-        if plote
-            axislegend(eax)
-        end
-    end
-    fig
-end
-export plot_micrm_sol
-
 function make_solve_plot_return(args...; kwargs...)
     p = make_micrm_smart(args...; kwargs...)
     s = solve(p)
@@ -320,6 +275,48 @@ function make_M1(p::MiCRMParams{Ns,Nr,F}, args...) where {Ns,Nr,F}
     M1
 end
 export make_M1!, make_M1
+
+################################################################################
+# Physicsy bits
+################################################################################
+"""Calculates the total energy density in the system"""
+function calc_E(u,
+    p::MiCRMParams{Ns,Nr}
+) where {Ns,Nr}
+    N = @view u[1:Ns]
+    R = @view u[Ns+1:Ns+Nr]
+
+    E = 0.0
+    for i in 1:Ns
+        E += N[i] / p.g[i]
+    end
+    for a in 1:Nr
+        E += p.w[a] * R[a]
+    end
+    E
+end
+export calc_E
+
+"""Print physicsy info about a system"""
+function param_summary(
+    p::MiCRMParams{Ns,Nr}
+) where {Ns,Nr}
+    for a in 1:Nr
+        println(@sprintf "Resource %d iseq is %f" a p.K[a] / p.r[a])
+    end
+
+    tab = Matrix{String}(undef, Ns, Nr + 2)
+    for i in 1:Ns
+        tab[i, 1] = @sprintf "%d" i
+        for a in 1:Nr
+            tab[i, 1+a] = @sprintf "%f" ((p.K[a] / p.r[a]) * p.w[a] * (1 - p.l[a]) * p.c[i, a])
+        end
+        tab[i, end] = @sprintf "%f" p.m[i]
+    end
+    pretty_table(tab; header=vcat("Strain i", [@sprintf "ss prod by %d" a for a in 1:Nr], "Upkeep"))
+end
+param_summary(p::ODEProblem) = param_summary(p.p)
+export param_summary
 
 ################################################################################
 # Old demo
