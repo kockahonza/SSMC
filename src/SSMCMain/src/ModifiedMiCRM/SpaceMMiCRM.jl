@@ -7,6 +7,9 @@ import ..SSMCMain.ModifiedMiCRM: get_Ns
 
 using StatsBase
 
+using Base.Threads
+using ChunkSplitters
+
 import Base: ndims
 
 ################################################################################
@@ -21,7 +24,7 @@ end
 Adds the diffusive part of du for each field, the field index is taken to be
 the first index, the others designating space.
 """
-function add_diffusion!(du, u, diffusion_constants, s::AbstractSpace)
+function add_diffusion!(du, u, diffusion_constants, s::AbstractSpace, usenthreads=nothing)
     throw(ErrorException(@sprintf "no function add_diffusion! defined for space type %s" string(typeof(s))))
 end
 export add_diffusion!
@@ -33,18 +36,21 @@ export SingleAxisBC, Periodic, Closed
 
 # The main Spatial Modified MiCRM params (which contains and AbstractSpace) and logic
 """Spatial Modified MiCRM model params"""
-struct SMMiCRMParams{Ns,Nr,S<:AbstractSpace,F,N}
-    mmicrm_params::MMiCRMParams{Ns,Nr,F}
+struct SMMiCRMParams{Ns,Nr,S<:AbstractSpace,F,N,P<:Union{Nothing,Int},A,B}
+    mmicrm_params::MMiCRMParams{Ns,Nr,F,A,B}
     diffusion_constants::SVector{N,F}
     space::S
 
+    usenthreads::P
+
     function SMMiCRMParams(
-        mmicrm_params::MMiCRMParams{Ns,Nr,F},
+        mmicrm_params::MMiCRMParams{Ns,Nr,F,A,B},
         diff::SVector{N,F},
-        space::S
-    ) where {Ns,Nr,S,F,N}
+        space::S,
+        usenthreads=nothing
+    ) where {Ns,Nr,S,F,N,A,B}
         if N == (Ns + Nr)
-            new{Ns,Nr,S,F,N}(mmicrm_params, diff, space)
+            new{Ns,Nr,S,F,N,typeof(usenthreads),A,B}(mmicrm_params, diff, space, usenthreads)
         else
             throw(ArgumentError("passed mmicrm_params and diff are not compatible"))
         end
@@ -55,16 +61,27 @@ ndims(sp::SMMiCRMParams) = ndims(sp.space)
 export SMMiCRMParams
 
 function smmicrmfunc!(du, u, p::SMMiCRMParams, t=0)
-    for r in CartesianIndices(axes(u)[2:end])
-        mmicrmfunc!((@view du[:, r]), (@view u[:, r]), p.mmicrm_params, t)
+    if isnothing(p.usenthreads)
+        @inbounds for r in CartesianIndices(axes(u)[2:end])
+            mmicrmfunc!((@view du[:, r]), (@view u[:, r]), p.mmicrm_params, t)
+        end
+    else
+        rchunks = chunks(CartesianIndices(axes(u)[2:end]), p.usenthreads)
+        @sync for (rs, _) in rchunks
+            @spawn begin
+                @inbounds for r in rs
+                    mmicrmfunc!((@view du[:, r]), (@view u[:, r]), p.mmicrm_params, t)
+                end
+            end
+        end
     end
-    add_diffusion!(du, u, p.diffusion_constants, p.space)
+    add_diffusion!(du, u, p.diffusion_constants, p.space, p.usenthreads)
     du
 end
 export smmicrmfunc!
 
 # Makes an ODEProblem checking u0 and SMMiCRMParams are compatible
-function make_smmicrm_problem_safe(u0, T, smmicrm_params)
+function make_smmicrm_problem_safe(u0, T, smmicrm_params; use_sa=true)
     u0ndims = ndims(u0) - 1
     spacendims = ndims(smmicrm_params.space)
     if u0ndims != spacendims
@@ -73,53 +90,21 @@ function make_smmicrm_problem_safe(u0, T, smmicrm_params)
     u0Nsr = size(u0)[1]
     ModifiedMiCRM.get_Ns(smmicrm_params.mmicrm_params)
 
+    if use_sa
+        u0 = SizedArray{Tuple{size(u0)...}}(u0)
+    end
+
     ODEProblem(smmicrmfunc!, u0, (0.0, T), smmicrm_params)
 end
-function make_smmicrm_problem_safe(u0, T, mmicrm_params, diffusions_constants, space)
-    make_smmicrm_problem_safe(u0, T, SMMiCRMParams(mmicrm_params, diffusions_constants, space))
+function make_smmicrm_problem_safe(u0, T, args...; kwargs...)
+    make_smmicrm_problem_safe(u0, T, SMMiCRMParams(args...); kwargs...)
 end
 export make_smmicrm_problem_safe
 
 ################################################################################
 # Different AbstractSpace implementations
 ################################################################################
-struct CartesianSpace{D,BCs,F} <: AbstractSpace
-    dx::SVector{D,F}
-    function CartesianSpace(dx, bcs)
-        for bc in bcs
-            if !isa(bc, SingleAxisBC)
-                throw(ArgumentError(@sprintf "invalid boundary condition passed got a bc value %s which is not a subtype of SingleAxisBC" string(bc)))
-            end
-        end
-        if length(dx) != length(bcs)
-            throw(ArgumentError(@sprintf "the number of dimensions inferred via dx and the number of bcs do not match, they are %d and %d" length(dx) length(bcs)))
-        end
-        new{length(dx),typeof(Tuple(bcs)),eltype(dx)}(dx)
-    end
-end
-ndims(_::CartesianSpace{D}) where {D} = D
-export CartesianSpace
-
-function make_cartesianspace_smart(D; dx=nothing, bcs=nothing)
-    dx = smart_sval(dx, nothing, D)
-    bcs = smart_sval(bcs, Periodic(), D)
-    CartesianSpace(dx, bcs)
-end
-export make_cartesianspace_smart
-
-# implement the actual diffusion
-function add_diffusion!(
-    du::AbstractArray{F1,2}, u::AbstractArray{F2,2},
-    diffusion_constants,
-    cs1::CartesianSpace{1,Tuple{Periodic}}
-) where {F1,F2}
-    ssize = size(u)[2]
-    for i in 1:ssize
-        du[:, i] .+= diffusion_constants .*
-                     (u[:, mod1(i + 1, ssize)] .- 2 .* u[:, i] .+ u[:, mod1(i - 1, ssize)]) ./
-                     (cs1.dx[1]^2)
-    end
-end
+include("smmicrm_spaces.jl")
 
 ################################################################################
 # Going from MMiCRM to SMMiCRM
@@ -129,6 +114,7 @@ function add_space_to_mmicrmparams(mmicrm_params::MMiCRMParams, D;
     diff_r=nothing,
     dx=nothing,
     bcs=Periodic(),
+    usenthreads=nothing
 )
     Ns, Nr = get_Ns(mmicrm_params)
     diff_s = smart_val(diff_s, 0.0, Ns)
@@ -137,7 +123,7 @@ function add_space_to_mmicrmparams(mmicrm_params::MMiCRMParams, D;
 
     space = make_cartesianspace_smart(D; dx, bcs)
 
-    SMMiCRMParams(mmicrm_params, diffs, space)
+    SMMiCRMParams(mmicrm_params, diffs, space, usenthreads)
 end
 export add_space_to_mmicrmparams
 
@@ -162,6 +148,9 @@ function add_space_to_mmicrm(p::ODEProblem, u0, diffusion_constants, T, size, dx
 end
 export add_space_to_mmicrm
 
+################################################################################
+# Problem remaking/changing params
+################################################################################
 function perturb_u0_uniform(Ns, Nr, u0, e_s=nothing, e_r=nothing)
     N = Ns + Nr
 
@@ -191,6 +180,16 @@ function perturb_smmicrm_u0(p::ODEProblem, ptype, args...)
     remake(p; u0=pu0)
 end
 export perturb_smmicrm_u0
+
+function change_usenthreads(p::ODEProblem, usenthreads)
+    if !isa(p.p, SMMiCRMParams)
+        throw(ArgumentError("passed problem is not a Spatial Modified CRM problem"))
+    end
+    newp = SMMiCRMParams(p.p.mmicrm_params, p.p.diffusion_constants, p.p.space, usenthreads)
+
+    remake(p; p=newp)
+end
+export change_usenthreads
 
 ################################################################################
 # Smart functions
@@ -272,14 +271,13 @@ export make_smmicrmparams_smart, make_smmicrmu0_smart, make_smmicrm_smart
 # end
 # export plot_smmicrm_sol_avgs
 
-function plot_1dsmmicrm_sol_snap(sol, t; singleax=false, plote=false)
-    params = sol.prob.p
+function plot_1dsmmicrm_sol_snap(params, snap_u; singleax=false, plote=false)
     if !isa(params, SMMiCRMParams) || (ndims(params) != 1)
         throw(ArgumentError("plot_smmicrm_sol_snap can only plot 1D solutions of SMMiCRM problems"))
     end
     Ns, Nr = get_Ns(params.mmicrm_params)
 
-    len = size(sol.u[1])[2]
+    len = size(snap_u)[2]
     xs = params.space.dx[1] .* (0:(len-1))
 
     fig = Figure()
@@ -298,10 +296,10 @@ function plot_1dsmmicrm_sol_snap(sol, t; singleax=false, plote=false)
 
     # plot data
     for i in 1:Ns
-        lines!(strainax, xs, sol(t)[i, :]; label=@sprintf "str %d" i)
+        lines!(strainax, xs, snap_u[i, :]; label=@sprintf "str %d" i)
     end
     for a in 1:Nr
-        lines!(resax, xs, sol(t)[Ns+a, :]; label=@sprintf "res %d" a)
+        lines!(resax, xs, snap_u[Ns+a, :]; label=@sprintf "res %d" a)
     end
     # if plote
     #     lines!(eax, xs, calc_E.(sol.u, Ref(params)); label=L"\epsilon")

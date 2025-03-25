@@ -7,7 +7,7 @@ using Reexport
 ################################################################################
 # Internals
 ################################################################################
-struct MMiCRMParams{Ns,Nr,F} # number of strains and resource types
+struct MMiCRMParams{Ns,Nr,F,A,B} # number of strains and resource types
     # these are usually all 1 from dimensional reduction
     g::SVector{Ns,F}
     w::SVector{Nr,F}
@@ -20,10 +20,11 @@ struct MMiCRMParams{Ns,Nr,F} # number of strains and resource types
     r::SVector{Nr,F}
 
     # complex, matrix params
-    l::SMatrix{Ns,Nr,F}
-    c::SMatrix{Ns,Nr,F}
-    D::SArray{Tuple{Ns,Nr,Nr},F} # D[1,a,b] corresponds to b -> a
+    l::SMatrix{Ns,Nr,F,A}
+    c::SMatrix{Ns,Nr,F,A}
+    D::SArray{Tuple{Ns,Nr,Nr},F,3,B} # D[1,a,b] corresponds to b -> a
 end
+export MMiCRMParams2
 get_Ns(_::MMiCRMParams{Ns,Nr}) where {Ns,Nr} = (Ns, Nr)
 function mmicrmfunc!(du, u, p::MMiCRMParams{Ns,Nr}, _=0) where {Ns,Nr}
     N = @view u[1:Ns]
@@ -31,7 +32,7 @@ function mmicrmfunc!(du, u, p::MMiCRMParams{Ns,Nr}, _=0) where {Ns,Nr}
     dN = @view du[1:Ns]
     dR = @view du[Ns+1:Ns+Nr]
 
-    for i in 1:Ns
+    @inbounds for i in 1:Ns
         sumterm = 0.0
         for a in 1:Nr
             sumterm += p.w[a] * (1.0 - p.l[i, a]) * p.c[i, a] * R[a]
@@ -39,7 +40,7 @@ function mmicrmfunc!(du, u, p::MMiCRMParams{Ns,Nr}, _=0) where {Ns,Nr}
         dN[i] = p.g[i] * N[i] * (sumterm - p.m[i])
     end
 
-    for a in 1:Nr
+    @inbounds for a in 1:Nr
         sumterm1 = 0.0
         for i in 1:Ns
             sumterm1 += N[i] * p.c[i, a] * R[a]
@@ -55,7 +56,7 @@ function mmicrmfunc!(du, u, p::MMiCRMParams{Ns,Nr}, _=0) where {Ns,Nr}
     end
     du
 end
-export MMiCRMParams, get_Ns, mmicrmfunc!
+export MMiCRMParams, get_Ns, mmicrmfunc!, mmicrmfunc2!
 
 #For testing
 function trivmmicrmparams(Ns, Nr;

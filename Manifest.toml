@@ -2,7 +2,7 @@
 
 julia_version = "1.10.8"
 manifest_format = "2.0"
-project_hash = "191ac2797010dc2c005b18deef67eb14c4053aa3"
+project_hash = "c565e368377e13668aef2c39ae93f2368cfdaa8e"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -1413,6 +1413,18 @@ git-tree-sha1 = "78211fb6cbc872f77cad3fc0b6cf647d923f4929"
 uuid = "1d63c593-3942-5779-bab2-d838dc0a180e"
 version = "18.1.7+0"
 
+[[deps.LSODA]]
+deps = ["Compat", "DiffEqBase", "LSODA_jll", "LinearAlgebra", "Parameters", "Printf", "SciMLBase"]
+git-tree-sha1 = "49c00ced68a8033b30fb1009b8dea7871aa9e928"
+uuid = "7f56f5a3-f504-529b-bc02-0b1fe5e64312"
+version = "0.7.5"
+
+[[deps.LSODA_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "3c5277e990a9026f31a35ca6c4acddc8a706a38c"
+uuid = "aae0fff6-70f8-51e1-979a-8150c7cc74bd"
+version = "0.1.2+0"
+
 [[deps.LZO_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "1c602b1127f4751facb671441ca72715cc95938a"
@@ -2631,7 +2643,7 @@ uuid = "94e857df-77ce-4151-89e5-788b33177be4"
 version = "0.1.0"
 
 [[deps.SSMCMain]]
-deps = ["DifferentialEquations", "LaTeXStrings", "LinearAlgebra", "Logging", "Makie", "NonlinearSolve", "Optimization", "PrettyTables", "Printf", "REPL", "Reexport", "StaticArrays", "StatsBase"]
+deps = ["ChunkSplitters", "DifferentialEquations", "LaTeXStrings", "LinearAlgebra", "Logging", "Makie", "NonlinearSolve", "Optimization", "PrettyTables", "Printf", "REPL", "Reexport", "StaticArrays", "StatsBase"]
 path = "src/SSMCMain"
 uuid = "a75ad852-21c5-4a12-a12f-b1392bb0ea4b"
 version = "0.1.0"
