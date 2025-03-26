@@ -7,6 +7,8 @@ import ..SSMCMain.ModifiedMiCRM: get_Ns
 
 using StatsBase
 
+using ADTypes, SparseConnectivityTracer
+
 using Base.Threads
 using ChunkSplitters
 
@@ -66,8 +68,8 @@ function smmicrmfunc!(du, u, p::SMMiCRMParams, t=0)
             mmicrmfunc!((@view du[:, r]), (@view u[:, r]), p.mmicrm_params, t)
         end
     else
-        rchunks = chunks(CartesianIndices(axes(u)[2:end]), p.usenthreads)
-        @sync for (rs, _) in rchunks
+        rchunks = chunks(CartesianIndices(axes(u)[2:end]); n=p.usenthreads)
+        @sync for rs in rchunks
             @spawn begin
                 @inbounds for r in rs
                     mmicrmfunc!((@view du[:, r]), (@view u[:, r]), p.mmicrm_params, t)
@@ -76,25 +78,34 @@ function smmicrmfunc!(du, u, p::SMMiCRMParams, t=0)
         end
     end
     add_diffusion!(du, u, p.diffusion_constants, p.space, p.usenthreads)
-    du
+    nothing
 end
 export smmicrmfunc!
 
 # Makes an ODEProblem checking u0 and SMMiCRMParams are compatible
-function make_smmicrm_problem_safe(u0, T, smmicrm_params; use_sa=true)
+function make_smmicrm_problem_safe(u0, T, smmicrm_params; sparse_jac=true)
     u0ndims = ndims(u0) - 1
     spacendims = ndims(smmicrm_params.space)
     if u0ndims != spacendims
         throw(ArgumentError(@sprintf "the passed u0 and space do not have the same number of dimensions, u0ndims is %d and ndims(space) is %d" u0ndims spacendims))
     end
-    u0Nsr = size(u0)[1]
-    ModifiedMiCRM.get_Ns(smmicrm_params.mmicrm_params)
-
-    if use_sa
-        u0 = SizedArray{Tuple{size(u0)...}}(u0)
+    if any(s->s<4, size(u0)[2:end])
+        throw(ArgumentError("getting u0 that has too few points for the optimized code to work"))
     end
 
-    ODEProblem(smmicrmfunc!, u0, (0.0, T), smmicrm_params)
+    func = if sparse_jac
+        jac_prot = ADTypes.jacobian_sparsity(
+            (du, u) -> smmicrmfunc!(du, u, smmicrm_params),
+            similar(u0),
+            u0,
+            TracerSparsityDetector()
+        )
+        ODEFunction(smmicrmfunc!; jac_prototype=float.(jac_prot))
+    else
+        smmicrmfunc!
+    end
+
+    ODEProblem(func, u0, (0.0, T), smmicrm_params)
 end
 function make_smmicrm_problem_safe(u0, T, args...; kwargs...)
     make_smmicrm_problem_safe(u0, T, SMMiCRMParams(args...); kwargs...)

@@ -21,8 +21,8 @@ end
 function kaka3(n=100, k=nthreads())
     ret = fill(-1, n)
 
-    ichunks = chunks(1:n, k)
-    @sync for (is, _) in ichunks
+    ichunks = chunks(1:n; n=k)
+    @sync for is in ichunks
         @spawn begin
             for i in is
                 sleep(0.1 / n)

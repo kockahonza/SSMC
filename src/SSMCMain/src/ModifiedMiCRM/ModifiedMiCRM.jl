@@ -56,7 +56,7 @@ function mmicrmfunc!(du, u, p::MMiCRMParams{Ns,Nr}, _=0) where {Ns,Nr}
     end
     du
 end
-export MMiCRMParams, get_Ns, mmicrmfunc!, mmicrmfunc2!
+export MMiCRMParams, get_Ns, mmicrmfunc!
 
 #For testing
 function trivmmicrmparams(Ns, Nr;

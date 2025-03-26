@@ -6,11 +6,10 @@ using Reexport
 @reexport using DifferentialEquations, NonlinearSolve, Optimization
 @reexport using LinearAlgebra
 @reexport using Makie, LaTeXStrings
+@reexport using PrettyTables
 
 using REPL.TerminalMenus
 using Logging
-
-using PrettyTables
 
 import Base: show
 

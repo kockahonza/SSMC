@@ -4,6 +4,7 @@ authors = ["Jan Kocka <kockahonza@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 ChunkSplitters = "ae650224-84b6-46f8-82ea-d812ca08434e"
 Cthulhu = "f68482b8-f384-11e8-15f7-abe071a5a75f"
@@ -32,6 +33,7 @@ Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 Roots = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
 SSMCMain = "a75ad852-21c5-4a12-a12f-b1392bb0ea4b"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
+SparseConnectivityTracer = "9f842d2f-2579-4b1d-911e-f412cf18a3f5"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 TerminalLoggers = "5d786b92-1e48-4d6f-9151-6b4477ca9bed"
