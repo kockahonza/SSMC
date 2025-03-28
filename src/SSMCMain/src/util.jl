@@ -19,7 +19,7 @@ function smart_val(passed_val, default, target_size...)
         val = fill(val, target_size)
     end
     if size(val) != target_size
-        throw(ArgumentError("could not correctly size passed argument"))
+        throw(ArgumentError(@sprintf "could not correctly size passed argument, got %s and want %s" string(size(val)) string(target_size)))
     end
     val
 end

@@ -24,7 +24,6 @@ struct MMiCRMParams{Ns,Nr,F,A,B} # number of strains and resource types
     c::SMatrix{Ns,Nr,F,A}
     D::SArray{Tuple{Ns,Nr,Nr},F,3,B} # D[1,a,b] corresponds to b -> a
 end
-export MMiCRMParams2
 get_Ns(_::MMiCRMParams{Ns,Nr}) where {Ns,Nr} = (Ns, Nr)
 function mmicrmfunc!(du, u, p::MMiCRMParams{Ns,Nr}, _=0) where {Ns,Nr}
     N = @view u[1:Ns]
@@ -57,6 +56,25 @@ function mmicrmfunc!(du, u, p::MMiCRMParams{Ns,Nr}, _=0) where {Ns,Nr}
     du
 end
 export MMiCRMParams, get_Ns, mmicrmfunc!
+
+function check_mmicrmparams(p::MMiCRMParams{Ns,Nr}) where {Ns,Nr}
+    # check D
+    for i in 1:Ns
+        for a in 1:Nr
+            total_out = 0.0
+            for b in 1:Nr
+                total_out += p.D[i, b, a]
+            end
+            if total_out > 1.0
+                @error (@sprintf "strain %d leaks more than it energetically can through consuming %d" i a)
+            end
+            if (total_out < 1.0) && (p.l[i, a] != 0)
+                @info (@sprintf "strain %d leaks less than it energetically can through consuming %d" i a)
+            end
+        end
+    end
+end
+export check_mmicrmparams
 
 #For testing
 function trivmmicrmparams(Ns, Nr;
