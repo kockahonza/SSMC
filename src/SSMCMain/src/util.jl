@@ -122,6 +122,15 @@ function make_grid(n;
 end
 export make_grid
 
+function extend_solprob(sol, T)
+    prob = sol.prob
+
+    tspan = (sol.t[end], sol.t[end] + T)
+
+    remake(prob, u0=sol.u[end], tspan=tspan)
+end
+export extend_solprob
+
 ################################################################################
 # Plotting
 ################################################################################
