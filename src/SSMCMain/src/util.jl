@@ -131,6 +131,14 @@ function extend_solprob(sol, T)
 end
 export extend_solprob
 
+function remake_guarantee_positive(prob)
+    fclosure = let zz = zero(eltype(prob.u0))
+        (u, _, _) -> minimum(u) < zz
+    end
+    remake(prob; isoutofdomain=fclosure)
+end
+export remake_guarantee_positive
+
 ################################################################################
 # Plotting
 ################################################################################

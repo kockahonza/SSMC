@@ -28,4 +28,15 @@ function symbolic_solve_ode_ml(p::ODEProblem; raw=true)
 end
 export symbolic_solve_ode_ml
 
+# other utils bits
+function export_expr_to_wolfram(expr, filename)
+    # get string first
+    ms = string(SymbolicsMathLink.expr_to_mathematica(expr))[3:end-1]
+
+    f = open(filename, "w")
+    write(f, ms)
+    close(f)
+end
+export export_expr_to_wolfram
+
 end # module MLSolver

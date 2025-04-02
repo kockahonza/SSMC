@@ -102,3 +102,10 @@ function make_M1(p::MMiCRMParams{Ns,Nr,F}, args...) where {Ns,Nr,F}
     M1
 end
 export make_M1!, make_M1
+
+function make_M(p::MMiCRMParams, k, ss, Ds)
+    M1 = make_M1(p, ss)
+    M = M1 + Diagonal(-(k^2) .* Ds)
+    M
+end
+export make_M

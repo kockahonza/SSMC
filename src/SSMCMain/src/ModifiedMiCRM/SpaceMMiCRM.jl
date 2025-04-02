@@ -237,4 +237,6 @@ export make_smmicrmparams_smart, make_smmicrmu0_smart, make_smmicrm_smart
 ################################################################################
 include("smmicrm_plotting.jl")
 
+include("smmicrm_util.jl")
+
 end
