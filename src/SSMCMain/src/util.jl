@@ -96,6 +96,32 @@ show(io::IO, faa::FigureAxisAnything) = show(io, faa.figure)
 show(io::IO, mime, faa::FigureAxisAnything) = show(io, mime, faa.figure)
 export FigureAxisAnything
 
+function make_grid(n;
+    aspect_ratio=1.0, prioritize=:none,
+    min_rows=1, max_rows=typemax(Int),
+    min_cols=1, max_cols=typemax(Int)
+)
+    # Calculate initial number of columns based on aspect ratio
+    cols = ceil(Int, sqrt(n * aspect_ratio))
+    rows = ceil(Int, n / cols)
+
+    # Adjust based on prioritization
+    if prioritize == :rows
+        rows = min(max(min_rows, rows), max_rows)
+        cols = ceil(Int, n / rows)
+    elseif prioritize == :cols
+        cols = min(max(min_cols, cols), max_cols)
+        rows = ceil(Int, n / cols)
+    end
+
+    # Ensure the grid fits within the specified limits
+    rows = min(max(min_rows, rows), max_rows)
+    cols = min(max(min_cols, cols), max_cols)
+
+    return rows, cols
+end
+export make_grid
+
 ################################################################################
 # Plotting
 ################################################################################
@@ -122,3 +148,38 @@ function plot_linstab_lambdas(ks, lambdas; imthreshold=1e-8)
     FigureAxisAnything(fig, ax, lambdas)
 end
 export plot_linstab_lambdas
+
+# general
+function plot_heatmaps(xs, ys, matrices;
+    titles=nothing
+)
+    n = length(matrices)
+    nrows, ncols = make_grid(length(matrices))
+
+    fig = Figure()
+    axes = []
+    hms = []
+
+    for i in 1:n
+        row = div(i - 1, ncols) + 1
+        col = (mod(i - 1, ncols) + 1) * 2 - 1
+        ax = Axis(fig[row, col])
+        push!(axes, ax)
+
+        if isnothing(xs) && isnothing(ys)
+            hm = heatmap!(ax, matrices[i])
+        else
+            hm = heatmap!(ax, xs, ys, matrices[i])
+        end
+        push!(hms, hm)
+        Colorbar(fig[row, col+1], hm)
+
+        if !isnothing(titles) && !isnothing(titles[i])
+            title!(ax, titles[i])
+        end
+    end
+
+    FigureAxisAnything(fig, axes, hms)
+end
+plot_heatmaps(matrices; kwargs...) = plot_heatmaps(nothing, nothing, matrices; kwargs...)
+export plot_heatmaps

@@ -101,4 +101,3 @@ function plot_1dsmmicrm_sol_snap(params, snap_u; singleax=false, plote=false)
 end
 export plot_1dsmmicrm_sol_snap
 
-
