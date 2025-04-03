@@ -7,6 +7,7 @@ using Reexport
 @reexport using LinearAlgebra
 @reexport using Makie, LaTeXStrings
 @reexport using PrettyTables
+@reexport using Geppetto
 
 using REPL.TerminalMenus
 using Logging

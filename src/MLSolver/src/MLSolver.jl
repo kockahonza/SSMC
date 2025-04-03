@@ -9,6 +9,11 @@ using Symbolics, SymbolicsMathLink
 using Reexport
 @reexport import Symbolics, SymbolicsMathLink
 
+function unwrap_sol(symsol::AbstractVector)
+    map(x -> Symbolics.unwrap(x[2]), symsol)
+end
+export unwrap_sol
+
 function symbolic_solve_ode_ml(p::ODEProblem; raw=true)
     n = length(p.u0)
     su = [Symbolics.variable(Symbol(@sprintf "u%d" i)) for i in 1:n]
@@ -23,7 +28,7 @@ function symbolic_solve_ode_ml(p::ODEProblem; raw=true)
     if raw
         ws
     else
-        map.(x -> Symbolics.unwrap.(x[2]), ws)
+        map(unwrap_sol, ws)
     end
 end
 export symbolic_solve_ode_ml
