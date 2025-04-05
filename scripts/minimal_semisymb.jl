@@ -257,14 +257,15 @@ function make_K_polynomial(M1, Ds)
 end
 
 ################################################################################
-# Main function, essentially
+# Main functions, essentially
 ################################################################################
-function do_single(mmp::MinimalModelParamsSpace{F};
+function do_single_simple(mmps::MinimalModelParamsSpace{F};
     include_extinct=false, threshold=eps(F)
 ) where {F}
-    mmicrm_params = mmp_to_mmicrm(mmp)
+    mmicrm_params = mmp_to_mmicrm(mmps)
+    Ds = get_Ds(mmps)
 
-    all_sss = solve_nospace(mmp; include_extinct)
+    all_sss = solve_nospace(mmps; include_extinct)
     # do the cheap test first, ignore sss with negative values
     physical_sss = all_sss[nospace_sol_check_physical.(all_sss; threshold=2 * threshold)]
 
@@ -276,12 +277,36 @@ function do_single(mmp::MinimalModelParamsSpace{F};
     sp_sss = physical_sss[stable_is]
     M1s = M1s_all_physical[stable_is]
 
-    Kroots = []
+    num_nospace_sss = length(sp_sss)
 
+    krootss = Vector{F}[]
+    num_modes_in_sectionss = Vector{Int}[]
+    total_num_modes = 0
     for (ss_i, M1) in enumerate(M1s)
-        Kpolynom = make_K_polynomial(M1, SA[mmp.DN, mmp.DG, mmp.DR])
-        push!(Kroots, find_real_positive_cubic_roots(Kpolynom; threshold=threshold))
+        Kpolynom = make_K_polynomial(M1, Ds)
+        Kroots = sort(find_real_positive_cubic_roots(Kpolynom; threshold=threshold))
+        kroots = sqrt.(Kroots)
+
+        if length(Kroots) == 0
+            k_samples = F[1.0]
+        elseif length(Kroots) == 1
+            k_samples = F[kroots[1]/2, 2*kroots[1]]
+        else
+            k_samples = F[kroots[1]/2]
+
+            for i in 2:(length(kroots))
+                push!(k_samples, (kroots[i-1] + kroots[i]) / 2)
+            end
+
+            push!(k_samples, 2 * kroots[end])
+        end
+
+        num_modes_in_sections = [find_number_nondec_modes(M1, k, Ds; threshold) for k in k_samples]
+
+        push!(krootss, kroots)
+        push!(num_modes_in_sectionss, num_modes_in_sections)
+        total_num_modes += sum(num_modes_in_sections)
     end
 
-    sp_sss, Kroots
+    num_nospace_sss, krootss, num_modes_in_sectionss, total_num_modes
 end

@@ -19,34 +19,40 @@ function do_linstab_for_ks(ks, p::ODEProblem, Ds, ss=nothing; kwargs...)
 end
 export do_linstab_for_ks
 
+function eigen_sortby_reverse(l::Complex)
+    (-real(l), imag(l))
+end
+function eigen_sortby_reverse(l::Real)
+    -l
+end
+export eigen_sortby_reverse
+
 function linstab_make_lambda_func(p::MMiCRMParams{Ns,Nr}, ss, Ds=nothing; kwargs...) where {Ns,Nr}
-    sortby = l -> (-real(l), imag(l))
     if !isnothing(Ds)
         let M1 = make_M1(p, ss)
             function (k)
-                eigvals(M1 + Diagonal(-(k^2) .* Ds); sortby, kwargs...)
+                eigvals(M1 + Diagonal(-(k^2) .* Ds); sortby=eigen_sortby_reverse, kwargs...)
             end
         end
     else
         let M1 = make_M1(p, ss)
             function (k, Ds)
-                eigvals(M1 + Diagonal(-(k^2) .* Ds); sortby, kwargs...)
+                eigvals(M1 + Diagonal(-(k^2) .* Ds); sortby=eigen_sortby_reverse, kwargs...)
             end
         end
     end
 end
 function linstab_make_full_func(p::MMiCRMParams{Ns,Nr}, ss, Ds=nothing; kwargs...) where {Ns,Nr}
-    sortby = l -> (-real(l), imag(l))
     if !isnothing(Ds)
         let M1 = make_M1(p, ss)
             function (k)
-                eigen(M1 + Diagonal(-(k^2) .* Ds); sortby, kwargs...)
+                eigen(M1 + Diagonal(-(k^2) .* Ds); sortby=eigen_sortby_reverse, kwargs...)
             end
         end
     else
         let M1 = make_M1(p, ss)
             function (k, Ds)
-                eigen(M1 + Diagonal(-(k^2) .* Ds); sortby, kwargs...)
+                eigen(M1 + Diagonal(-(k^2) .* Ds); sortby=eigen_sortby_reverse, kwargs...)
             end
         end
     end
@@ -103,9 +109,44 @@ function make_M1(p::MMiCRMParams{Ns,Nr,F}, args...) where {Ns,Nr,F}
 end
 export make_M1!, make_M1
 
+function make_M(M1, k, Ds)
+    M1 + Diagonal(-(k^2) .* Ds)
+end
 function make_M(p::MMiCRMParams, k, ss, Ds)
-    M1 = make_M1(p, ss)
-    M = M1 + Diagonal(-(k^2) .* Ds)
-    M
+    make_M(make_M1(p, ss), k, Ds)
 end
 export make_M
+
+"""Returns the number of non-decaying modes"""
+function find_number_nondec_modes(M; threshold=eps(eltype(M)))
+    e = eigen(M)
+    count(x -> real(x) > -threshold, e.values)
+end
+function find_number_nondec_modes(args...; kwargs...)
+    M = make_M(args...)
+    find_number_nondec_modes(M; kwargs...)
+end
+export find_number_nondec_modes
+
+"""Returns the non-decaying modes"""
+function find_nondec_modes(M; threshold=eps(eltype(M)))
+    e = eigen(M)
+
+    Ctype = Complex{eltype(M)}
+    lambdas = Ctype[]
+    modes = Vector{Ctype}[]
+
+    for i in 1:length(e.values)
+        if real(e.values[i]) > -threshold
+            push!(lambdas, e.values[i])
+            push!(modes, e.vectors[:, i])
+        end
+    end
+
+    lambdas, modes
+end
+function find_nondec_modes(args...; kwargs...)
+    M = make_M(args...)
+    find_nondec_modes(M; kwargs...)
+end
+export find_nondec_modes
