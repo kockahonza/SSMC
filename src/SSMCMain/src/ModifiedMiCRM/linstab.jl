@@ -150,3 +150,14 @@ function find_nondec_modes(args...; kwargs...)
     find_nondec_modes(M; kwargs...)
 end
 export find_nondec_modes
+
+"""Returns the number of non-decaying modes"""
+function find_number_growing_modes(M; threshold=eps(eltype(M)))
+    e = eigen(M)
+    count(x -> real(x) > threshold, e.values)
+end
+function find_number_growing_modes(args...; kwargs...)
+    M = make_M(args...)
+    find_number_growing_modes(M; kwargs...)
+end
+export find_number_growing_modes

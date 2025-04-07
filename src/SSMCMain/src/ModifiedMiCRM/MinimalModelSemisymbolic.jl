@@ -123,7 +123,7 @@ check_solve_nospace(mmp::MinimalModelParams, args...) = check_solve_nospace(mmp_
 export check_solve_nospace
 
 function nospace_sol_check_physical(ss; threshold=2 * eps(eltype(ss)))
-    all(x -> x > -threshold, ss)
+    all(x -> isfinite(x) && (x > -threshold), ss)
 end
 export nospace_sol_check_physical
 
@@ -329,7 +329,7 @@ function analyze_single_mmps(mmps::MinimalModelParamsSpace{F};
             push!(k_samples, 2 * kroots[end])
         end
 
-        num_modes_in_sections = [find_number_nondec_modes(M1, k, Ds; threshold) for k in k_samples]
+        num_modes_in_sections = [find_number_growing_modes(M1, k, Ds; threshold) for k in k_samples]
 
         push!(krootss, kroots)
         push!(num_modes_in_sectionss, num_modes_in_sections)
