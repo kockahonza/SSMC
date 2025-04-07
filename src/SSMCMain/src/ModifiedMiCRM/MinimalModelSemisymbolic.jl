@@ -60,7 +60,10 @@ Returns a vector of solutions, where each solution is a vector [N, G, R] contain
 The function always includes the trivial solution [0, K, 0] (extinction state),
 and up to two non-trivial solutions if they exist (determined by the discriminant).
 """
-function solve_nospace(mmp::MinimalModelParams{F}; include_extinct::Bool=true) where {F}
+function solve_nospace(
+    mmp::MinimalModelParams{F};
+    include_extinct::Bool=true, threshold=eps(F)
+) where {F}
     m = mmp.m
     l = mmp.l
     K = mmp.K
@@ -75,18 +78,30 @@ function solve_nospace(mmp::MinimalModelParams{F}; include_extinct::Bool=true) w
 
     Dp1 = qb^2
     Dp2 = 4.0 * qa * qc
-    if Dp1 > Dp2
-        sqrtD = sqrt(Dp1 - Dp2)
+    D = Dp1 - Dp2
+    if D > threshold # D is positive, two solutions
+        sqrtD = sqrt(D)
 
         N1 = (-qb + sqrtD) / (2.0 * qa)
-        G1 = K / (1.0 + N1 * c)
-        R1 = (G1 * N1 * c * l) / (1.0 + N1 * d)
-        push!(sols, [N1, G1, R1])
+        if abs(N1) > threshold # only add non-extinct solution
+            G1 = K / (1.0 + N1 * c)
+            R1 = (G1 * N1 * c * l) / (1.0 + N1 * d)
+            push!(sols, [N1, G1, R1])
+        end
 
         N2 = (-qb - sqrtD) / (2.0 * qa)
-        G2 = K / (1.0 + N2 * c)
-        R2 = (G2 * N2 * c * l) / (1.0 + N2 * d)
-        push!(sols, [N2, G2, R2])
+        if abs(N2) > threshold # only add non-extinct solution
+            G2 = K / (1.0 + N2 * c)
+            R2 = (G2 * N2 * c * l) / (1.0 + N2 * d)
+            push!(sols, [N2, G2, R2])
+        end
+    elseif D > -threshold # then D ~ 0
+        if abs(qb) > threshold # only add non-extinct solution
+            N = (-qb) / (2.0 * qa)
+            G = K / (1.0 + N * c)
+            R = (G * N * c * l) / (1.0 + N * d)
+            push!(sols, [N, G, R])
+        end
     end
 
     if include_extinct
@@ -132,7 +147,7 @@ function find_physical_stable_solutions_nospace(
     physical_threshold=threshold,
     stability_threshold=threshold
 ) where {F}
-    all_sss = solve_nospace(mmp; include_extinct=include_extinct)
+    all_sss = solve_nospace(mmp; include_extinct, threshold)
     physical_sss = all_sss[nospace_sol_check_physical.(all_sss; threshold=physical_threshold)]
     physical_sss[nospace_sol_check_stable.(Ref(mmp), physical_sss; threshold=stability_threshold)]
 end
@@ -275,7 +290,7 @@ function analyze_single_mmps(mmps::MinimalModelParamsSpace{F};
 ) where {F}
     mmicrm_params = mmp_to_mmicrm(mmps)
 
-    all_steadystates = solve_nospace(mmps; include_extinct)
+    all_steadystates = solve_nospace(mmps; include_extinct, threshold)
     # do the cheap test first, ignore sss with negative values
     physical_steadystates = all_steadystates[nospace_sol_check_physical.(all_steadystates; threshold=2 * threshold)]
 

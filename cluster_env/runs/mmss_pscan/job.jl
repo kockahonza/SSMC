@@ -162,3 +162,19 @@ function main()
         usenthreads=Threads.nthreads()
     )
 end
+
+function ltest(N)
+    @time analyze_many_mmps(;
+        l=LinRange(0.0, 1.0, N),
+        m=LinRange(0.1, 2.0, N),
+        K=LinRange(0.1, 10.0, N),
+        c=LinRange(0.01, 20.0, N),
+        d=LinRange(0.01, 20.0, N),
+        DN=10 .^ LinRange(-5, 3, N),
+        DG=10 .^ LinRange(-5, 3, N),
+        DR=10 .^ LinRange(-5, 3, N),
+        include_extinct=true,
+        threshold=2 * eps(Float64),
+        usenthreads=Threads.nthreads()
+    )
+end
