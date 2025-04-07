@@ -134,7 +134,7 @@ function analyze_single_mmps_step_!(
                 push!(k_samples, 2 * kroots[end])
             end
 
-            num_modes_in_sections = [find_number_growing_modes(M1, k, Ds; threshold) for k in k_samples]
+            num_modes_in_sections = [find_number_nondec_modes(M1, k, Ds; threshold) for k in k_samples]
 
             l_total_num_modes += sum(num_modes_in_sections)
             push!(l_krootss, kroots)

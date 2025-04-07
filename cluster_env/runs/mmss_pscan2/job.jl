@@ -134,7 +134,7 @@ function analyze_single_mmps_step_!(
                 push!(k_samples, 2 * kroots[end])
             end
 
-            num_modes_in_sections = [find_number_nondec_modes(M1, k, Ds; threshold) for k in k_samples]
+            num_modes_in_sections = [find_number_growing_modes(M1, k, Ds; threshold) for k in k_samples]
 
             l_total_num_modes += sum(num_modes_in_sections)
             push!(l_krootss, kroots)
@@ -149,8 +149,8 @@ end
 
 function main()
     @time analyze_many_mmps("./out.jld2";
-        l=LinRange(0.0, 1.0, 10),
         m=LinRange(0.1, 2.0, 10),
+        l=LinRange(0.0, 1.0, 10),
         K=LinRange(0.1, 10.0, 10),
         c=LinRange(0.01, 20.0, 10),
         d=LinRange(0.01, 20.0, 10),
@@ -165,8 +165,8 @@ end
 
 function ltest(N)
     @time analyze_many_mmps(;
-        l=LinRange(0.0, 1.0, N),
         m=LinRange(0.1, 2.0, N),
+        l=LinRange(0.0, 1.0, N),
         K=LinRange(0.1, 10.0, N),
         c=LinRange(0.01, 20.0, N),
         d=LinRange(0.01, 20.0, N),
