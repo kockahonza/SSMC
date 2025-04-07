@@ -330,78 +330,6 @@ function analyze_single_mmps(mmps::MinimalModelParamsSpace{F};
 end
 export analyze_single_mmps
 
-function analyze_single_mmps_step_!(
-    ns_ci, ns_i_to_params,
-    Ds_cis, diff_i_to_params,
-    num_ns_steadystates, ns_steadystates,
-    total_num_modes, krootss, num_modes_secs,
-    include_extinct, threshold
-)
-    lm, ll, lK, lc, ld = ns_i_to_params(ns_ci)
-    mmpns = MinimalModelParamsNoSpace(lm, ll, lK, lc, ld)
-    mmicrm_params = mmp_to_mmicrm(mmpns)
-
-    all_steadystates = solve_nospace(mmpns; include_extinct)
-    # do the cheap test first, ignore sss with negative values
-    physical_steadystates = all_steadystates[nospace_sol_check_physical.(all_steadystates; threshold=2 * threshold)]
-
-    # construct the M1s which are used both for nospace and space linstab analysis
-    M1s_ = make_M1.(Ref(mmicrm_params), physical_steadystates)
-
-    # get the stable, physical steady states
-    stable_is = Int[]
-    for (M1s_i, M1) in enumerate(M1s_)
-        if nospace_sol_check_stable(M1; threshold=threshold)
-            push!(stable_is, M1s_i)
-        end
-    end
-    sp_steadystates = physical_steadystates[stable_is]
-    M1s = M1s_[stable_is]
-
-    # save nospace outputs
-    num_ns_steadystates[ns_ci] = length(sp_steadystates)
-    ns_steadystates[ns_ci] = sp_steadystates
-
-    # and do the spatial bit
-    for Ds_ci in Ds_cis
-        lDN, lDG, lDR = diff_i_to_params(Ds_ci)
-        Ds = SA[lDN, lDG, lDR]
-
-        l_total_num_modes = 0
-        l_krootss = Vector{Float64}[]
-        l_num_modes_secs = Vector{Int}[]
-        for (ss_i, M1) in enumerate(M1s)
-            Kpolynom = make_K_polynomial(M1, Ds)
-            Kroots = sort(find_real_positive_cubic_roots(Kpolynom; threshold=threshold))
-            kroots = sqrt.(Kroots)
-
-            if length(Kroots) == 0
-                k_samples = [1.0]
-            elseif length(Kroots) == 1
-                k_samples = [kroots[1] / 2, 2 * kroots[1]]
-            else
-                k_samples = [kroots[1] / 2]
-
-                for i in 2:(length(kroots))
-                    push!(k_samples, (kroots[i-1] + kroots[i]) / 2)
-                end
-
-                push!(k_samples, 2 * kroots[end])
-            end
-
-            num_modes_in_sections = [find_number_nondec_modes(M1, k, Ds; threshold) for k in k_samples]
-
-            l_total_num_modes += sum(num_modes_in_sections)
-            push!(l_krootss, kroots)
-            push!(l_num_modes_secs, num_modes_in_sections)
-        end
-
-        total_num_modes[ns_ci, Ds_ci] = l_total_num_modes
-        krootss[ns_ci, Ds_ci] = l_krootss
-        num_modes_secs[ns_ci, Ds_ci] = l_num_modes_secs
-    end
-end
-
 function analyze_many_mmps(save_filename=nothing;
     m=[1.0],
     l=[1.0],
@@ -472,6 +400,77 @@ function analyze_many_mmps(save_filename=nothing;
     end
 
     num_ns_steadystates, ns_steadystates, total_num_modes, krootss, num_modes_secs
+end
+function analyze_single_mmps_step_!(
+    ns_ci, ns_i_to_params,
+    Ds_cis, diff_i_to_params,
+    num_ns_steadystates, ns_steadystates,
+    total_num_modes, krootss, num_modes_secs,
+    include_extinct, threshold
+)
+    lm, ll, lK, lc, ld = ns_i_to_params(ns_ci)
+    mmpns = MinimalModelParamsNoSpace(lm, ll, lK, lc, ld)
+    mmicrm_params = mmp_to_mmicrm(mmpns)
+
+    all_steadystates = solve_nospace(mmpns; include_extinct)
+    # do the cheap test first, ignore sss with negative values
+    physical_steadystates = all_steadystates[nospace_sol_check_physical.(all_steadystates; threshold=2 * threshold)]
+
+    # construct the M1s which are used both for nospace and space linstab analysis
+    M1s_ = make_M1.(Ref(mmicrm_params), physical_steadystates)
+
+    # get the stable, physical steady states
+    stable_is = Int[]
+    for (M1s_i, M1) in enumerate(M1s_)
+        if nospace_sol_check_stable(M1; threshold=threshold)
+            push!(stable_is, M1s_i)
+        end
+    end
+    sp_steadystates = physical_steadystates[stable_is]
+    M1s = M1s_[stable_is]
+
+    # save nospace outputs
+    num_ns_steadystates[ns_ci] = length(sp_steadystates)
+    ns_steadystates[ns_ci] = sp_steadystates
+
+    # and do the spatial bit
+    for Ds_ci in Ds_cis
+        lDN, lDG, lDR = diff_i_to_params(Ds_ci)
+        Ds = SA[lDN, lDG, lDR]
+
+        l_total_num_modes = 0
+        l_krootss = Vector{Float64}[]
+        l_num_modes_secs = Vector{Int}[]
+        for (ss_i, M1) in enumerate(M1s)
+            Kpolynom = make_K_polynomial(M1, Ds)
+            Kroots = sort(find_real_positive_cubic_roots(Kpolynom; threshold=threshold))
+            kroots = sqrt.(Kroots)
+
+            if length(Kroots) == 0
+                k_samples = [1.0]
+            elseif length(Kroots) == 1
+                k_samples = [kroots[1] / 2, 2 * kroots[1]]
+            else
+                k_samples = [kroots[1] / 2]
+
+                for i in 2:(length(kroots))
+                    push!(k_samples, (kroots[i-1] + kroots[i]) / 2)
+                end
+
+                push!(k_samples, 2 * kroots[end])
+            end
+
+            num_modes_in_sections = [find_number_nondec_modes(M1, k, Ds; threshold) for k in k_samples]
+
+            l_total_num_modes += sum(num_modes_in_sections)
+            push!(l_krootss, kroots)
+            push!(l_num_modes_secs, num_modes_in_sections)
+        end
+
+        total_num_modes[ns_ci, Ds_ci] = l_total_num_modes
+        krootss[ns_ci, Ds_ci] = l_krootss
+        num_modes_secs[ns_ci, Ds_ci] = l_num_modes_secs
+    end
 end
 export analyze_many_mmps
 
