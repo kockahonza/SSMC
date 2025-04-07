@@ -1,6 +1,12 @@
-using SSMCMain, SSMCMain.ModifiedMiCRM, SSMCMain.SpaceMMiCRM
-using Symbolics
-import Nemo
+module MinimalModelSemisymbolic
+
+using Reexport
+@reexport using ..SSMCMain, ..ModifiedMiCRM, ..SpaceMMiCRM
+
+using Base.Threads
+
+using ChunkSplitters
+using JLD2
 
 struct MinimalModelParamsNoSpace{F}
     m::F
@@ -19,18 +25,18 @@ struct MinimalModelParamsSpace{F}
     DG::F
     DR::F
 end
+const MinimalModelParams{F} = Union{MinimalModelParamsNoSpace{F},MinimalModelParamsSpace{F}}
+export MinimalModelParamsNoSpace, MinimalModelParamsSpace, MinimalModelParams
+
 function add_space(mmp::MinimalModelParamsNoSpace, DN, DG, DR)
     MinimalModelParamsSpace(
         mmp.m, mmp.l, mmp.K, mmp.c, mmp.d,
         DN, DG, DR
     )
 end
-
 function get_Ds(mmps::MinimalModelParamsSpace{F}) where {F}
     SA[mmps.DN, mmps.DG, mmps.DR]
 end
-
-const MinimalModelParams{F} = Union{MinimalModelParamsNoSpace{F},MinimalModelParamsSpace{F}}
 function mmp_to_mmicrm(mmp::MinimalModelParams)
     MMiCRMParams(
         SA[1.0], SA[1.0, 1.0],
@@ -39,6 +45,7 @@ function mmp_to_mmicrm(mmp::MinimalModelParams)
         SA[mmp.l 0.0], SA[mmp.c mmp.d], SArray{Tuple{1,2,2}}(0.0, 1.0, 0.0, 0.0),
     )
 end
+export add_space, get_Ds, mmp_to_mmicrm
 
 ################################################################################
 # Dealing with the no space/well mixed case first - finding steady states
@@ -93,6 +100,7 @@ function solve_nospace(mmp::MinimalModelParams{F}; include_extinct::Bool=true) w
 
     sols
 end
+export solve_nospace
 
 """Makes sure the returned steady state really is steady"""
 function check_solve_nospace(
@@ -102,15 +110,17 @@ function check_solve_nospace(
     maximum(abs, uninplace(mmicrmfunc!)(ss, mmicrm_params)) < threshold
 end
 check_solve_nospace(mmp::MinimalModelParams, args...) = check_solve_nospace(mmp_to_mmicrm(mmp), args...)
+export check_solve_nospace
 
 function nospace_sol_check_physical(ss; threshold=2 * eps(eltype(ss)))
     all(x -> x > -threshold, ss)
 end
+export nospace_sol_check_physical
 
 """Checks if the returned steady state is stable"""
 function nospace_sol_check_stable(M1::AbstractMatrix{F}; threshold=eps(F)) where {F}
     evals = eigvals(M1)
-    real(evals[end]) < threshold
+    maximum(real, evals) < threshold
 end
 function nospace_sol_check_stable(
     mmp::MinimalModelParams{F}, ss;
@@ -118,6 +128,7 @@ function nospace_sol_check_stable(
 ) where {F}
     nospace_sol_check_stable(make_M1(mmp_to_mmicrm(mmp), ss); kwargs...)
 end
+export nospace_sol_check_stable
 
 function find_physical_stable_solutions_nospace(
     mmp::MinimalModelParams{F};
@@ -130,6 +141,7 @@ function find_physical_stable_solutions_nospace(
     physical_sss = all_sss[nospace_sol_check_physical.(all_sss; threshold=physical_threshold)]
     physical_sss[nospace_sol_check_stable.(Ref(mmp), physical_sss; threshold=stability_threshold)]
 end
+export find_physical_stable_solutions_nospace
 
 ################################################################################
 # First deal with solving cubic equation...my god this took a while
@@ -137,6 +149,7 @@ end
 function eval_cubic(ps, x)
     ps[1] * x^3 + ps[2] * x^2 + ps[3] * x + ps[4]
 end
+export eval_cubic
 
 function find_real_cubic_roots(a::F, b::F, c::F, d::F;
     threshold=10 * eps(F)
@@ -225,6 +238,7 @@ function cardano(a::F, b::F, c::F, d::F;
 
     return t_roots .- (bp / 3)
 end
+export find_real_cubic_roots
 
 # This is the one we actually want
 function find_real_positive_cubic_roots(args...; kwargs...)
@@ -232,6 +246,7 @@ function find_real_positive_cubic_roots(args...; kwargs...)
     typed_zero = zero(eltype(real_roots))
     filter(x -> x > typed_zero, real_roots)
 end
+export find_real_positive_cubic_roots
 
 """This is hardcoded for a 3 by 3 matrix M1!!"""
 function make_K_polynomial(M1, Ds)
@@ -255,29 +270,32 @@ function make_K_polynomial(M1, Ds)
 
     SA[t3, t2, t1, t0]
 end
+export make_K_polynomial
 
 ################################################################################
 # Main functions, essentially
 ################################################################################
-function do_single_simple(mmps::MinimalModelParamsSpace{F};
+function analyze_single_mmps(mmps::MinimalModelParamsSpace{F};
     include_extinct=false, threshold=eps(F)
 ) where {F}
     mmicrm_params = mmp_to_mmicrm(mmps)
-    Ds = get_Ds(mmps)
 
-    all_sss = solve_nospace(mmps; include_extinct)
+    all_steadystates = solve_nospace(mmps; include_extinct)
     # do the cheap test first, ignore sss with negative values
-    physical_sss = all_sss[nospace_sol_check_physical.(all_sss; threshold=2 * threshold)]
+    physical_steadystates = all_steadystates[nospace_sol_check_physical.(all_steadystates; threshold=2 * threshold)]
 
-    # construc the M1s which are used both for nospace and space linear stability analysis
-    M1s_all_physical = make_M1.(Ref(mmicrm_params), physical_sss)
+    # construct the M1s which are used both for nospace and space linear stability analysis
+    M1s_ = make_M1.(Ref(mmicrm_params), physical_steadystates)
 
-    stable_is = nospace_sol_check_stable.(M1s_all_physical)
+    stable_is = nospace_sol_check_stable.(M1s_)
     # stable, physical steady states
-    sp_sss = physical_sss[stable_is]
-    M1s = M1s_all_physical[stable_is]
+    sp_steadystates = physical_steadystates[stable_is]
+    M1s = M1s_[stable_is]
 
-    num_nospace_sss = length(sp_sss)
+    num_nospace_sss = length(sp_steadystates)
+
+    # Spatial linear stability analysis
+    Ds = get_Ds(mmps)
 
     krootss = Vector{F}[]
     num_modes_in_sectionss = Vector{Int}[]
@@ -308,5 +326,153 @@ function do_single_simple(mmps::MinimalModelParamsSpace{F};
         total_num_modes += sum(num_modes_in_sections)
     end
 
-    num_nospace_sss, krootss, num_modes_in_sectionss, total_num_modes
+    num_nospace_sss, total_num_modes, sp_steadystates, krootss, num_modes_in_sectionss
+end
+export analyze_single_mmps
+
+function analyze_single_mmps_step_!(
+    ns_ci, ns_i_to_params,
+    Ds_cis, diff_i_to_params,
+    num_ns_steadystates, ns_steadystates,
+    total_num_modes, krootss, num_modes_secs,
+    include_extinct, threshold
+)
+    lm, ll, lK, lc, ld = ns_i_to_params(ns_ci)
+    mmpns = MinimalModelParamsNoSpace(lm, ll, lK, lc, ld)
+    mmicrm_params = mmp_to_mmicrm(mmpns)
+
+    all_steadystates = solve_nospace(mmpns; include_extinct)
+    # do the cheap test first, ignore sss with negative values
+    physical_steadystates = all_steadystates[nospace_sol_check_physical.(all_steadystates; threshold=2 * threshold)]
+
+    # construct the M1s which are used both for nospace and space linstab analysis
+    M1s_ = make_M1.(Ref(mmicrm_params), physical_steadystates)
+
+    # get the stable, physical steady states
+    stable_is = Int[]
+    for (M1s_i, M1) in enumerate(M1s_)
+        if nospace_sol_check_stable(M1; threshold=threshold)
+            push!(stable_is, M1s_i)
+        end
+    end
+    sp_steadystates = physical_steadystates[stable_is]
+    M1s = M1s_[stable_is]
+
+    # save nospace outputs
+    num_ns_steadystates[ns_ci] = length(sp_steadystates)
+    ns_steadystates[ns_ci] = sp_steadystates
+
+    # and do the spatial bit
+    for Ds_ci in Ds_cis
+        lDN, lDG, lDR = diff_i_to_params(Ds_ci)
+        Ds = SA[lDN, lDG, lDR]
+
+        l_total_num_modes = 0
+        l_krootss = Vector{Float64}[]
+        l_num_modes_secs = Vector{Int}[]
+        for (ss_i, M1) in enumerate(M1s)
+            Kpolynom = make_K_polynomial(M1, Ds)
+            Kroots = sort(find_real_positive_cubic_roots(Kpolynom; threshold=threshold))
+            kroots = sqrt.(Kroots)
+
+            if length(Kroots) == 0
+                k_samples = [1.0]
+            elseif length(Kroots) == 1
+                k_samples = [kroots[1] / 2, 2 * kroots[1]]
+            else
+                k_samples = [kroots[1] / 2]
+
+                for i in 2:(length(kroots))
+                    push!(k_samples, (kroots[i-1] + kroots[i]) / 2)
+                end
+
+                push!(k_samples, 2 * kroots[end])
+            end
+
+            num_modes_in_sections = [find_number_nondec_modes(M1, k, Ds; threshold) for k in k_samples]
+
+            l_total_num_modes += sum(num_modes_in_sections)
+            push!(l_krootss, kroots)
+            push!(l_num_modes_secs, num_modes_in_sections)
+        end
+
+        total_num_modes[ns_ci, Ds_ci] = l_total_num_modes
+        krootss[ns_ci, Ds_ci] = l_krootss
+        num_modes_secs[ns_ci, Ds_ci] = l_num_modes_secs
+    end
+end
+
+function analyze_many_mmps(save_filename=nothing;
+    m=[1.0],
+    l=[1.0],
+    K=[1.0],
+    c=[1.0],
+    d=[1.0],
+    DN=[0.0],
+    DG=[0.0],
+    DR=[0.0],
+    include_extinct=true,
+    threshold=2 * eps(Float64),
+    usenthreads=nothing
+)
+    ns_param_ranges = (m, l, K, c, d)
+    ns_cis = CartesianIndices(length.(ns_param_ranges))
+    ns_i_to_params = i -> getindex.(ns_param_ranges, ns_cis[i].I)
+
+    diff_ranges = (DN, DG, DR)
+    Ds_cis = CartesianIndices(length.(diff_ranges))
+    diff_i_to_params = i -> getindex.(diff_ranges, Ds_cis[i].I)
+
+    total_size = (size(ns_cis)..., size(Ds_cis)...)
+
+    # proparties which only depend on the no-space system
+    num_ns_steadystates = Array{Int}(undef, size(ns_cis))
+    ns_steadystates = Array{Vector{Vector{Float64}}}(undef, size(ns_cis))
+
+    # properties in space (depend on the diffusion constants)
+    total_num_modes = Array{Int}(undef, total_size)
+    krootss = Array{Vector{Vector{Float64}}}(undef, total_size)
+    num_modes_secs = Array{Vector{Vector{Int}}}(undef, total_size)
+
+    if isnothing(usenthreads)
+        for ns_ci in ns_cis
+            analyze_single_mmps_step_!(
+                ns_ci, ns_i_to_params,
+                Ds_cis, diff_i_to_params,
+                num_ns_steadystates, ns_steadystates,
+                total_num_modes, krootss, num_modes_secs,
+                include_extinct, threshold
+            )
+        end
+    else
+        ns_cis_chunks = chunks(ns_cis; n=usenthreads)
+        @sync for ch in ns_cis_chunks
+            @spawn begin
+                @inbounds for ns_ci in ch
+                    analyze_single_mmps_step_!(
+                        ns_ci, ns_i_to_params,
+                        Ds_cis, diff_i_to_params,
+                        num_ns_steadystates, ns_steadystates,
+                        total_num_modes, krootss, num_modes_secs,
+                        include_extinct, threshold
+                    )
+                end
+            end
+        end
+    end
+
+    if !isnothing(save_filename)
+        jldsave(save_filename;
+            m, l, K, c, d,
+            DN, DG, DR,
+            num_ns_steadystates, ns_steadystates,
+            total_num_modes, krootss, num_modes_secs,
+            include_extinct, threshold
+        )
+    end
+
+    num_ns_steadystates, ns_steadystates, total_num_modes, krootss, num_modes_secs
+end
+export analyze_many_mmps
+
 end

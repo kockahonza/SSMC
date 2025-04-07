@@ -1,15 +1,6 @@
 ################################################################################
-# Utility bits
+# Handling arguments and similar bits
 ################################################################################
-function uninplace(f)
-    function (u, args...)
-        du = similar(u)
-        f(du, u, args...)
-        du
-    end
-end
-export uninplace
-
 function smart_val(passed_val, default, target_size...)
     val = isnothing(passed_val) ? default : passed_val
     if isnothing(val)
@@ -41,6 +32,9 @@ function splitkwargs(kwargs, args...)
 end
 export splitkwargs
 
+################################################################################
+# Parameter scanning
+################################################################################
 function prep_paramscan(; param_ranges...)
     ranges_only = []
     df_colspecs = Pair{Symbol,Any}[]
@@ -61,14 +55,41 @@ function prep_paramscan(; param_ranges...)
 end
 export prep_paramscan
 
-# FIX: Should be removed as prep_paramscan is a better version of it
-function setup_ranges(ranges...; func=identity)
-    cis = CartesianIndices(length.(ranges))
-    function (i)
-        func([r[i] for (r, i) in zip(ranges, cis[i].I)])
-    end, cis
+function prep_paramscan_floats(; param_ranges...)
+    # Pre-allocate with known size
+    n_params = length(param_ranges)
+    ranges_only = Vector{Vector{Float64}}(undef, n_params)
+    df_colspecs = Vector{Pair{Symbol,Any}}(undef, n_params)
+
+    # Process parameters in a single loop
+    for (i, (pname, prange)) in enumerate(param_ranges)
+        ranges_only[i] = isa(prange, AbstractVector) ? prange : [prange]
+        if eltype(ranges_only[i]) != Float64
+            @warn "converting some non-float parameters to float"
+        end
+        df_colspecs[i] = pname => empty(ranges_only[i])
+    end
+
+    cis = CartesianIndices((length.(ranges_only)...,))
+
+    # Use closure to capture ranges_only
+    itoparams = i -> getindex.(ranges_only, cis[i].I)
+
+    df_colspecs, itoparams, cis
 end
-export setup_ranges
+export prep_paramscan_floats
+
+################################################################################
+# Miscelanious
+################################################################################
+function uninplace(f)
+    function (u, args...)
+        du = similar(u)
+        f(du, u, args...)
+        du
+    end
+end
+export uninplace
 
 function wait_till_confirm()
     menu = RadioMenu(["continue", "maybe exit"], pagesize=2)
@@ -87,6 +108,26 @@ function fast_warn(msg)
 end
 export fast_info, fast_warn
 
+function extend_solprob(sol, T)
+    prob = sol.prob
+
+    tspan = (sol.t[end], sol.t[end] + T)
+
+    remake(prob, u0=sol.u[end], tspan=tspan)
+end
+export extend_solprob
+
+function remake_guarantee_positive(prob)
+    fclosure = let zz = zero(eltype(prob.u0))
+        (u, _, _) -> minimum(u) < zz
+    end
+    remake(prob; isoutofdomain=fclosure)
+end
+export remake_guarantee_positive
+
+################################################################################
+# Plotting
+################################################################################
 struct FigureAxisAnything
     figure::Figure
     axis::Any
@@ -122,26 +163,6 @@ function make_grid(n;
 end
 export make_grid
 
-function extend_solprob(sol, T)
-    prob = sol.prob
-
-    tspan = (sol.t[end], sol.t[end] + T)
-
-    remake(prob, u0=sol.u[end], tspan=tspan)
-end
-export extend_solprob
-
-function remake_guarantee_positive(prob)
-    fclosure = let zz = zero(eltype(prob.u0))
-        (u, _, _) -> minimum(u) < zz
-    end
-    remake(prob; isoutofdomain=fclosure)
-end
-export remake_guarantee_positive
-
-################################################################################
-# Plotting
-################################################################################
 function plot_linstab_lambdas(ks, lambdas; imthreshold=1e-8)
     fig = Figure()
     ax = Axis(fig[1, 1])
@@ -200,3 +221,16 @@ function plot_heatmaps(xs, ys, matrices;
 end
 plot_heatmaps(matrices; kwargs...) = plot_heatmaps(nothing, nothing, matrices; kwargs...)
 export plot_heatmaps
+
+################################################################################
+# OLD
+################################################################################
+# FIX: Should be removed as prep_paramscan is a better version of it
+function setup_ranges(ranges...; func=identity)
+    cis = CartesianIndices(length.(ranges))
+    function (i)
+        func([r[i] for (r, i) in zip(ranges, cis[i].I)])
+    end, cis
+end
+export setup_ranges
+
