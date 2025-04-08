@@ -19,11 +19,11 @@ function analyze_many_mmps(save_filename=nothing;
 )
     ns_param_ranges = (m, l, K, c, d)
     ns_cis = CartesianIndices(length.(ns_param_ranges))
-    ns_i_to_params = i -> getindex.(ns_param_ranges, ns_cis[i].I)
+    ns_i_to_params = ci -> getindex.(ns_param_ranges, ci.I)
 
     diff_ranges = (DN, DG, DR)
     Ds_cis = CartesianIndices(length.(diff_ranges))
-    diff_i_to_params = i -> getindex.(diff_ranges, Ds_cis[i].I)
+    diff_i_to_params = ci -> getindex.(diff_ranges, ci.I)
 
     total_size = (size(ns_cis)..., size(Ds_cis)...)
 
@@ -163,8 +163,8 @@ function main()
     )
 end
 
-function ltest(N)
-    @time analyze_many_mmps(;
+function ltest(N, fname=nothing)
+    @time analyze_many_mmps(fname;
         m=LinRange(0.1, 2.0, N),
         l=LinRange(0.0, 1.0, N),
         K=LinRange(0.1, 10.0, N),
