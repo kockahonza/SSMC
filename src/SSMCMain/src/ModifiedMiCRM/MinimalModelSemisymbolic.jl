@@ -340,4 +340,81 @@ function analyze_single_mmps(mmps::MinimalModelParamsSpace{F};
 end
 export analyze_single_mmps
 
+function mm_interactive_k_plot(ks=LinRange(0.0, 100, 10000);
+    m_range=LinRange(0.1, 10.0, 1000),
+    l_range=LinRange(0.0, 1.0, 100),
+    K_range=LinRange(0.1, 100.0, 10000),
+    c_range=LinRange(0.1, 100.0, 10000),
+    d_range=LinRange(0.1, 100.0, 10000),
+    DN_range=vcat(0.0, 10 .^ LinRange(-5, 3, 100)),
+    DG_range=vcat(0.0, 10 .^ LinRange(-5, 3, 100)),
+    DR_range=vcat(0.0, 10 .^ LinRange(-5, 3, 100)),
+    plotimag=false
+)
+    fig = Figure()
+
+    sg = SliderGrid(fig[1, 1],
+        (label="m", range=m_range),
+        (label="l", range=l_range),
+        (label="K", range=K_range),
+        (label="c", range=c_range),
+        (label="d", range=d_range),
+        (label="DN", range=DN_range),
+        (label="DG", range=DG_range),
+        (label="DR", range=DR_range),
+    )
+
+    sliderobservables = [s.value for s in sg.sliders]
+    xx = lift(sliderobservables...) do slvalues...
+        mmpf = MinimalModelParamsSpace(slvalues...)
+        mmicrm_params = mmp_to_mmicrm(mmpf)
+
+        pssols = find_physical_stable_solutions_nospace(mmpf; include_extinct=true)
+        nsols = length(pssols)
+        if nsols > 2
+            @warn "Found an unexpected number of physical, stable solutions!!"
+        end
+        nssol = pssols[1]
+
+        Ds = [slvalues[end-2], slvalues[end-1], slvalues[end]]
+
+        do_linstab_for_ks(ks, mmicrm_params, Ds, nssol), nsols
+    end
+    lambdas = lift(xx -> xx[1], xx)
+    nsols = lift(xx -> xx[2], xx)
+
+    mrl = lift(ls -> maximum(real, ls), lambdas)
+
+    fig[1, 2] = label_gl = GridLayout()
+    Label(label_gl[1, 1], lift(x -> (@sprintf "mrl = %g" x), mrl))
+    Label(label_gl[2, 1], lift(x -> (@sprintf "nsols = %d" x), nsols))
+
+    l1 = lift(ls -> (@view ls[:, 1]), lambdas)
+    l2 = lift(ls -> (@view ls[:, 2]), lambdas)
+    l3 = lift(ls -> (@view ls[:, 3]), lambdas)
+
+    ax = Axis(fig[2, :])
+    for (li, l) in enumerate([l1, l2, l3])
+        lines!(ax, ks, lift(real, l);
+            color=Cycled(li),
+            label=latexstring(@sprintf "\\Re(\\lambda_%d)" li)
+        )
+        if plotimag
+            lines!(ax, ks, lift(imag, l);
+                color=Cycled(li),
+                linestyle=:dash,
+                label=latexstring(@sprintf "\\Im(\\lambda_%d)" li)
+            )
+        end
+    end
+    axislegend(ax)
+    # on(mrl) do x
+    #     @show x
+    #     ylims!(ax, (-8 * x, 2 * x))
+    # end
+
+    fig, mrl
+end
+export mm_interactive_k_plot
+
 end
