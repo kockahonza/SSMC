@@ -299,9 +299,7 @@ function plot_2dsmmicrm_sol_interactive_heatmap(sol; aspect_ratio=1.5)
         end
     end
 
-
     on(events(fig).keyboardbutton) do event
-
         if event.action == Keyboard.press || event.action == Keyboard.repeat
             idx = timesl.value[]
             # Move 5 frames at a time when key is held
