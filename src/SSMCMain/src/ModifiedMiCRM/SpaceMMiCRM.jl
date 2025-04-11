@@ -89,7 +89,7 @@ function make_smmicrm_problem_safe(u0, T, smmicrm_params; sparse_jac=true)
     if u0ndims != spacendims
         throw(ArgumentError(@sprintf "the passed u0 and space do not have the same number of dimensions, u0ndims is %d and ndims(space) is %d" u0ndims spacendims))
     end
-    if any(s->s<4, size(u0)[2:end])
+    if any(s -> s < 4, size(u0)[2:end])
         throw(ArgumentError("getting u0 that has too few points for the optimized code to work"))
     end
 
@@ -171,12 +171,27 @@ function perturb_u0_uniform(Ns, Nr, u0, e_s=nothing, e_r=nothing)
         vcat(smart_val(e_s, nothing, Ns), smart_val(e_r, nothing, Nr))
     end
 
-    u0 .+ rand(size(u0)...) .* epsilon
+    rand_pm_one = (2 .* rand(size(u0)...) .- 1)
+
+    u0 .+ rand_pm_one .* epsilon
+end
+function perturb_u0_uniform_prop(Ns, Nr, u0, e_s=nothing, e_r=nothing)
+    N = Ns + Nr
+
+    epsilon = if isnothing(e_r)
+        smart_val(e_s, nothing, N)
+    else
+        vcat(smart_val(e_s, nothing, Ns), smart_val(e_r, nothing, Nr))
+    end
+
+    rand_pm_one = (2 .* rand(size(u0)...) .- 1)
+
+    u0 .* (1.0 .+ rand_pm_one .* epsilon)
 end
 function perturb_u0_wave(Ns, Nr, u0, args...)
     # TODO: Implement this!
 end
-export perturb_u0_uniform, perturb_u0_wave
+export perturb_u0_uniform, perturb_u0_uniform_prop, perturb_u0_wave
 
 function perturb_smmicrm_u0(p::ODEProblem, ptype, args...)
     if !isa(p.p, SMMiCRMParams)
