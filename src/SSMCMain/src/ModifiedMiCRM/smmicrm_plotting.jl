@@ -299,6 +299,23 @@ function plot_2dsmmicrm_sol_interactive_heatmap(sol; aspect_ratio=1.5)
         end
     end
 
+
+    on(events(fig).keyboardbutton) do event
+
+        if event.action == Keyboard.press || event.action == Keyboard.repeat
+            idx = timesl.value[]
+            # Move 5 frames at a time when key is held
+            step = event.action == Keyboard.repeat ? 5 : 1
+
+            if event.key == Keyboard.left
+                set_close_to!(timesl, max(1, idx - step))
+            elseif event.key == Keyboard.right
+                set_close_to!(timesl, min(length(sol.t), idx + step))
+            end
+        end
+        return true
+    end
+
     # Initialize with first frame
     for (i, hm) in enumerate(strain_hms)
         hm[3][] = permutedims(sol.u[1][i, :, :])
