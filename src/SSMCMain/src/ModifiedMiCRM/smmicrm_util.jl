@@ -28,3 +28,28 @@ function get_u_axes(u, args...; kwargs...)
     get_space_axes(size(u)[2:end], args...; kwargs...)
 end
 export get_u_axes
+
+function resample_cartesian_u(u, space::CartesianSpace, Ns...)
+    if length(Ns) == 1
+        Ns = Ns[1]
+    else
+        Ns = collect(Ns)
+    end
+    Ns = smart_val(Ns, nothing, ndims(u) - 1)
+
+    ranges = get_u_axes(u, space.dx)
+    new_ranges = [LinRange(or[1], or[end], N) for (or, N) in zip(ranges, Ns)]
+    new_dx = [r[2] - r[1] for r in new_ranges]
+    new_space = change_cartesianspace_dx(space, new_dx)
+
+    ru = similar(u, size(u)[1], Ns...)
+
+    for i in axes(u, 1)
+        old_ui = selectdim(u, 1, i)
+        ii = linear_interpolation(ranges, old_ui)
+        selectdim(ru, 1, i) .= ii(new_ranges...)
+    end
+
+    ru, new_space
+end
+export resample_cartesian_u

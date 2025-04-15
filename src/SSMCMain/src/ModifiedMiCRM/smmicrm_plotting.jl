@@ -122,7 +122,7 @@ function setup_2dsmmicrm_heatmap_figure(params::SMMiCRMParams, x_range, y_range,
     strain_clims, resource_clims,
     extra_data=false, extra_clims=nothing;
     aspect_ratio=1.5, time_value=nothing,
-    strain_colormap=:viridis, resource_colormap=:plasma, extra_colormap=:Blues
+    strain_colormap=:viridis, resource_colormap=:plasma, extra_colormap=strain_colormap
 )
     Ns, Nr = get_Ns(params.mmicrm_params)
 

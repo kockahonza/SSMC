@@ -6,6 +6,7 @@ using Reexport
 import ..SSMCMain.ModifiedMiCRM: get_Ns
 
 using StatsBase
+using Interpolations
 
 using ADTypes, SparseConnectivityTracer
 
@@ -111,6 +112,16 @@ function make_smmicrm_problem_safe(u0, T, args...; kwargs...)
     make_smmicrm_problem_safe(u0, T, SMMiCRMParams(args...); kwargs...)
 end
 export make_smmicrm_problem_safe
+
+function change_smmicrm_params(sp::SMMiCRMParams;
+    mmicrm_params=sp.mmicrm_params,
+    diffusion_constants=sp.diffusion_constants,
+    space=sp.space,
+    usenthreads=sp.usenthreads
+)
+    SMMiCRMParams(mmicrm_params, diffusion_constants, space, usenthreads)
+end
+export change_smmicrm_params
 
 ################################################################################
 # Different AbstractSpace implementations

@@ -11,6 +11,20 @@ struct CartesianSpace{D,BCs,F} <: AbstractSpace
         end
         new{length(dx),typeof(Tuple(bcs)),eltype(dx)}(dx)
     end
+    function CartesianSpace{D,BCs}(dx) where {D,BCs}
+        fts = fieldtypes(BCs)
+        if !((BCs <: Tuple) && all(bct -> bct <: SingleAxisBC, fts))
+            throw(ArgumentError(@sprintf "invalid BCs of %s" string(BCs)))
+        end
+        if length(fts) != D
+            throw(ArgumentError(@sprintf "incorrect number of BCs, should be %s but passed BCs are %s" string(D) string(BCs)))
+        end
+        if length(dx) != D
+            throw(ArgumentError(@sprintf "incorrect number of dx s, should be %s but passed dx is %s" string(D) string(dx)))
+        end
+        new{D,BCs,eltype(dx)}(dx)
+    end
+    CartesianSpace{BCs}(dx) where {BCs} = CartesianSpace{length(dx),BCs}(dx)
 end
 ndims(_::CartesianSpace{D}) where {D} = D
 export CartesianSpace
@@ -21,6 +35,22 @@ function make_cartesianspace_smart(D; dx=nothing, bcs=nothing)
     CartesianSpace(dx, bcs)
 end
 export make_cartesianspace_smart
+
+function change_cartesianspace_dx(cs::CartesianSpace{D,BCs}, dx) where {D,BCs}
+    if length(dx) != D
+        throw(ArgumentError(@sprintf "incorrect number of dx s, should be %s but passed dx is %s" string(D) string(dx)))
+    end
+    CartesianSpace{BCs}(dx)
+end
+export change_cartesianspace_dx
+
+function change_cartesianspace_bcs(cs::CartesianSpace{D}, bcs) where {D}
+    if length(bcs) != D
+        throw(ArgumentError(@sprintf "incorrect number of BCs, should be %s but passed BCs are %s" string(D) string(bcs)))
+    end
+    CartesianSpace{typeof(Tuple(bcs))}(cs.dx)
+end
+export change_cartesianspace_bcs
 
 ################################################################################
 # implement the actual diffusion
