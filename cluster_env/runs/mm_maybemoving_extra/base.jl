@@ -28,7 +28,7 @@ function resample_sps(sps, N, extra_time;
 end
 
 function job1()
-    mm_mm_sps = load_object(datadir("minimalmodel/fascinating_maybe_moving.jld2"))
+    mm_mm_sps = load_object("linput_mm_mm.jld2")
 
     extra_time = 10.0 * (mm_mm_sps.t[end] - mm_mm_sps.t[begin])
 
@@ -40,7 +40,7 @@ function job1()
     flush(stdout)
     save_object("nop_sol.jld2", nop_sol)
 
-    nop = resample_sps(mm_mm_sps, 1000, extra_time; 
+    nop = resample_sps(mm_mm_sps, 1000, extra_time;
         prop_perturb_param=0.05
     )
     flush(stdout)
