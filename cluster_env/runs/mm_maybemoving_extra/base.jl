@@ -32,12 +32,16 @@ function resample_sps(sps, N, extra_time;
 end
 
 function job1()
-    mm_mm_sps = load_object("../data/minimalmodel/fascinating_maybe_moving.jld2")
+    mm_mm_sps = load_object(datadir("minimalmodel/fascinating_maybe_moving.jld2"))
 
-    extra_time = mm_mm_sps.t[end] - mm_mm_sps.t[begin]
+    extra_time = 0.1 * (mm_mm_sps.t[end] - mm_mm_sps.t[begin])
 
     nop = resample_sps(mm_mm_sps, 100, extra_time)
-    nop_sol = solve(nop, QNDF())
-    print_spatial_solution_stats(nop_sol)
-    save_object("nop_sol.jld2", nop_sol)
+    @info "starting no perturbation run"
+    flush(stdout)
+    # @time nop_sol = solve(nop, QNDF(); maxiters=10000)
+    @info "finished no perturbation run"
+    # print_spatial_solution_stats(nop_sol)
+    flush(stdout)
+    # save_object("nop_sol.jld2", nop_sol)
 end
