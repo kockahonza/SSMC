@@ -30,14 +30,24 @@ end
 function job1()
     mm_mm_sps = load_object(datadir("minimalmodel/fascinating_maybe_moving.jld2"))
 
-    extra_time = 0.1 * (mm_mm_sps.t[end] - mm_mm_sps.t[begin])
+    extra_time = 10.0 * (mm_mm_sps.t[end] - mm_mm_sps.t[begin])
 
-    nop = resample_sps(mm_mm_sps, 100, extra_time)
-    @info "starting no perturbation run"
-    flush(stdout)
+    nop = resample_sps(mm_mm_sps, 1000, extra_time)
     @time nop_sol = solve(nop, QNDF(); maxiters=10000)
-    @info "finished no perturbation run"
     print_spatial_solution_stats(nop_sol)
     flush(stdout)
+    @info "finished no perturbation run, saving"
+    flush(stdout)
     save_object("nop_sol.jld2", nop_sol)
+
+    nop = resample_sps(mm_mm_sps, 1000, extra_time; 
+        prop_perturb_param=0.05
+    )
+    flush(stdout)
+    @time p5_sol = solve(nop, QNDF(); maxiters=10000)
+    print_spatial_solution_stats(p5_sol)
+    flush(stdout)
+    @info "finished perturbation 0.05 run, saving"
+    flush(stdout)
+    save_object("p5_sol.jld2", p5_sol)
 end

@@ -3,3 +3,4 @@ data/**/*
 cluster_env/runs/**/*.h5
 cluster_env/runs/**/*.jld2
 cluster_env/runs/**/*.out
+!cluster_env/runs/**/input_*.jld2
