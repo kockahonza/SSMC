@@ -47,7 +47,7 @@ function job1()
     @time p5_sol = solve(nop, QNDF(); maxiters=10000)
     print_spatial_solution_stats(p5_sol)
     flush(stdout)
-    @info "finished perturbation 0.05 run, saving"
+    @info "finished 5% perturbation run, saving"
     flush(stdout)
     save_object("p5_sol.jld2", p5_sol)
 end
