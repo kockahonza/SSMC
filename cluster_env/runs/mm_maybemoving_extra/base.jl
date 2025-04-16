@@ -24,11 +24,7 @@ function resample_sps(sps, N, extra_time;
     end
 
     # make the ODEProblem
-    remake(sps.prob;
-        u0=u0,
-        tspan=(sps.t[end], sps.t[end] + extra_time),
-        p=new_smmicrm_params
-    )
+    make_smmicrm_problem_safe(u0, extra_time, new_smmicrm_params; t0=sps.t[end])
 end
 
 function job1()

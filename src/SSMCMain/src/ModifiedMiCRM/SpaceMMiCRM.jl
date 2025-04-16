@@ -84,7 +84,7 @@ end
 export smmicrmfunc!
 
 # Makes an ODEProblem checking u0 and SMMiCRMParams are compatible
-function make_smmicrm_problem_safe(u0, T, smmicrm_params; sparse_jac=true)
+function make_smmicrm_problem_safe(u0, T, smmicrm_params; sparse_jac=true, t0=0.0)
     u0ndims = ndims(u0) - 1
     spacendims = ndims(smmicrm_params.space)
     if u0ndims != spacendims
@@ -106,7 +106,7 @@ function make_smmicrm_problem_safe(u0, T, smmicrm_params; sparse_jac=true)
         smmicrmfunc!
     end
 
-    ODEProblem(func, u0, (0.0, T), smmicrm_params)
+    ODEProblem(func, u0, (t0, t0 + T), smmicrm_params)
 end
 function make_smmicrm_problem_safe(u0, T, args...; kwargs...)
     make_smmicrm_problem_safe(u0, T, SMMiCRMParams(args...); kwargs...)
