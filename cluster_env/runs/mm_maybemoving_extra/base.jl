@@ -39,9 +39,9 @@ function job1()
     nop = resample_sps(mm_mm_sps, 100, extra_time)
     @info "starting no perturbation run"
     flush(stdout)
-    # @time nop_sol = solve(nop, QNDF(); maxiters=10000)
+    @time nop_sol = solve(nop, QNDF(); maxiters=10000)
     @info "finished no perturbation run"
-    # print_spatial_solution_stats(nop_sol)
+    print_spatial_solution_stats(nop_sol)
     flush(stdout)
-    # save_object("nop_sol.jld2", nop_sol)
+    save_object("nop_sol.jld2", nop_sol)
 end
