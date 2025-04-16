@@ -38,6 +38,8 @@ function analyze_many_mmps2(save_filename=nothing;
         nummodes=Int[]
     )
 
+    @info "Starting the run"
+    flush(stdout)
     if isnothing(usenthreads)
         for ns_ci in ns_cis
             analyze_single_mmps2_step_!(
@@ -52,7 +54,9 @@ function analyze_many_mmps2(save_filename=nothing;
         ldfs = [copy(df) for _ in 1:usenthreads]
         @sync for (ch, ldf) in zip(ns_cis_chunks, ldfs)
             @spawn begin
-                @inbounds for ns_ci in ch
+                @info (@sprintf "thread %d starting" threadid())
+                flush(stdout)
+                for ns_ci in ch
                     analyze_single_mmps2_step_!(
                         ldf,
                         ns_ci, ns_i_to_params,
