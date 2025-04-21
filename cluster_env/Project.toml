@@ -6,9 +6,13 @@ version = "0.1.0"
 [deps]
 ChunkSplitters = "ae650224-84b6-46f8-82ea-d812ca08434e"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 OhMyThreads = "67456a42-1dca-4109-a031-0a68de7e3ad5"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 SSMCMain = "a75ad852-21c5-4a12-a12f-b1392bb0ea4b"
+
+[compat]
+Distributions = "0.25.119"
