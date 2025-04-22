@@ -1,0 +1,47 @@
+Warning: remote port forwarding failed for listen port 9999
+[I 2025-04-22 14:58:03.975 ServerApp] Extension package jupyter_lsp took 0.1140s to import
+[I 2025-04-22 14:58:04.626 ServerApp] jupyter_lsp | extension was successfully linked.
+[I 2025-04-22 14:58:04.633 ServerApp] jupyter_server_terminals | extension was successfully linked.
+[I 2025-04-22 14:58:04.640 ServerApp] jupyterlab | extension was successfully linked.
+[I 2025-04-22 14:58:04.644 ServerApp] notebook | extension was successfully linked.
+[I 2025-04-22 14:58:06.610 ServerApp] notebook_shim | extension was successfully linked.
+[I 2025-04-22 14:58:06.773 ServerApp] notebook_shim | extension was successfully loaded.
+[I 2025-04-22 14:58:06.781 ServerApp] jupyter_lsp | extension was successfully loaded.
+[I 2025-04-22 14:58:06.783 ServerApp] jupyter_server_terminals | extension was successfully loaded.
+[I 2025-04-22 14:58:06.797 LabApp] JupyterLab extension loaded from /home/xucapjko/.local/lib/python3.9/site-packages/jupyterlab
+[I 2025-04-22 14:58:06.797 LabApp] JupyterLab application directory is /home/xucapjko/.local/share/jupyter/lab
+[I 2025-04-22 14:58:06.799 LabApp] Extension Manager is 'pypi'.
+[I 2025-04-22 14:58:06.942 ServerApp] jupyterlab | extension was successfully loaded.
+[I 2025-04-22 14:58:06.952 ServerApp] notebook | extension was successfully loaded.
+[I 2025-04-22 14:58:06.953 ServerApp] Serving notebooks from local directory: /home/xucapjko/SSMC/cluster_env
+[I 2025-04-22 14:58:06.953 ServerApp] Jupyter Server 2.15.0 is running at:
+[I 2025-04-22 14:58:06.953 ServerApp] http://localhost:9999/tree?token=2c288ece7f0aa6fb2513709534c0fcccee4900a584080d05
+[I 2025-04-22 14:58:06.953 ServerApp]     http://127.0.0.1:9999/tree?token=2c288ece7f0aa6fb2513709534c0fcccee4900a584080d05
+[I 2025-04-22 14:58:06.953 ServerApp] Use Control-C to stop this server and shut down all kernels (twice to skip confirmation).
+[C 2025-04-22 14:58:06.960 ServerApp] 
+    
+    To access the server, open this file in a browser:
+        file:///home/xucapjko/.local/share/jupyter/runtime/jpserver-124585-open.html
+    Or copy and paste one of these URLs:
+        http://localhost:9999/tree?token=2c288ece7f0aa6fb2513709534c0fcccee4900a584080d05
+        http://127.0.0.1:9999/tree?token=2c288ece7f0aa6fb2513709534c0fcccee4900a584080d05
+[I 2025-04-22 14:58:07.216 ServerApp] 302 GET / (@127.0.0.1) 2.18ms
+[I 2025-04-22 14:58:07.699 ServerApp] Skipped non-installed server(s): bash-language-server, dockerfile-language-server-nodejs, javascript-typescript-langserver, jedi-language-server, julia-language-server, pyright, python-language-server, python-lsp-server, r-languageserver, sql-language-server, texlab, typescript-language-server, unified-language-server, vscode-css-languageserver-bin, vscode-html-languageserver-bin, vscode-json-languageserver-bin, yaml-language-server
+[I 2025-04-22 14:58:25.569 ServerApp] Kernel started: 719866a5-93bf-4b65-a966-a8311275d35e
+[I 2025-04-22 14:58:28.611 ServerApp] Adapting from protocol version 5.4 (kernel 719866a5-93bf-4b65-a966-a8311275d35e) to 5.3 (client).
+[I 2025-04-22 14:58:28.614 ServerApp] Connecting to kernel 719866a5-93bf-4b65-a966-a8311275d35e.
+[I 2025-04-22 14:58:28.978 ServerApp] Adapting from protocol version 5.4 (kernel 719866a5-93bf-4b65-a966-a8311275d35e) to 5.3 (client).
+[I 2025-04-22 14:58:28.980 ServerApp] Connecting to kernel 719866a5-93bf-4b65-a966-a8311275d35e.
+[I 2025-04-22 14:58:29.517 ServerApp] Adapting from protocol version 5.4 (kernel 719866a5-93bf-4b65-a966-a8311275d35e) to 5.3 (client).
+[I 2025-04-22 14:58:29.519 ServerApp] Connecting to kernel 719866a5-93bf-4b65-a966-a8311275d35e.
+[I 2025-04-22 15:00:31.178 ServerApp] Saving file at /runs/mm_maybemoving_extra/looking_at_bigdata.ipynb
+[I 2025-04-22 15:02:35.710 ServerApp] Saving file at /runs/mm_maybemoving_extra/looking_at_bigdata.ipynb
+[I 2025-04-22 15:04:44.534 ServerApp] Saving file at /runs/mm_maybemoving_extra/looking_at_bigdata.ipynb
+[I 2025-04-22 15:07:09.119 ServerApp] Saving file at /runs/mm_maybemoving_extra/looking_at_bigdata.ipynb
+[I 2025-04-22 15:13:21.798 ServerApp] Saving file at /runs/mm_maybemoving_extra/looking_at_bigdata.ipynb
+[I 2025-04-22 15:16:36.220 ServerApp] Starting buffering for 719866a5-93bf-4b65-a966-a8311275d35e:db21a6cf-425f-470c-b736-a2c957921863
+slurmstepd: error: *** JOB 32761 ON compute-0-5 CANCELLED AT 2025-04-22T15:16:58 ***
+[C 2025-04-22 15:16:58.242 ServerApp] received signal 15, stopping
+[I 2025-04-22 15:16:58.266 ServerApp] Shutting down 5 extensions
+[I 2025-04-22 15:16:58.267 ServerApp] Shutting down 1 kernel
+[I 2025-04-22 15:16:58.268 ServerApp] Kernel shutdown: 719866a5-93bf-4b65-a966-a8311275d35e
