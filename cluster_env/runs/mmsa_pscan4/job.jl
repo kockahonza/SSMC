@@ -71,7 +71,9 @@ function analyze_many_mmps2(save_filename=nothing;
 
     if !isnothing(save_filename)
         jldsave(save_filename;
-            df, threshold
+            df,
+            m, l, K, c, d, DN, DG, DR,
+            threshold
         )
     end
 
