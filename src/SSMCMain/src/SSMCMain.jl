@@ -8,6 +8,8 @@ using Reexport
 @reexport using Makie, LaTeXStrings
 @reexport using PrettyTables
 @reexport using Geppetto
+@reexport using NamedArrays
+@reexport using StatsBase
 
 using REPL.TerminalMenus
 using Logging

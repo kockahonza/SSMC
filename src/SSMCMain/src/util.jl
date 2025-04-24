@@ -172,6 +172,7 @@ function plot_linstab_lambdas(ks, lambdas; imthreshold=1e-8)
             label=latexstring(@sprintf "\\Re(\\lambda_%d)" li)
         )
         ims = imag(lambdas[:, li])
+
         mims = maximum(abs, ims)
         if mims > imthreshold
             @info @sprintf "we are getting non-zero imaginary parts, max(abs(.)) is %f" mims
@@ -187,7 +188,70 @@ function plot_linstab_lambdas(ks, lambdas; imthreshold=1e-8)
 end
 export plot_linstab_lambdas
 
-# general
+################################################################################
+# Plotting NamedArrays with labels etc plus DataFrames helpers
+################################################################################
+function plot_namedvector_barplot(nv::NamedVector)
+end
+export plot_namedvector_barplot
+
+function plot_namedvector_numeric(nv::NamedVector)
+end
+export plot_namedvector_numeric
+
+function plot_namedmatrix_heatmap(nm::NamedMatrix; colorbar=true, kwargs...)
+    fap = heatmap(nm; kwargs...)
+    xns, yns = names(nm)
+    fap.axis.xticks = (1:length(xns), string.(xns))
+    fap.axis.yticks = (1:length(yns), string.(yns))
+
+    if colorbar
+        Colorbar(fap.figure[1, 2], fap.plot)
+    end
+
+    fap
+end
+export plot_namedmatrix_heatmap
+
+function plot_df_correlations(df, select=:;
+    clear_diag=true,
+    full_range=false,
+    kwargs...
+)
+    df = df[!, select]
+    corrs = NamedArray(cor(Matrix(df)), (names(df), names(df)))
+
+    if clear_diag
+        for i in 1:size(corrs, 1)
+            corrs[i, i] = NaN
+        end
+    end
+
+    colorrange = if full_range
+        (-1.0, 1.0)
+    else
+        mm = maximum(abs, filter(isfinite, corrs))
+        (-mm, mm)
+    end
+
+    fap = plot_namedmatrix_heatmap(corrs;
+        colorrange, colormap=:RdBu,
+        kwargs...
+    )
+    if isempty(fap.axis.title[])
+        fap.axis.title = "Correlations"
+    end
+    if (maximum(length, fap.axis.xticks[][2]) > 6) && iszero(fap.axis.xticklabelrotation[])
+        fap.axis.xticklabelrotation = 0.4
+    end
+
+    fap
+end
+export plot_df_correlations
+
+################################################################################
+# Other miscellaneous plotting
+################################################################################
 function plot_heatmaps(xs, ys, matrices;
     titles=nothing
 )

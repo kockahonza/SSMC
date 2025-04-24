@@ -139,18 +139,20 @@ function analyze_single_mmps2_step_!(
 end
 
 function main()
-    @time analyze_many_mmps2("./out.jld2";
-        m=2 .^ LinRange(-7, 2, 8),
-        l=[1.0, 0.9, 0.5, 0.0],
-        K=2 .^ LinRange(-4, 5, 8),
-        c=2 .^ LinRange(-7, 4, 8),
-        d=2 .^ LinRange(-7, 4, 8),
-        DN=10 .^ LinRange(-7, 5, 10),
-        DG=10 .^ LinRange(-7, 5, 10),
-        DR=10 .^ LinRange(-7, 5, 10),
+    @time fdf = analyze_many_mmps2("./out_fdf.jld2";
+        m=2 .^ LinRange(-7, 2, 30),
+        l=LinRange(0.0, 1.0, 10),
+        K=[1.0],
+        c=2 .^ LinRange(-7, 4, 40),
+        d=2 .^ LinRange(-7, 4, 40),
+        DN=[0.0, 1e-7, 1e-5, 1e-3, 1e-1, 1, 10],
+        DG=[1.0],
+        DR=10 .^ LinRange(-7, 5, 40),
         threshold=10 * eps(Float64),
         usenthreads=Threads.nthreads()
     )
+    @time finite_df = fdf[.!(iszero.(fdf.DN)), :]
+    @time save_object("./out_finite.jld2", finite_df)
 end
 
 function ltest(N, fname=nothing; kwargs...)
