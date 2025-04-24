@@ -31,13 +31,22 @@ function plot_smmicrm_sol_avgs(sol, is=1:length(sol.u); singleax=false, plote=fa
 
     # plot data
     for i in 1:Ns
-        scatterlines!(strainax, ts, getindex.(avgs, i); label=@sprintf "str %d" i)
+        scatterlines!(strainax, ts, getindex.(avgs, i);
+            marker=:vline,
+            label=@sprintf "str %d" i
+        )
     end
     for a in 1:Nr
-        scatterlines!(resax, ts, getindex.(avgs, Ns + a); label=@sprintf "res %d" a)
+        scatterlines!(resax, ts, getindex.(avgs, Ns + a);
+            marker=:vline,
+            label=@sprintf "res %d" a
+        )
     end
     if plote
-        scatterlines!(eax, ts, energies; label=L"\epsilon")
+        scatterlines!(eax, ts, energies;
+            marker=:vline,
+            label=L"\epsilon"
+        )
     end
 
     if singleax
@@ -77,6 +86,11 @@ function plot_1dsmmicrm_sol_snap(params, snap_u; singleax=false, plote=false)
         if plote
             eax = Axis(fig[3, 1])
         end
+    end
+
+    linkxaxes!(strainax, resax)
+    if plote
+        linkxaxes!(strainax, eax)
     end
 
     # plot data
