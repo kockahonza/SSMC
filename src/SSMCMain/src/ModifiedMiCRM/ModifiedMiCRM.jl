@@ -4,6 +4,8 @@ module ModifiedMiCRM
 using Reexport
 @reexport using ..SSMCMain
 
+using Polynomials
+
 ################################################################################
 # Internals
 ################################################################################

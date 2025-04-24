@@ -1,64 +1,6 @@
-function do_linstab_for_ks(ks, p::MMiCRMParams{Ns,Nr,F}, Ds, ss; kwargs...) where {Ns,Nr,F}
-    lambda_func = linstab_make_lambda_func(p, ss, Ds; kwargs...)
-    lambdas = Matrix{Complex{F}}(undef, length(ks), length(ss))
-    for (i, k) in enumerate(ks)
-        lambdas[i, :] .= lambda_func(k)
-    end
-    lambdas
-end
-function do_linstab_for_ks(ks, p::ODEProblem, Ds, ss=nothing; kwargs...)
-    if isnothing(ss)
-        ssprob = SteadyStateProblem(p)
-        sssol = solve(ssprob, DynamicSS())
-        if sssol.retcode != ReturnCode.Success
-            @error "the steady state solver did not succeed"
-        end
-        ss = sssol.u
-    end
-    do_linstab_for_ks(ks, p.p, Ds, ss; kwargs...)
-end
-export do_linstab_for_ks
-
-function eigen_sortby_reverse(l::Complex)
-    (-real(l), imag(l))
-end
-function eigen_sortby_reverse(l::Real)
-    -l
-end
-export eigen_sortby_reverse
-
-function linstab_make_lambda_func(p::MMiCRMParams{Ns,Nr}, ss, Ds=nothing; kwargs...) where {Ns,Nr}
-    if !isnothing(Ds)
-        let M1 = make_M1(p, ss)
-            function (k)
-                eigvals(M1 + Diagonal(-(k^2) .* Ds); sortby=eigen_sortby_reverse, kwargs...)
-            end
-        end
-    else
-        let M1 = make_M1(p, ss)
-            function (k, Ds)
-                eigvals(M1 + Diagonal(-(k^2) .* Ds); sortby=eigen_sortby_reverse, kwargs...)
-            end
-        end
-    end
-end
-function linstab_make_full_func(p::MMiCRMParams{Ns,Nr}, ss, Ds=nothing; kwargs...) where {Ns,Nr}
-    if !isnothing(Ds)
-        let M1 = make_M1(p, ss)
-            function (k)
-                eigen(M1 + Diagonal(-(k^2) .* Ds); sortby=eigen_sortby_reverse, kwargs...)
-            end
-        end
-    else
-        let M1 = make_M1(p, ss)
-            function (k, Ds)
-                eigen(M1 + Diagonal(-(k^2) .* Ds); sortby=eigen_sortby_reverse, kwargs...)
-            end
-        end
-    end
-end
-export linstab_make_lambda_func, linstab_make_full_func
-
+################################################################################
+# Physics/base, constructing M1 and M
+################################################################################
 function make_M1!(M1, p::MMiCRMParams{Ns,Nr}, ss) where {Ns,Nr}
     Nss = @view ss[1:Ns]
     Rss = @view ss[Ns+1:Ns+Nr]
@@ -117,9 +59,84 @@ function make_M(p::MMiCRMParams, k, ss, Ds)
 end
 export make_M
 
+################################################################################
+# Util bits
+################################################################################
+function eigen_sortby_reverse(l::Complex)
+    (-real(l), imag(l))
+end
+function eigen_sortby_reverse(l::Real)
+    -l
+end
+export eigen_sortby_reverse
+
+################################################################################
+# Directly solving for a set of ks
+################################################################################
+function do_linstab_for_ks(ks, p::MMiCRMParams{Ns,Nr,F}, Ds, ss; kwargs...) where {Ns,Nr,F}
+    lambda_func = linstab_make_lambda_func(p, ss, Ds; kwargs...)
+    lambdas = Matrix{Complex{F}}(undef, length(ks), length(ss))
+    for (i, k) in enumerate(ks)
+        lambdas[i, :] .= lambda_func(k)
+    end
+    lambdas
+end
+function do_linstab_for_ks(ks, p::ODEProblem, Ds, ss=nothing; kwargs...)
+    if isnothing(ss)
+        ssprob = SteadyStateProblem(p)
+        sssol = solve(ssprob, DynamicSS())
+        if sssol.retcode != ReturnCode.Success
+            @error "the steady state solver did not succeed"
+        end
+        ss = sssol.u
+    end
+    do_linstab_for_ks(ks, p.p, Ds, ss; kwargs...)
+end
+export do_linstab_for_ks
+
+function linstab_make_lambda_func(p::MMiCRMParams{Ns,Nr}, ss, Ds=nothing; kwargs...) where {Ns,Nr}
+    if !isnothing(Ds)
+        let M1 = make_M1(p, ss)
+            function (k)
+                eigvals(M1 + Diagonal(-(k^2) .* Ds); sortby=eigen_sortby_reverse, kwargs...)
+            end
+        end
+    else
+        let M1 = make_M1(p, ss)
+            function (k, Ds)
+                eigvals(M1 + Diagonal(-(k^2) .* Ds); sortby=eigen_sortby_reverse, kwargs...)
+            end
+        end
+    end
+end
+function linstab_make_full_func(p::MMiCRMParams{Ns,Nr}, ss, Ds=nothing; kwargs...) where {Ns,Nr}
+    if !isnothing(Ds)
+        let M1 = make_M1(p, ss)
+            function (k)
+                eigen(M1 + Diagonal(-(k^2) .* Ds); sortby=eigen_sortby_reverse, kwargs...)
+            end
+        end
+    else
+        let M1 = make_M1(p, ss)
+            function (k, Ds)
+                eigen(M1 + Diagonal(-(k^2) .* Ds); sortby=eigen_sortby_reverse, kwargs...)
+            end
+        end
+    end
+end
+export linstab_make_lambda_func, linstab_make_full_func
+
+################################################################################
+# The K polynomial functions, aka finding modes by solving for 0 evals
+################################################################################
+include("linstab_Kpolynomial.jl")
+
+################################################################################
+# Simple counters
+################################################################################
 """Returns the number of non-decaying modes"""
-function find_number_nondec_modes(M; threshold=eps(eltype(M)))
-    e = eigen(M)
+function find_number_nondec_modes(MorM1; threshold=eps(eltype(MorM1)))
+    e = eigen(MorM1)
     count(x -> real(x) > -threshold, e.values)
 end
 function find_number_nondec_modes(args...; kwargs...)
@@ -128,32 +145,9 @@ function find_number_nondec_modes(args...; kwargs...)
 end
 export find_number_nondec_modes
 
-"""Returns the non-decaying modes"""
-function find_nondec_modes(M; threshold=eps(eltype(M)))
-    e = eigen(M)
-
-    Ctype = Complex{eltype(M)}
-    lambdas = Ctype[]
-    modes = Vector{Ctype}[]
-
-    for i in 1:length(e.values)
-        if real(e.values[i]) > -threshold
-            push!(lambdas, e.values[i])
-            push!(modes, e.vectors[:, i])
-        end
-    end
-
-    lambdas, modes
-end
-function find_nondec_modes(args...; kwargs...)
-    M = make_M(args...)
-    find_nondec_modes(M; kwargs...)
-end
-export find_nondec_modes
-
 """Returns the number of non-decaying modes"""
-function find_number_growing_modes(M; threshold=eps(eltype(M)))
-    e = eigen(M)
+function find_number_growing_modes(MorM1; threshold=eps(eltype(MorM1)))
+    e = eigen(MorM1)
     count(x -> real(x) > threshold, e.values)
 end
 function find_number_growing_modes(args...; kwargs...)

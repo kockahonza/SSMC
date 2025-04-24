@@ -3,6 +3,8 @@ module MinimalModelSemisymbolic
 using Reexport
 @reexport using ..SSMCMain, ..ModifiedMiCRM, ..SpaceMMiCRM
 
+using Polynomials
+
 struct MinimalModelParamsNoSpace{F}
     m::F
     l::F
@@ -45,114 +47,157 @@ export add_space, get_Ds, mmp_to_mmicrm
 ################################################################################
 # Dealing with the no space/well mixed case first - finding steady states
 ################################################################################
-"""
-    solve_nospace(mmp::MinimalModelParamsU{F}) where {F}
+include("mmss_nospace.jl")
 
-Solves for the steady states of the minimal model (1 strain, 2 resources).
-The function finds all possible steady state solutions by solving the quadratic equation
-that results from setting the time derivatives to zero.
+################################################################################
+# Specific fast and hopefully reliable linear stability functions
+################################################################################
+"""This is hardcoded for a 3 by 3 matrix M1!!"""
+function make_K_polynomial_mm(M1, Ds)
+    a = M1[1, 1]
+    b = M1[1, 2]
+    c = M1[1, 3]
+    d = M1[2, 1]
+    e = M1[2, 2]
+    f = M1[2, 3]
+    g = M1[3, 1]
+    h = M1[3, 2]
+    i = M1[3, 3]
+    o = Ds[1]
+    p = Ds[2]
+    q = Ds[3]
 
-Returns a vector of solutions, where each solution is a vector [N, G, R] containing:
-- N: strain concentration
-- G: glucose (primary resource) concentration
-- R: byproduct (secondary resource) concentration
+    t0 = a * e * i - a * f * h - b * d * i + b * f * g + c * d * h - c * e * g
+    t1 = -a * e * q - a * i * p + b * d * q + c * g * p - e * i * o + f * h * o
+    t2 = a * p * q + e * o * q + i * o * p
+    t3 = -o * p * q
 
-The function always includes the trivial solution [0, K, 0] (extinction state),
-and up to two non-trivial solutions if they exist (determined by the discriminant).
-"""
-function solve_nospace(
-    mmp::MinimalModelParams{F};
-    include_extinct::Bool=true, threshold=eps(F)
+    Polynomial((t0, t1, t2, t3), :K)
+end
+export make_K_polynomial_mm
+
+################################################################################
+# Main functions, essentially
+################################################################################
+function analyze_single_mmps(mmps::MinimalModelParamsSpace{F};
+    include_extinct=false, threshold=2*eps(F)
 ) where {F}
-    m = mmp.m
-    l = mmp.l
-    K = mmp.K
-    c = mmp.c
-    d = mmp.d
+    mmicrm_params = mmp_to_mmicrm(mmps)
 
-    sols = Vector{F}[]
+    all_steadystates = solve_nospace(mmps; include_extinct, threshold)
+    # do the cheap test first, ignore sss with negative values
+    physical_steadystates = all_steadystates[nospace_sol_check_physical.(all_steadystates; threshold=2 * threshold)]
 
-    qa = c * d * m
-    qb = (c + d) * m - K * c * d
-    qc = m - K * c * (1.0 - l)
+    # construct the M1s which are used both for nospace and space linear stability analysis
+    M1s_ = make_M1.(Ref(mmicrm_params), physical_steadystates)
 
-    Dp1 = qb^2
-    Dp2 = 4.0 * qa * qc
-    D = Dp1 - Dp2
-    if D > threshold # D is positive, two solutions
-        sqrtD = sqrt(D)
+    stable_is = nospace_sol_check_stable.(M1s_)
+    # stable, physical steady states
+    sp_steadystates = physical_steadystates[stable_is]
+    M1s = M1s_[stable_is]
 
-        N1 = (-qb + sqrtD) / (2.0 * qa)
-        if abs(N1) > threshold # only add non-extinct solution
-            G1 = K / (1.0 + N1 * c)
-            R1 = (G1 * N1 * c * l) / (1.0 + N1 * d)
-            push!(sols, [N1, G1, R1])
-        end
+    num_nospace_sss = length(sp_steadystates)
 
-        N2 = (-qb - sqrtD) / (2.0 * qa)
-        if abs(N2) > threshold # only add non-extinct solution
-            G2 = K / (1.0 + N2 * c)
-            R2 = (G2 * N2 * c * l) / (1.0 + N2 * d)
-            push!(sols, [N2, G2, R2])
-        end
-    elseif D > -threshold # then D ~ 0
-        if abs(qb) > threshold # only add non-extinct solution
-            N = (-qb) / (2.0 * qa)
-            G = K / (1.0 + N * c)
-            R = (G * N * c * l) / (1.0 + N * d)
-            push!(sols, [N, G, R])
-        end
+    # Spatial linear stability analysis
+    Ds = get_Ds(mmps)
+
+    krootss = Vector{F}[]
+    num_modes_in_sectionss = Vector{Int}[]
+    total_num_modes = 0
+    for (ss_i, M1) in enumerate(M1s)
+        Kp = make_K_polynomial_mm(M1, Ds)
+        kroots = find_ks_that_have_nullspace(Kp; threshold)
+        k_samples = sample_ks_from_nullspace_ks(kroots)
+
+        num_modes_in_sections = [find_number_growing_modes(M1, k, Ds; threshold) for k in k_samples]
+
+        push!(krootss, kroots)
+        push!(num_modes_in_sectionss, num_modes_in_sections)
+        total_num_modes += sum(num_modes_in_sections)
     end
 
-    if include_extinct
-        push!(sols, [0.0, K, 0.0])
+    num_nospace_sss, total_num_modes, sp_steadystates, krootss, num_modes_in_sectionss
+end
+export analyze_single_mmps
+
+function mm_interactive_k_plot(ks=LinRange(0.0, 100, 10000);
+    m_range=LinRange(0.1, 10.0, 1000),
+    l_range=LinRange(0.0, 1.0, 100),
+    K_range=LinRange(0.1, 100.0, 10000),
+    c_range=LinRange(0.1, 100.0, 10000),
+    d_range=LinRange(0.1, 100.0, 10000),
+    DN_range=vcat(0.0, 10 .^ LinRange(-5, 3, 100)),
+    DG_range=vcat(0.0, 10 .^ LinRange(-5, 3, 100)),
+    DR_range=vcat(0.0, 10 .^ LinRange(-5, 3, 100)),
+    plotimag=false
+)
+    fig = Figure()
+
+    sg = SliderGrid(fig[1, 1],
+        (label="m", range=m_range),
+        (label="l", range=l_range),
+        (label="K", range=K_range),
+        (label="c", range=c_range),
+        (label="d", range=d_range),
+        (label="DN", range=DN_range),
+        (label="DG", range=DG_range),
+        (label="DR", range=DR_range),
+    )
+
+    sliderobservables = [s.value for s in sg.sliders]
+    xx = lift(sliderobservables...) do slvalues...
+        mmpf = MinimalModelParamsSpace(slvalues...)
+        mmicrm_params = mmp_to_mmicrm(mmpf)
+
+        pssols = find_physical_stable_solutions_nospace(mmpf; include_extinct=true)
+        nsols = length(pssols)
+        if nsols > 2
+            @warn "Found an unexpected number of physical, stable solutions!!"
+        end
+        nssol = pssols[1]
+
+        Ds = [slvalues[end-2], slvalues[end-1], slvalues[end]]
+
+        do_linstab_for_ks(ks, mmicrm_params, Ds, nssol), nsols
     end
+    lambdas = lift(xx -> xx[1], xx)
+    nsols = lift(xx -> xx[2], xx)
 
-    sols
-end
-export solve_nospace
+    mrl = lift(ls -> maximum(real, ls), lambdas)
 
-"""Makes sure the returned steady state really is steady"""
-function check_solve_nospace(
-    mmicrm_params::MMiCRMParams{Ns,Nr,F}, ss;
-    threshold=2 * eps(F)
-) where {Ns,Nr,F}
-    maximum(abs, uninplace(mmicrmfunc!)(ss, mmicrm_params)) < threshold
-end
-check_solve_nospace(mmp::MinimalModelParams, args...) = check_solve_nospace(mmp_to_mmicrm(mmp), args...)
-export check_solve_nospace
+    fig[1, 2] = label_gl = GridLayout()
+    Label(label_gl[1, 1], lift(x -> (@sprintf "mrl = %g" x), mrl))
+    Label(label_gl[2, 1], lift(x -> (@sprintf "nsols = %d" x), nsols))
 
-function nospace_sol_check_physical(ss; threshold=2 * eps(eltype(ss)))
-    all(x -> isfinite(x) && (x > -threshold), ss)
-end
-export nospace_sol_check_physical
+    l1 = lift(ls -> (@view ls[:, 1]), lambdas)
+    l2 = lift(ls -> (@view ls[:, 2]), lambdas)
+    l3 = lift(ls -> (@view ls[:, 3]), lambdas)
 
-"""Checks if the returned steady state is stable"""
-function nospace_sol_check_stable(M1::AbstractMatrix{F}; threshold=eps(F)) where {F}
-    evals = eigvals(M1)
-    maximum(real, evals) < threshold
-end
-function nospace_sol_check_stable(
-    mmp::MinimalModelParams{F}, ss;
-    kwargs...
-) where {F}
-    nospace_sol_check_stable(make_M1(mmp_to_mmicrm(mmp), ss); kwargs...)
-end
-export nospace_sol_check_stable
+    ax = Axis(fig[2, :])
+    for (li, l) in enumerate([l1, l2, l3])
+        lines!(ax, ks, lift(real, l);
+            color=Cycled(li),
+            label=latexstring(@sprintf "\\Re(\\lambda_%d)" li)
+        )
+        if plotimag
+            lines!(ax, ks, lift(imag, l);
+                color=Cycled(li),
+                linestyle=:dash,
+                label=latexstring(@sprintf "\\Im(\\lambda_%d)" li)
+            )
+        end
+    end
+    axislegend(ax)
+    # on(mrl) do x
+    #     @show x
+    #     ylims!(ax, (-8 * x, 2 * x))
+    # end
 
-function find_physical_stable_solutions_nospace(
-    mmp::MinimalModelParams{F};
-    include_extinct=false,
-    threshold=2 * eps(F),
-    physical_threshold=threshold,
-    stability_threshold=threshold
-) where {F}
-    all_sss = solve_nospace(mmp; include_extinct, threshold)
-    physical_sss = all_sss[nospace_sol_check_physical.(all_sss; threshold=physical_threshold)]
-    physical_sss[nospace_sol_check_stable.(Ref(mmp), physical_sss; threshold=stability_threshold)]
+    fig, mrl
 end
-export find_physical_stable_solutions_nospace
+export mm_interactive_k_plot
 
+# NOTE: OLD VERSION
 ################################################################################
 # First deal with solving cubic equation...my god this took a while
 ################################################################################
@@ -281,140 +326,5 @@ function make_K_polynomial(M1, Ds)
     SA[t3, t2, t1, t0]
 end
 export make_K_polynomial
-
-################################################################################
-# Main functions, essentially
-################################################################################
-function analyze_single_mmps(mmps::MinimalModelParamsSpace{F};
-    include_extinct=false, threshold=eps(F)
-) where {F}
-    mmicrm_params = mmp_to_mmicrm(mmps)
-
-    all_steadystates = solve_nospace(mmps; include_extinct, threshold)
-    # do the cheap test first, ignore sss with negative values
-    physical_steadystates = all_steadystates[nospace_sol_check_physical.(all_steadystates; threshold=2 * threshold)]
-
-    # construct the M1s which are used both for nospace and space linear stability analysis
-    M1s_ = make_M1.(Ref(mmicrm_params), physical_steadystates)
-
-    stable_is = nospace_sol_check_stable.(M1s_)
-    # stable, physical steady states
-    sp_steadystates = physical_steadystates[stable_is]
-    M1s = M1s_[stable_is]
-
-    num_nospace_sss = length(sp_steadystates)
-
-    # Spatial linear stability analysis
-    Ds = get_Ds(mmps)
-
-    krootss = Vector{F}[]
-    num_modes_in_sectionss = Vector{Int}[]
-    total_num_modes = 0
-    for (ss_i, M1) in enumerate(M1s)
-        Kpolynom = make_K_polynomial(M1, Ds)
-        Kroots = sort(find_real_positive_cubic_roots(Kpolynom; threshold=threshold))
-        kroots = sqrt.(Kroots)
-
-        if length(Kroots) == 0
-            k_samples = F[1.0]
-        elseif length(Kroots) == 1
-            k_samples = F[kroots[1]/2, 2*kroots[1]]
-        else
-            k_samples = F[kroots[1]/2]
-
-            for i in 2:(length(kroots))
-                push!(k_samples, (kroots[i-1] + kroots[i]) / 2)
-            end
-
-            push!(k_samples, 2 * kroots[end])
-        end
-
-        num_modes_in_sections = [find_number_growing_modes(M1, k, Ds; threshold) for k in k_samples]
-
-        push!(krootss, kroots)
-        push!(num_modes_in_sectionss, num_modes_in_sections)
-        total_num_modes += sum(num_modes_in_sections)
-    end
-
-    num_nospace_sss, total_num_modes, sp_steadystates, krootss, num_modes_in_sectionss
-end
-export analyze_single_mmps
-
-function mm_interactive_k_plot(ks=LinRange(0.0, 100, 10000);
-    m_range=LinRange(0.1, 10.0, 1000),
-    l_range=LinRange(0.0, 1.0, 100),
-    K_range=LinRange(0.1, 100.0, 10000),
-    c_range=LinRange(0.1, 100.0, 10000),
-    d_range=LinRange(0.1, 100.0, 10000),
-    DN_range=vcat(0.0, 10 .^ LinRange(-5, 3, 100)),
-    DG_range=vcat(0.0, 10 .^ LinRange(-5, 3, 100)),
-    DR_range=vcat(0.0, 10 .^ LinRange(-5, 3, 100)),
-    plotimag=false
-)
-    fig = Figure()
-
-    sg = SliderGrid(fig[1, 1],
-        (label="m", range=m_range),
-        (label="l", range=l_range),
-        (label="K", range=K_range),
-        (label="c", range=c_range),
-        (label="d", range=d_range),
-        (label="DN", range=DN_range),
-        (label="DG", range=DG_range),
-        (label="DR", range=DR_range),
-    )
-
-    sliderobservables = [s.value for s in sg.sliders]
-    xx = lift(sliderobservables...) do slvalues...
-        mmpf = MinimalModelParamsSpace(slvalues...)
-        mmicrm_params = mmp_to_mmicrm(mmpf)
-
-        pssols = find_physical_stable_solutions_nospace(mmpf; include_extinct=true)
-        nsols = length(pssols)
-        if nsols > 2
-            @warn "Found an unexpected number of physical, stable solutions!!"
-        end
-        nssol = pssols[1]
-
-        Ds = [slvalues[end-2], slvalues[end-1], slvalues[end]]
-
-        do_linstab_for_ks(ks, mmicrm_params, Ds, nssol), nsols
-    end
-    lambdas = lift(xx -> xx[1], xx)
-    nsols = lift(xx -> xx[2], xx)
-
-    mrl = lift(ls -> maximum(real, ls), lambdas)
-
-    fig[1, 2] = label_gl = GridLayout()
-    Label(label_gl[1, 1], lift(x -> (@sprintf "mrl = %g" x), mrl))
-    Label(label_gl[2, 1], lift(x -> (@sprintf "nsols = %d" x), nsols))
-
-    l1 = lift(ls -> (@view ls[:, 1]), lambdas)
-    l2 = lift(ls -> (@view ls[:, 2]), lambdas)
-    l3 = lift(ls -> (@view ls[:, 3]), lambdas)
-
-    ax = Axis(fig[2, :])
-    for (li, l) in enumerate([l1, l2, l3])
-        lines!(ax, ks, lift(real, l);
-            color=Cycled(li),
-            label=latexstring(@sprintf "\\Re(\\lambda_%d)" li)
-        )
-        if plotimag
-            lines!(ax, ks, lift(imag, l);
-                color=Cycled(li),
-                linestyle=:dash,
-                label=latexstring(@sprintf "\\Im(\\lambda_%d)" li)
-            )
-        end
-    end
-    axislegend(ax)
-    # on(mrl) do x
-    #     @show x
-    #     ylims!(ax, (-8 * x, 2 * x))
-    # end
-
-    fig, mrl
-end
-export mm_interactive_k_plot
 
 end
