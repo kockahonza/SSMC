@@ -126,6 +126,18 @@ function linstab_make_full_func(p::MMiCRMParams{Ns,Nr}, ss, Ds=nothing; kwargs..
 end
 export linstab_make_lambda_func, linstab_make_full_func
 
+function fast_linstab_evals!(M1::Matrix{F}, k::F, Ds::Vector{F}) where {F}
+    for i in 1:length(Ds)
+        M1[i, i] -= k^2 * Ds[i]
+    end
+    eigvals!(M1)
+end
+function fast_linstab_evals!(xx, M1, k, Ds)
+    xx .= M1
+    fast_linstab_evals!(xx, k, Ds)
+end
+export fast_linstab_evals!
+
 ################################################################################
 # The K polynomial functions, aka finding modes by solving for 0 evals
 ################################################################################

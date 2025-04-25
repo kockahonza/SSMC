@@ -79,8 +79,8 @@ export make_K_polynomial_mm
 ################################################################################
 # Main functions, essentially
 ################################################################################
-function analyze_single_mmps(mmps::MinimalModelParamsSpace{F};
-    include_extinct=false, threshold=2*eps(F)
+function analyze_single_mmps_Kpoly(mmps::MinimalModelParamsSpace{F};
+    include_extinct=false, threshold=2 * eps(F)
 ) where {F}
     mmicrm_params = mmp_to_mmicrm(mmps)
 
@@ -118,7 +118,38 @@ function analyze_single_mmps(mmps::MinimalModelParamsSpace{F};
 
     num_nospace_sss, total_num_modes, sp_steadystates, krootss, num_modes_in_sectionss
 end
-export analyze_single_mmps
+export analyze_single_mmps_Kpoly
+
+function analyze_single_mmps_kscan(
+    mmps::MinimalModelParamsSpace{F}, ks; threshold=2 * eps(F)
+) where {F}
+    mmicrm_params = mmp_to_mmicrm(mmps)
+
+    all_steadystates = solve_nospace(mmps; include_extinct=false, threshold)
+    # do the cheap test first, ignore sss with negative values
+    physical_steadystates = all_steadystates[nospace_sol_check_physical.(all_steadystates; threshold=2 * threshold)]
+
+    # construct the M1s which are used both for nospace and space linear stability analysis
+    M1s_ = make_M1.(Ref(mmicrm_params), physical_steadystates)
+
+    stable_is = nospace_sol_check_stable.(M1s_)
+    # stable, physical steady states
+    sp_steadystates = physical_steadystates[stable_is]
+    M1s = M1s_[stable_is]
+
+    num_nospace_sss = length(sp_steadystates)
+
+    # Spatial linear stability analysis
+    Ds = get_Ds(mmps)
+
+    total_num_modes = 0
+    for (ss_i, M1) in enumerate(M1s)
+
+    end
+
+    num_nospace_sss, total_num_modes, sp_steadystates
+end
+export analyze_single_mmps_kscan
 
 function mm_interactive_k_plot(ks=LinRange(0.0, 100, 10000);
     m_range=LinRange(0.1, 10.0, 1000),

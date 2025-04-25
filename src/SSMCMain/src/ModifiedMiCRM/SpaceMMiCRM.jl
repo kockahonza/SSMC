@@ -39,7 +39,7 @@ export SingleAxisBC, Periodic, Closed
 
 # The main Spatial Modified MiCRM params (which contains and AbstractSpace) and logic
 """Spatial Modified MiCRM model params"""
-struct SMMiCRMParams{Ns,Nr,S<:AbstractSpace,F,N,P<:Union{Nothing,Int},A,B}
+struct SMMiCRMParams{Ns,Nr,S<:Union{Nothing,AbstractSpace},F,N,P<:Union{Nothing,Int},A,B}
     mmicrm_params::MMiCRMParams{Ns,Nr,F,A,B}
     diffusion_constants::SVector{N,F}
     space::S
@@ -131,14 +131,13 @@ include("smmicrm_spaces.jl")
 ################################################################################
 # Going from MMiCRM to SMMiCRM
 ################################################################################
-function add_space_to_mmicrmparams(mmicrm_params::MMiCRMParams, D;
+function add_space_to_params(mmicrm_params::MMiCRMParams{Ns,Nr}, D;
     diff_s=nothing,
     diff_r=nothing,
     dx=nothing,
     bcs=Periodic(),
     usenthreads=nothing
-)
-    Ns, Nr = get_Ns(mmicrm_params)
+) where {Ns,Nr}
     diff_s = smart_val(diff_s, 0.0, Ns)
     diff_r = smart_val(diff_r, 0.0, Nr)
     diffs = SVector{Ns + Nr,Float64}(vcat(diff_s, diff_r))
@@ -147,7 +146,21 @@ function add_space_to_mmicrmparams(mmicrm_params::MMiCRMParams, D;
 
     SMMiCRMParams(mmicrm_params, diffs, space, usenthreads)
 end
-export add_space_to_mmicrmparams
+function add_space_to_params(smmicrm_params::SMMiCRMParams{Ns,Nr,Nothing}, D;
+    dx=nothing,
+    bcs=Periodic(),
+    usenthreads=nothing
+) where {Ns,Nr}
+    space = make_cartesianspace_smart(D; dx, bcs)
+
+    SMMiCRMParams(
+        smmicrm_params.mmicrm_params,
+        smmicrm_params.diffusion_constants,
+        space,
+        usenthreads
+    )
+end
+export add_space_to_params
 
 function expand_u0_to_size(size::Tuple, nospaceu0)
     u0 = Array{eltype(nospaceu0),1 + length(size)}(undef, length(nospaceu0), size...)
@@ -157,18 +170,6 @@ function expand_u0_to_size(size::Tuple, nospaceu0)
     u0
 end
 export expand_u0_to_size
-
-function add_space_to_mmicrm(p::ODEProblem, u0, diffusion_constants, T, size, dx, bcs=Periodic())
-    if !isa(p.p, MMiCRMParams)
-        throw(ArgumentError("passed problem is not a Modified CRM problem"))
-    end
-
-    su0 = expand_u0_to_size(size, u0)
-    space = make_cartesianspace_smart(length(size); dx, bcs)
-
-    make_smmicrm_problem_safe(su0, T, p.p, diffusion_constants, space)
-end
-export add_space_to_mmicrm
 
 ################################################################################
 # Problem remaking/changing params
@@ -237,7 +238,7 @@ function make_smmicrmparams_smart(Ns, Nr, D;
 )
     mmicrm_params = make_mmicrmparams_smart(Ns, Nr; kwargs...)
 
-    add_space_to_mmicrmparams(mmicrm_params, D; diff_s, diff_r, dx, bcs)
+    add_space_to_params(mmicrm_params, D; diff_s, diff_r, dx, bcs)
 end
 
 function make_smmicrmu0_smart(size, args...; kwargs...)
