@@ -1,9 +1,7 @@
 module SpaceMMiCRM
 
 using Reexport
-@reexport using ..SSMCMain
-@reexport using ..SSMCMain.ModifiedMiCRM
-import ..SSMCMain.ModifiedMiCRM: get_Ns
+@reexport using ..ModifiedMiCRM
 
 using StatsBase
 using Interpolations
@@ -14,6 +12,7 @@ using Base.Threads
 using ChunkSplitters
 
 import Base: ndims
+import ..SSMCMain.ModifiedMiCRM: get_Ns
 
 ################################################################################
 # Base

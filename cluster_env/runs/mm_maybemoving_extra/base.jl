@@ -1,4 +1,4 @@
-using SSMCMain, SSMCMain.ModifiedMiCRM, SSMCMain.SpaceMMiCRM
+using SSMCMain, SSMCMain.ModifiedMiCRM, SSMCMain.ModifiedMiCRM.SpaceMMiCRM
 
 using JLD2
 using Base.Threads

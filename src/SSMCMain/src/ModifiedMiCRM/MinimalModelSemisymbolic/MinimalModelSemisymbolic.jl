@@ -1,7 +1,7 @@
 module MinimalModelSemisymbolic
 
 using Reexport
-@reexport using ..SSMCMain, ..ModifiedMiCRM, ..SpaceMMiCRM
+@reexport using ..ModifiedMiCRM, ..SpaceMMiCRM
 
 using Polynomials
 

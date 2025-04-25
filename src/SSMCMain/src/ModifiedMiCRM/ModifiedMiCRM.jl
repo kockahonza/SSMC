@@ -213,10 +213,11 @@ export make_mmicrm_smart, make_mmicrmparams_smart, make_mmicrmu0_smart
 # Imports
 ################################################################################
 # Spatial stuff, has a submodule that is imported but not reexported
-include("SpaceMMiCRM.jl")
+include("SpaceMMiCRM/SpaceMMiCRM.jl")
+using .SpaceMMiCRM
 
 # Linear stability analysis
-include("linstab.jl")
+include("linstab/linstab.jl")
 
 # Plotting
 include("mmicrm_plotting.jl")
@@ -226,5 +227,9 @@ include("mmicrm_physics.jl")
 
 # Dimensional analysis
 include("dimensional_analysis.jl")
+
+# More optional bits
+# Minimal model specific bits
+include("MinimalModelSemisymbolic/MinimalModelSemisymbolic.jl")
 
 end
