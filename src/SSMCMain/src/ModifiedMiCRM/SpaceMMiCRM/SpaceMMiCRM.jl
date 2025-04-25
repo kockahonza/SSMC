@@ -199,10 +199,7 @@ function perturb_u0_uniform_prop(Ns, Nr, u0, e_s=nothing, e_r=nothing)
 
     u0 .* (1.0 .+ rand_pm_one .* epsilon)
 end
-function perturb_u0_wave(Ns, Nr, u0, args...)
-    # TODO: Implement this!
-end
-export perturb_u0_uniform, perturb_u0_uniform_prop, perturb_u0_wave
+export perturb_u0_uniform, perturb_u0_uniform_prop
 
 function perturb_smmicrm_u0(p::ODEProblem, ptype, args...)
     if !isa(p.p, SMMiCRMParams)
