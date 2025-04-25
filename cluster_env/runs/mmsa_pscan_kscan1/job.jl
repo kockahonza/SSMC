@@ -152,7 +152,7 @@ function analyze_many_mmps_kscan_step_!(
 end
 
 function main()
-    @time fdf = analyze_many_mmps_kscan("./out_fdf.jld2";
+    @time fdf = analyze_many_mmps_kscan(LinRange(0.0, 500.0, 10000), "./out_fdf.jld2";
         m=2 .^ LinRange(-7, 2, 30),
         l=LinRange(0.0, 1.0, 10),
         K=[1.0],
