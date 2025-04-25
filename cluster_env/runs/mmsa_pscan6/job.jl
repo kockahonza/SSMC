@@ -1,4 +1,4 @@
-using SSMCMain, SSMCMain.MinimalModelSemisymbolic
+using SSMCMain, SSMCMain.ModifiedMiCRM.MinimalModelSemisymbolic
 
 using DataFrames
 using JLD2

@@ -28,10 +28,6 @@ include("util.jl")
 
 # Main stuff!
 include("ModifiedMiCRM/ModifiedMiCRM.jl")
-include("ModifiedMiCRM/SpaceMMiCRM.jl")
-
-# Extras
-include("ModifiedMiCRM/MinimalModelSemisymbolic.jl")
 
 # Old stuff, just keeping for old times
 include("archive/BasicMiCRM.jl")

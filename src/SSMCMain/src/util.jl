@@ -125,6 +125,17 @@ function remake_guarantee_positive(prob)
 end
 export remake_guarantee_positive
 
+function linear_spacing_edges(xs)
+    ss = similar(xs, length(xs) + 1)
+    for i in 1:(length(xs)-1)
+        ss[i+1] = (xs[i] + xs[i+1]) / 2
+    end
+    ss[1] = xs[1] - (ss[2] - xs[1])
+    ss[end] = xs[end] + (xs[end] - ss[end-1])
+    ss
+end
+export linear_spacing_edges
+
 ################################################################################
 # Plotting
 ################################################################################
@@ -191,15 +202,62 @@ export plot_linstab_lambdas
 ################################################################################
 # Plotting NamedArrays with labels etc plus DataFrames helpers
 ################################################################################
-function plot_namedvector_barplot(nv::NamedVector)
-end
-export plot_namedvector_barplot
+function plot_namedvector_numeric(nv::NamedVector;
+    logx=nothing,
+    kwargs...
+)
+    xs = names(nv)[1]
+    xlabel = string(dimnames(nv)[1])
+    if logx == true
+        logx = 10
+    end
+    if !isnothing(logx)
+        xs = log.(logx, xs)
+        xlabel = "log$logx($xlabel)"
+    end
 
-function plot_namedvector_numeric(nv::NamedVector)
+    fap = scatter(xs, nv; kwargs...)
+    fap.axis.xlabel = xlabel
+
+    fap
 end
 export plot_namedvector_numeric
 
-function plot_namedmatrix_heatmap(nm::NamedMatrix; colorbar=true, kwargs...)
+function plot_namedmatrix_numeric(nm::NamedMatrix;
+    logx=nothing, logy=nothing,
+    colorbar=true, kwargs...
+)
+    xs, ys = names(nm)
+    xlabel, ylabel = string.(dimnames(nm))
+    if logx == true
+        logx = 10
+    end
+    if !isnothing(logx)
+        xs = log.(logx, xs)
+        xlabel = "log$logx($xlabel)"
+    end
+    if logy == true
+        logy = 10
+    end
+    if !isnothing(logy)
+        ys = log.(logy, ys)
+        ylabel = "log$logy($ylabel)"
+    end
+
+    fap = heatmap(xs, ys, nm; kwargs...)
+
+    fap.axis.xlabel = xlabel
+    fap.axis.ylabel = ylabel
+
+    if colorbar
+        Colorbar(fap.figure[1, 2], fap.plot)
+    end
+
+    fap
+end
+export plot_namedmatrix_numeric
+
+function plot_namedmatrix_discrete(nm::NamedMatrix; colorbar=true, kwargs...)
     fap = heatmap(nm; kwargs...)
     xns, yns = names(nm)
     fap.axis.xticks = (1:length(xns), string.(xns))
@@ -211,7 +269,7 @@ function plot_namedmatrix_heatmap(nm::NamedMatrix; colorbar=true, kwargs...)
 
     fap
 end
-export plot_namedmatrix_heatmap
+export plot_namedmatrix_discrete
 
 function plot_df_correlations(df, select=:;
     clear_diag=true,
@@ -234,7 +292,7 @@ function plot_df_correlations(df, select=:;
         (-mm, mm)
     end
 
-    fap = plot_namedmatrix_heatmap(corrs;
+    fap = plot_namedmatrix_discrete(corrs;
         colorrange, colormap=:RdBu,
         kwargs...
     )
