@@ -382,4 +382,3 @@ function setup_ranges(ranges...; func=identity)
     end, cis
 end
 export setup_ranges
-
