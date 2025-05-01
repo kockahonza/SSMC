@@ -105,3 +105,7 @@ function find_physical_stable_solutions_nospace(
     physical_sss[nospace_sol_check_stable.(Ref(mmp), physical_sss; threshold=stability_threshold)]
 end
 export find_physical_stable_solutions_nospace
+
+function nospace_funfacts()
+end
+export nospace_funfacts

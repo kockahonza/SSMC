@@ -180,6 +180,8 @@ function make_mmicrmu0_smart(params::MMiCRMParams{Ns,Nr};
             u0 = make_u0_steadyR(params)
         elseif u0name == :onlyN
             u0 = make_u0_onlyN(params)
+        elseif u0name == :maxNs
+            u0 = make_u0_maxNs(params)
         else
             throw(ArgumentError(@sprintf "cannot correctly parse u0name %s" string(u0name)))
         end
@@ -196,6 +198,11 @@ end
 make_u0_uniE(p::MMiCRMParams{Ns,Nr}) where {Ns,Nr} = Vector(vcat(p.g, 1.0 ./ p.w))
 make_u0_steadyR(p::MMiCRMParams{Ns,Nr}) where {Ns,Nr} = Vector(vcat(p.g, p.K ./ p.r))
 make_u0_onlyN(p::MMiCRMParams{Ns,Nr}) where {Ns,Nr} = vcat(p.g, fill(0.0, Nr))
+function make_u0_maxNs(p::MMiCRMParams{Ns,Nr}) where {Ns,Nr}
+    total_E_income = sum(p.K .* p.w)
+    u_N = total_E_income ./ (p.g .* p.m)
+    vcat(u_N, fill(0.0, Nr))
+end
 
 """Make the problem directly"""
 function make_mmicrm_smart(Ns, Nr, T=1.0;
