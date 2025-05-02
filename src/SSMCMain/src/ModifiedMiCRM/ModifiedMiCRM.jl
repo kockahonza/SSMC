@@ -4,6 +4,8 @@ module ModifiedMiCRM
 using Reexport
 @reexport using ..SSMCMain
 
+using ADTypes, SparseConnectivityTracer
+
 using Polynomials
 
 ################################################################################
@@ -58,6 +60,25 @@ function mmicrmfunc!(du, u, p::MMiCRMParams{Ns,Nr}, _=0) where {Ns,Nr}
     du
 end
 export MMiCRMParams, get_Ns, mmicrmfunc!
+
+# TODO: Implement a SizedArray alternative for large Ns or Nr
+struct XXMMiCRMParams{Ns,Nr,F,A,B} # number of strains and resource types
+    # these are usually all 1 from dimensional reduction
+    g::SizedVector{Ns,F}
+    w::SizedVector{Nr,F}
+
+    # strain props
+    m::SizedVector{Ns,F}
+
+    # resource props
+    K::SizedVector{Nr,F}
+    r::SizedVector{Nr,F}
+
+    # complex, matrix params
+    l::SizedMatrix{Ns,Nr,F,A}
+    c::SizedMatrix{Ns,Nr,F,A}
+    D::SizedArray{Tuple{Ns,Nr,Nr},F,3,B} # D[1,a,b] corresponds to b -> a
+end
 
 function check_mmicrmparams(p::MMiCRMParams{Ns,Nr}) where {Ns,Nr}
     # check D
@@ -238,5 +259,8 @@ include("dimensional_analysis.jl")
 # More optional bits
 # Minimal model specific bits
 include("MinimalModelSemisymbolic/MinimalModelSemisymbolic.jl")
+
+include("RandomParamGenerators.jl")
+using .RandomParamGenerators
 
 end
