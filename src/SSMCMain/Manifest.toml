@@ -2,7 +2,7 @@
 
 julia_version = "1.10.9"
 manifest_format = "2.0"
-project_hash = "692419e3a5a40a766a25e0acf2046eec9865e938"
+project_hash = "6c8e936966daf326b78afcd8cad67fa68bdde58f"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -648,9 +648,9 @@ uuid = "5ae413db-bbd1-5e63-b57d-d24a61df00f5"
 version = "2.2.4+0"
 
 [[deps.EnumX]]
-git-tree-sha1 = "bdb1942cd4c45e3c678fd11569d5cccd80976237"
+git-tree-sha1 = "bddad79635af6aec424f53ed8aad5d7555dc6f00"
 uuid = "4e289a0a-7415-4d19-859d-a7e5c4648b56"
-version = "1.0.4"
+version = "1.0.5"
 
 [[deps.EnzymeCore]]
 git-tree-sha1 = "0cdb7af5c39e92d78a0ee8d0a447d32f7593137e"

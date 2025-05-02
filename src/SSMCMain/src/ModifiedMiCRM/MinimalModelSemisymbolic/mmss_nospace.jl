@@ -1,3 +1,57 @@
+@enumx MMNoSpaceSolType imaginary nonpositive onepositive bothpositive
+export MMNoSpaceSolType
+
+"""
+This assumes that it always the + root of the two nospace solutions that
+is stable. This has been somewhat tested numerically and Jaime sais it should
+be clear from the bifurcation diagram.
+"""
+function mmp_nospace_sol(m, l, K, c, d; threshold=2 * eps(m))
+    qa = c * d * m                # qa is always positive
+    qb = (c + d) * m - K * c * d  # qb can be either
+    qc = m - K * c * (1.0 - l)    # qc as well
+
+    Dp1 = qb^2
+    Dp2 = 4.0 * qa * qc
+    D = Dp1 - Dp2
+
+    if D < -threshold # D is negative, only extinct solution
+        return MMNoSpaceSolType.imaginary, nothing
+    elseif D < threshold # D ~ 0
+        sqrtD = 0.0
+    else
+        sqrtD = sqrt(D)
+    end
+    Np = (-qb + sqrtD) / (2.0 * qa) # Np is guaranteed > Nm
+    Nm = (-qb - sqrtD) / (2.0 * qa)
+
+    if Np < threshold
+        return MMNoSpaceSolType.nonpositive, nothing
+    else
+        Gp = K / (1.0 + Np * c)
+        Rp = (Gp * Np * c * l) / (1.0 + Np * d)
+        sol = [Np, Gp, Rp]
+        if Nm < threshold
+            return MMNoSpaceSolType.onepositive, sol
+        else
+            Gm = K / (1.0 + Nm * c)
+            Rm = (Gm * Nm * c * l) / (1.0 + Nm * d)
+            return MMNoSpaceSolType.bothpositive, (sol, [Nm, Gm, Rm])
+        end
+    end
+
+end
+mmp_nospace_sol(mmp::MinimalModelParams) = mmp_nospace_sol(mmp.m, mmp.l, mmp.K, mmp.c, mmp.d)
+export mmp_nospace_sol
+
+function gag()
+    42
+end
+export gag
+
+################################################################################
+# Old, perhaps too general method
+################################################################################
 """
     solve_nospace(mmp::MinimalModelParamsU{F}) where {F}
 
@@ -105,7 +159,3 @@ function find_physical_stable_solutions_nospace(
     physical_sss[nospace_sol_check_stable.(Ref(mmp), physical_sss; threshold=stability_threshold)]
 end
 export find_physical_stable_solutions_nospace
-
-function nospace_funfacts()
-end
-export nospace_funfacts

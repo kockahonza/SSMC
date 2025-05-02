@@ -10,6 +10,7 @@ using Reexport
 @reexport using Geppetto
 @reexport using NamedArrays
 @reexport using StatsBase
+@reexport using EnumX
 
 using REPL.TerminalMenus
 using Logging
