@@ -39,15 +39,9 @@ function mmp_nospace_sol(m, l, K, c, d; threshold=2 * eps(m))
             return MMNoSpaceSolType.bothpositive, (sol, [Nm, Gm, Rm])
         end
     end
-
 end
 mmp_nospace_sol(mmp::MinimalModelParams) = mmp_nospace_sol(mmp.m, mmp.l, mmp.K, mmp.c, mmp.d)
 export mmp_nospace_sol
-
-function gag()
-    42
-end
-export gag
 
 ################################################################################
 # Old, perhaps too general method
