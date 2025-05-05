@@ -4,83 +4,99 @@ module ModifiedMiCRM
 using Reexport
 @reexport using ..SSMCMain
 
+using Base.Threads
+
+using StatsBase
+using Interpolations
+using Polynomials
+using ChunkSplitters
 using ADTypes, SparseConnectivityTracer
 
-using Polynomials
+import Base: ndims, getproperty
 
 ################################################################################
-# Internals
+# Nospace Modified MiCRM model params types interface specification
 ################################################################################
-struct MMiCRMParams{Ns,Nr,F,A,B} # number of strains and resource types
-    # these are usually all 1 from dimensional reduction
-    g::SVector{Ns,F}
-    w::SVector{Nr,F}
-
-    # strain props
-    m::SVector{Ns,F}
-
-    # resource props
-    K::SVector{Nr,F}
-    r::SVector{Nr,F}
-
-    # complex, matrix params
-    l::SMatrix{Ns,Nr,F,A}
-    c::SMatrix{Ns,Nr,F,A}
-    D::SArray{Tuple{Ns,Nr,Nr},F,3,B} # D[1,a,b] corresponds to b -> a
+abstract type AbstractMMiCRMParams{F} end
+function get_Ns(p::AbstractMMiCRMParams)
+    throw(ArgumentError(@sprintf "get_Ns not implemented for AbstractMMiCRMParams type %s" string(typeof(p))))
 end
-get_Ns(_::MMiCRMParams{Ns,Nr}) where {Ns,Nr} = (Ns, Nr)
-function mmicrmfunc!(du, u, p::MMiCRMParams{Ns,Nr}, _=0) where {Ns,Nr}
-    N = @view u[1:Ns]
-    R = @view u[Ns+1:Ns+Nr]
-    dN = @view du[1:Ns]
-    dR = @view du[Ns+1:Ns+Nr]
+function mmicrmfunc!(du, u, p::AbstractMMiCRMParams, t=0)
+    throw(ArgumentError(@sprintf "mmicrmfunc! not implemented for AbstractMMiCRMParams type %s" string(typeof(p))))
+end
+# getproperty should also be overloaded for g, w, m, K, r, l, c and D
+export AbstractMMiCRMParams, get_Ns, mmicrmfunc!
 
-    @inbounds for i in 1:Ns
-        sumterm = 0.0
-        for a in 1:Nr
-            sumterm += p.w[a] * (1.0 - p.l[i, a]) * p.c[i, a] * R[a]
-        end
-        dN[i] = p.g[i] * N[i] * (sumterm - p.m[i])
+################################################################################
+# Similar interface for spatial MMiCRM model params
+################################################################################
+# Abstract space interface - the only thing a space should do is diffusion
+abstract type AbstractSpace end
+function ndims(s::AbstractSpace)
+    throw(ErrorException(@sprintf "no function ndims defined for space type %s" string(typeof(s))))
+end
+"""
+Adds the diffusive part of du for each field, the field index is taken to be
+the first index, the others designating space.
+"""
+function add_diffusion!(du, u, diffusion_constants, s::AbstractSpace, usenthreads=nothing)
+    throw(ErrorException(@sprintf "no function add_diffusion! defined for space type %s" string(typeof(s))))
+end
+export add_diffusion!
+
+abstract type SingleAxisBC end
+struct Periodic <: SingleAxisBC end
+struct Closed <: SingleAxisBC end
+export SingleAxisBC, Periodic, Closed
+
+# Abstract Spatial MMiCRM params interface, there are two subclasses here:
+# - is S is Nothing than these are just the params, aka nospace params plus diffusions
+# - if S is an AbstractSpace there is extra information on what type of space it is
+abstract type AbstractSMMiCRMParams{S<:Union{Nothing,AbstractSpace},F} <: AbstractMMiCRMParams{F} end
+function get_Ds(p::AbstractSMMiCRMParams)
+    throw(ArgumentError(@sprintf "get_Ds not implemented for AbstractSMMiCRMParams type %s" string(typeof(p))))
+end
+function get_space(sp::AbstractSMMiCRMParams{S}) where {S}
+    if isnothing(S)
+        return nothing
+    else
+        throw(ArgumentError(@sprintf "get_space not implemented for AbstractSMMiCRMParams type %s" string(typeof(sp))))
+    end
+end
+ndims(sp::AbstractSMMiCRMParams) = ndims(get_space(sp))
+function smmicrmfunc!(du, u, sp::AbstractSMMiCRMParams, t=0)
+    throw(ArgumentError(@sprintf "smmicrmfunc! not implemented for AbstractSMMiCRMParams type %s" string(typeof(sp))))
+end
+export AbstractSMMiCRMParams, get_Ds, get_space, smmicrmfunc!
+
+function check_mmicrmparams(p::AbstractMMiCRMParams)
+    Ns, Nr = get_Ns(p)
+    # check all the array sizes
+    if size(p.g) != (Ns,)
+        @error (@sprintf "g has wrong size %s, should be %s" string(size(p.g)) string((Ns,)))
+    end
+    if size(p.w) != (Nr,)
+        @error (@sprintf "w has wrong size %s, should be %s" string(size(p.w)) string((Nr,)))
+    end
+    if size(p.m) != (Ns,)
+        @error (@sprintf "m has wrong size %s, should be %s" string(size(p.m)) string((Ns,)))
+    end
+    if size(p.K) != (Nr,)
+        @error (@sprintf "w has wrong size %s, should be %s" string(size(p.K)) string((Nr,)))
+    end
+    if size(p.r) != (Nr,)
+        @error (@sprintf "w has wrong size %s, should be %s" string(size(p.r)) string((Nr,)))
+    end
+    if size(p.l) != (Ns, Nr)
+        @error (@sprintf "l has wrong size %s, should be %s" string(size(p.l)) string((Ns, Nr)))
+    end
+    if size(p.c) != (Ns, Nr)
+        @error (@sprintf "l has wrong size %s, should be %s" string(size(p.c)) string((Ns, Nr)))
+    end
+    if size(p.D) != (Ns, Nr, Nr)
+        @error (@sprintf "D has wrong size %s, should be %s" string(size(p.D)) string((Ns, Nr, Nr)))
     end
 
-    @inbounds for a in 1:Nr
-        sumterm1 = 0.0
-        for i in 1:Ns
-            sumterm1 += N[i] * p.c[i, a] * R[a]
-        end
-        sumterm2 = 0.0
-        for i in 1:Ns
-            for b in 1:Nr
-                sumterm2 += p.D[i, a, b] * (p.w[b] / p.w[a]) * p.l[i, b] * N[i] * p.c[i, b] * R[b]
-            end
-        end
-
-        dR[a] = p.K[a] - p.r[a] * R[a] - sumterm1 + sumterm2
-    end
-    du
-end
-export MMiCRMParams, get_Ns, mmicrmfunc!
-
-# TODO: Implement a SizedArray alternative for large Ns or Nr
-struct XXMMiCRMParams{Ns,Nr,F,A,B} # number of strains and resource types
-    # these are usually all 1 from dimensional reduction
-    g::SizedVector{Ns,F}
-    w::SizedVector{Nr,F}
-
-    # strain props
-    m::SizedVector{Ns,F}
-
-    # resource props
-    K::SizedVector{Nr,F}
-    r::SizedVector{Nr,F}
-
-    # complex, matrix params
-    l::SizedMatrix{Ns,Nr,F,A}
-    c::SizedMatrix{Ns,Nr,F,A}
-    D::SizedArray{Tuple{Ns,Nr,Nr},F,3,B} # D[1,a,b] corresponds to b -> a
-end
-
-function check_mmicrmparams(p::MMiCRMParams{Ns,Nr}) where {Ns,Nr}
     # check D
     for i in 1:Ns
         for a in 1:Nr
@@ -99,166 +115,79 @@ function check_mmicrmparams(p::MMiCRMParams{Ns,Nr}) where {Ns,Nr}
 end
 export check_mmicrmparams
 
-#For testing
-function trivmmicrmparams(Ns, Nr;
-    m=1.0, l=0.0, K=1.0, r=0.0, c=1.0
-)
-    MMiCRMParams(
-        (@SVector fill(1.0, Ns)),
-        (@SVector fill(1.0, Nr)),
-        (@SVector fill(m, Ns)),
-        (@SVector fill(K, Nr)),
-        (@SVector fill(r, Nr)),
-        (@SMatrix fill(l, Ns, Nr)),
-        (@SMatrix fill(c, Ns, Nr)),
-        (@SArray fill(1 / Nr, Ns, Nr, Nr))
-    )
-end
-export trivmmicrmparams
+# Making ODEProblem s
+function make_mmicrm_problem(p::AbstractMMiCRMParams, u0, T; t0=0.0)
+    if (ndims(u0) != 1) || (length(u0) != sum(get_Ns(p)))
+        throw(ArgumentError(
+            @sprintf "passed u0 is not compatible with passed params, size(u0) is %s and Ns, Nr are %s" string(size(u0)) string(get_Ns(p))
+        ))
+    end
 
-################################################################################
-# Smart functions
-################################################################################
-"""Smart function for making the params"""
-function make_mmicrmparams_smart(Ns, Nr;
-    g=nothing, w=nothing,
-    m=nothing, l=nothing, K=nothing, r=nothing,
-    c=:uniform, D=:euniform
-)
-    # Setup the MMiCRMParams
-    if isa(c, Number) || isa(c, AbstractArray)
-        c = smart_sval(c, 0.0, Ns, Nr)
+    ODEProblem(mmicrmfunc!, u0, (t0, t0 + T), p)
+end
+export make_mmicrm_problem
+
+function make_smmicrm_problem(p::AbstractSMMiCRMParams, u0, T; sparse_jac=true, t0=0.0)
+    # check the Ns, Nr match up
+    if size(u0)[1] != sum(get_Ns(p))
+        throw(ArgumentError(
+            @sprintf "passed u0 is not compatible with passed params, size(u0) is %s and Ns, Nr are %s" string(size(u0)) string(get_Ns(p))
+        ))
+    end
+
+    # check u0 is compatible with the space
+    u0ndims = ndims(u0) - 1
+    spacendims = ndims(get_space(p))
+    if u0ndims != spacendims
+        throw(ArgumentError(@sprintf "the passed u0 and space do not have the same number of dimensions, u0ndims is %d and ndims(space) is %d" u0ndims spacendims))
+    end
+    if any(s -> s < 4, size(u0)[2:end])
+        throw(ArgumentError("u0 spatial size is so small that there may be numerical issues from violated assumption"))
+    end
+
+    func = if sparse_jac
+        jac_prot = ADTypes.jacobian_sparsity(
+            (du, u) -> smmicrmfunc!(du, u, p),
+            similar(u0),
+            u0,
+            TracerSparsityDetector()
+        )
+        ODEFunction(smmicrmfunc!; jac_prototype=float.(jac_prot))
     else
-        cname, cargs = split_name_args(c)
-
-        if cname == :uniform
-            c = make_c_uniform(Ns, Nr, cargs...)
-        elseif cname == :oto
-            c = make_c_oto(Ns, Nr, cargs...)
-        else
-            throw(ArgumentError(@sprintf "cannot correctly parse cname %s" string(cname)))
-        end
+        smmicrmfunc!
     end
 
-    if isa(D, Number) || isa(D, AbstractArray)
-        D = smart_sval(D, nothing, Ns, Nr, Nr)
-    else
-        Dname, Dargs = split_name_args(D)
-
-        if Dname == :uniform
-            D = make_D_uniform(Ns, Nr, Dargs...)
-        elseif Dname == :euniform
-            D = make_D_euniform(Ns, Nr, Dargs...)
-        else
-            throw(ArgumentError(@sprintf "cannot correctly parse Dname %s" string(Dname)))
-        end
-    end
-
-    MMiCRMParams(
-        smart_sval(g, 1.0, Ns),
-        smart_sval(w, 1.0, Nr),
-        smart_sval(m, 1.0, Ns),
-        smart_sval(K, 1.0, Nr),
-        smart_sval(r, 1.0, Nr),
-        smart_sval(l, 0.0, Ns, Nr),
-        c, D
-    )
+    ODEProblem(func, u0, (t0, t0 + T), p)
 end
-make_c_uniform(Ns, Nr, val=1.0) = @SMatrix fill(val, Ns, Nr)
-function make_c_oto(Ns, Nr, val=1.0) # strain i eats resource i if it exists
-    mat = zeros(Ns, Nr)
-    for i in 1:min(Ns, Nr)
-        mat[i, i] = val
-    end
-    SMatrix{Ns,Nr}(mat)
-end
-make_D_uniform(Ns, Nr) = @SArray fill(1 / Nr, Ns, Nr, Nr)
-function make_D_euniform(Ns, Nr)
-    if Nr == 1
-        @warn "using euniform D with only 1 resource, this violates certain assumptions"
-    end
-    mat = fill(1 / (Nr - 1), Ns, Nr, Nr)
-    for i in 1:Ns
-        for a in 1:Nr
-            mat[i, a, a] = 0.0
-        end
-    end
-    SArray{Tuple{Ns,Nr,Nr}}(mat)
-end
-
-"""Smart function for making an initial state"""
-function make_mmicrmu0_smart(params::MMiCRMParams{Ns,Nr};
-    u0=:steadyR, u0rand=nothing
-) where {Ns,Nr}
-    if isa(u0, Number) || isa(u0, AbstractArray)
-        u0 = smart_val(u0, make_u0_steadyR(params), Ns + Nr)
-    else
-        u0name, u0args = split_name_args(u0)
-
-        if u0name == :uniE
-            u0 = make_u0_uniE(params)
-        elseif u0name == :steadyR
-            u0 = make_u0_steadyR(params)
-        elseif u0name == :onlyN
-            u0 = make_u0_onlyN(params)
-        elseif u0name == :maxNs
-            u0 = make_u0_maxNs(params)
-        else
-            throw(ArgumentError(@sprintf "cannot correctly parse u0name %s" string(u0name)))
-        end
-    end
-
-    if !isnothing(u0rand)
-        for i in eachindex(u0)
-            u0[i] *= 1 + u0rand * (2 * rand() - 1)
-        end
-    end
-
-    u0
-end
-make_u0_uniE(p::MMiCRMParams{Ns,Nr}) where {Ns,Nr} = Vector(vcat(p.g, 1.0 ./ p.w))
-make_u0_steadyR(p::MMiCRMParams{Ns,Nr}) where {Ns,Nr} = Vector(vcat(p.g, p.K ./ p.r))
-make_u0_onlyN(p::MMiCRMParams{Ns,Nr}) where {Ns,Nr} = vcat(p.g, fill(0.0, Nr))
-function make_u0_maxNs(p::MMiCRMParams{Ns,Nr}) where {Ns,Nr}
-    total_E_income = sum(p.K .* p.w)
-    u_N = total_E_income ./ (p.g .* p.m)
-    vcat(u_N, fill(0.0, Nr))
-end
-
-"""Make the problem directly"""
-function make_mmicrm_smart(Ns, Nr, T=1.0;
-    u0=:steadyR, u0rand=nothing, kwargs...
-)
-    params = make_mmicrmparams_smart(Ns, Nr; kwargs...)
-    u0 = make_mmicrmu0_smart(params; u0, u0rand)
-
-    # make problem
-    ODEProblem(mmicrmfunc!, u0, (0.0, T), params)
-end
-export make_mmicrm_smart, make_mmicrmparams_smart, make_mmicrmu0_smart
+export make_smmicrm_problem
 
 ################################################################################
-# Imports
+# Imports 1
 ################################################################################
-# Spatial stuff, has a submodule that is imported but not reexported
-include("SpaceMMiCRM/SpaceMMiCRM.jl")
-using .SpaceMMiCRM
+# Cartesian spaces
+include("cartesian_space.jl")
+
+# Setups up initial states
+include("u0_prep.jl")
+
+# SArray based implementations
+include("sa_params.jl")
 
 # Linear stability analysis
 include("linstab/linstab.jl")
 
 # Plotting
-include("mmicrm_plotting.jl")
+include("plotting.jl")
 
 # Physicsy bits
-include("mmicrm_physics.jl")
-
-# Dimensional analysis
+include("physics.jl")
 include("dimensional_analysis.jl")
+
+include("util.jl")
 
 # More optional bits
 # Minimal model specific bits
-include("MinimalModelSemisymbolic/MinimalModelSemisymbolic.jl")
+# include("MinimalModelSemisymbolic/MinimalModelSemisymbolic.jl")
 
 include("RandomParamGenerators.jl")
 using .RandomParamGenerators

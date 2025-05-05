@@ -1,4 +1,4 @@
-function da_minmax_timescales_params_only(p::MMiCRMParams; include_infs=true)
+function da_minmax_timescales_params_only(p::AbstractMMiCRMParams; include_infs=true)
     Ns, Nr = get_Ns(p)
 
     min = +Inf
@@ -48,7 +48,7 @@ function da_minmax_timescales_params_only(p::MMiCRMParams; include_infs=true)
 end
 export da_minmax_timescales_params_only
 
-function da_minmax_timescales_ss_based(p::MMiCRMParams, ss; include_infs=true)
+function da_minmax_timescales_ss_based(p::AbstractMMiCRMParams, ss; include_infs=true)
     Ns, Nr = get_Ns(p)
 
     min = +Inf
@@ -110,7 +110,7 @@ function da_minmax_timescales_ss_based(p::MMiCRMParams, ss; include_infs=true)
 end
 export da_minmax_timescales_ss_based
 
-function da_minmax_timescales_simple(p::MMiCRMParams, ss; kwargs...)
+function da_minmax_timescales_simple(p::AbstractMMiCRMParams, ss; kwargs...)
     a, b = da_minmax_timescales_params_only(p; kwargs...)
     c, d = da_minmax_timescales_ss_based(p, ss; kwargs...)
     min(a, c), max(b, d)
@@ -145,8 +145,11 @@ function da_get_diff_lengthscales(Ds, timescales; include_infs=true)
 end
 export da_get_diff_lengthscales
 
-function da_get_diff_lengthscales_simple(p::MMiCRMParams, Ds, ss; kwargs...)
+function da_get_diff_lengthscales_simple(p::AbstractMMiCRMParams, Ds, ss; kwargs...)
     ts = da_minmax_timescales_simple(p, ss; kwargs...)
     da_get_diff_lengthscales(Ds, ts; kwargs...)
+end
+function da_get_diff_lengthscales_simple(sp::AbstractSMMiCRMParams, ss; kwargs...)
+    da_get_diff_lengthscales_simple(sp, get_Ds(sp), ss; kwargs...)
 end
 export da_get_diff_lengthscales_simple

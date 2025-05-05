@@ -1,7 +1,9 @@
 ################################################################################
 # Physics/base, constructing M1 and M
 ################################################################################
-function make_M1!(M1, p::MMiCRMParams{Ns,Nr}, ss) where {Ns,Nr}
+function make_M1!(M1, p::AbstractMMiCRMParams, ss)
+    Ns, Nr = get_Ns(p)
+
     Nss = @view ss[1:Ns]
     Rss = @view ss[Ns+1:Ns+Nr]
 
@@ -44,7 +46,8 @@ function make_M1!(M1, p::MMiCRMParams{Ns,Nr}, ss) where {Ns,Nr}
         M1[Ns+a, Ns+a] -= p.r[a]
     end
 end
-function make_M1(p::MMiCRMParams{Ns,Nr,F}, args...) where {Ns,Nr,F}
+function make_M1(p::AbstractMMiCRMParams{F}, args...) where {F}
+    Ns, Nr = get_Ns(p)
     M1 = Matrix{F}(undef, Ns + Nr, Ns + Nr)
     make_M1!(M1, p, args...)
     M1
@@ -54,7 +57,7 @@ export make_M1!, make_M1
 function make_M(M1, k, Ds)
     M1 + Diagonal(-(k^2) .* Ds)
 end
-function make_M(p::MMiCRMParams, k, ss, Ds)
+function make_M(p::AbstractMMiCRMParams, k, ss, Ds)
     make_M(make_M1(p, ss), k, Ds)
 end
 export make_M
@@ -73,7 +76,7 @@ export eigen_sortby_reverse
 ################################################################################
 # Directly solving for a set of ks
 ################################################################################
-function do_linstab_for_ks(ks, p::MMiCRMParams{Ns,Nr,F}, Ds, ss; kwargs...) where {Ns,Nr,F}
+function do_linstab_for_ks(ks, p::AbstractMMiCRMParams{F}, Ds, ss; kwargs...) where {F}
     lambda_func = linstab_make_lambda_func(p, ss, Ds; kwargs...)
     lambdas = Matrix{Complex{F}}(undef, length(ks), length(ss))
     for (i, k) in enumerate(ks)
@@ -94,7 +97,7 @@ function do_linstab_for_ks(ks, p::ODEProblem, Ds, ss=nothing; kwargs...)
 end
 export do_linstab_for_ks
 
-function linstab_make_lambda_func(p::MMiCRMParams{Ns,Nr}, ss, Ds=nothing; kwargs...) where {Ns,Nr}
+function linstab_make_lambda_func(p::AbstractMMiCRMParams, ss, Ds=nothing; kwargs...)
     if !isnothing(Ds)
         let M1 = make_M1(p, ss)
             function (k)
@@ -109,7 +112,7 @@ function linstab_make_lambda_func(p::MMiCRMParams{Ns,Nr}, ss, Ds=nothing; kwargs
         end
     end
 end
-function linstab_make_full_func(p::MMiCRMParams{Ns,Nr}, ss, Ds=nothing; kwargs...) where {Ns,Nr}
+function linstab_make_full_func(p::AbstractMMiCRMParams, ss, Ds=nothing; kwargs...)
     if !isnothing(Ds)
         let M1 = make_M1(p, ss)
             function (k)
@@ -141,7 +144,7 @@ export fast_linstab_evals!
 ################################################################################
 # The K polynomial functions, aka finding modes by solving for 0 evals
 ################################################################################
-include("linstab_Kpolynomial.jl")
+# include("linstab_Kpolynomial.jl")
 
 ################################################################################
 # Simple counters

@@ -1,7 +1,6 @@
 """Calculates the total energy density in the system"""
-function calc_E(u,
-    p::MMiCRMParams{Ns,Nr}
-) where {Ns,Nr}
+function calc_E(u, p::AbstractMMiCRMParams)
+    Ns, Nr = get_Ns(p)
     N = @view u[1:Ns]
     R = @view u[Ns+1:Ns+Nr]
 
@@ -17,9 +16,8 @@ end
 export calc_E
 
 """Print physicsy info about a system"""
-function param_summary(
-    p::MMiCRMParams{Ns,Nr}
-) where {Ns,Nr}
+function param_summary(p::AbstractMMiCRMParams)
+    Ns, Nr = get_Ns(p)
     for a in 1:Nr
         println(@sprintf "Resource %d iseq is %f" a p.K[a] / p.r[a])
     end
