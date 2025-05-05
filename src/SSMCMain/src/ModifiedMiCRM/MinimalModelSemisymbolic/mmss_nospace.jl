@@ -121,9 +121,9 @@ export solve_nospace
 
 """Makes sure the returned steady state really is steady"""
 function check_solve_nospace(
-    mmicrm_params::MMiCRMParams{Ns,Nr,F}, ss;
+    mmicrm_params::AbstractMMiCRMParams{F}, ss;
     threshold=2 * eps(F)
-) where {Ns,Nr,F}
+) where {F}
     maximum(abs, uninplace(mmicrmfunc!)(ss, mmicrm_params)) < threshold
 end
 check_solve_nospace(mmp::MinimalModelParams, args...) = check_solve_nospace(mmp_to_mmicrm(mmp), args...)

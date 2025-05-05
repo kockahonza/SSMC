@@ -1,7 +1,7 @@
 module MinimalModelSemisymbolic
 
 using Reexport
-@reexport using ..ModifiedMiCRM, ..SpaceMMiCRM
+@reexport using ..ModifiedMiCRM
 
 using Polynomials
 
@@ -35,7 +35,7 @@ function get_Ds(mmps::MinimalModelParamsSpace{F}) where {F}
     SA[mmps.DN, mmps.DG, mmps.DR]
 end
 function mmp_to_mmicrm(mmp::MinimalModelParams)
-    MMiCRMParams(
+    SAMMiCRMParams(
         SA[1.0], SA[1.0, 1.0],
         SA[mmp.m],
         SA[mmp.K, 0.0], SA[1.0, 1.0],
@@ -109,7 +109,11 @@ function analyze_single_mmps_Kpoly(mmps::MinimalModelParamsSpace{F};
         kroots = find_ks_that_have_nullspace(Kp; threshold)
         k_samples = sample_ks_from_nullspace_ks(kroots)
 
-        num_modes_in_sections = [find_number_growing_modes(M1, k, Ds; threshold) for k in k_samples]
+        num_modes_in_sections = zeros(length(k_samples))
+        for (i, k) in enumerate(k_samples)
+            evals = eigvals!(M1_to_M(M1, Ds, k))
+            num_modes_in_sections[i] = count(x -> real(x) > threshold, evals)
+        end
 
         push!(krootss, kroots)
         push!(num_modes_in_sectionss, num_modes_in_sections)

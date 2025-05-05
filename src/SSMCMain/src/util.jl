@@ -174,31 +174,6 @@ function make_grid(n;
 end
 export make_grid
 
-function plot_linstab_lambdas(ks, lambdas; imthreshold=1e-8)
-    fig = Figure()
-    ax = Axis(fig[1, 1])
-    for li in axes(lambdas, 2)
-        lines!(ax, ks, real(lambdas[:, li]);
-            color=Cycled(li),
-            label=latexstring(@sprintf "\\Re(\\lambda_%d)" li)
-        )
-        ims = imag(lambdas[:, li])
-
-        mims = maximum(abs, ims)
-        if mims > imthreshold
-            @info @sprintf "we are getting non-zero imaginary parts, max(abs(.)) is %f" mims
-            lines!(ax, ks, ims;
-                color=Cycled(li),
-                linestyle=:dash,
-                label=latexstring(@sprintf "\\Im(\\lambda_%d)" li)
-            )
-        end
-    end
-    axislegend(ax)
-    FigureAxisAnything(fig, ax, lambdas)
-end
-export plot_linstab_lambdas
-
 ################################################################################
 # Plotting NamedArrays with labels etc plus DataFrames helpers
 ################################################################################

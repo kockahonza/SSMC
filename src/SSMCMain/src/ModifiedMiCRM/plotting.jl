@@ -43,15 +43,49 @@ function plot_mmicrm_sol(sol; singleax=false, plote=false)
 end
 export plot_mmicrm_sol
 
+function plot_linstab_lambdas(ks, lambdas; imthreshold=1e-8)
+    fig = Figure()
+    ax = Axis(fig[1, 1])
+
+    num_lambdas = length(lambdas[1])
+
+    for li in 1:num_lambdas
+        ls = [lambdas[i][li] for i in 1:length(lambdas)]
+
+        lines!(ax, ks, real(ls);
+            color=Cycled(li),
+            label=latexstring(@sprintf "\\Re(\\lambda_%d)" li)
+        )
+        ims = imag(ls)
+
+        mims = maximum(abs, ims)
+        if mims > imthreshold
+            @info @sprintf "we are getting non-zero imaginary parts, max(abs(.)) is %f" mims
+            lines!(ax, ks, ims;
+                color=Cycled(li),
+                linestyle=:dash,
+                label=latexstring(@sprintf "\\Im(\\lambda_%d)" li)
+            )
+        end
+    end
+    axislegend(ax)
+    FigureAxisAnything(fig, ax, lambdas)
+end
+export plot_linstab_lambdas
+
 ################################################################################
 # Spatial
 ################################################################################
-function plot_smmicrm_sol_avgs(sol, is=1:length(sol.u); singleax=false, plote=false)
+function plot_smmicrm_sol_avgs(sol, is=:; singleax=false, plote=false)
     params = sol.prob.p
     if !isa(params, AbstractSMMiCRMParams)
         throw(ArgumentError("this func can only plot solutions of SMMiCRM problems"))
     end
     Ns, Nr = get_Ns(params.mmicrm_params)
+
+    if isa(is, Colon)
+        is = 1:length(sol.u)
+    end
 
     ts = sol.t[is]
     avgs = [mean(u, dims=2:ndims(u)) for u in sol.u[is]]

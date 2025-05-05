@@ -162,15 +162,15 @@ end
 export make_smmicrm_problem
 
 ################################################################################
-# Imports 1
+# Imports
 ################################################################################
-# Cartesian spaces
+# Cartesian spaces - these do diffusion
 include("cartesian_space.jl")
 
 # Setups up initial states
 include("u0_prep.jl")
 
-# SArray based implementations
+# Implementations of the MMiCRMParams interfaces
 include("sa_params.jl")
 
 # Linear stability analysis
@@ -185,9 +185,11 @@ include("dimensional_analysis.jl")
 
 include("util.jl")
 
-# More optional bits
+################################################################################
+# Sub/optional bits that come in submodules
+################################################################################
 # Minimal model specific bits
-# include("MinimalModelSemisymbolic/MinimalModelSemisymbolic.jl")
+include("MinimalModelSemisymbolic/MinimalModelSemisymbolic.jl")
 
 include("RandomParamGenerators.jl")
 using .RandomParamGenerators

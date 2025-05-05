@@ -45,21 +45,43 @@ function make_M1!(M1, p::AbstractMMiCRMParams, ss)
         end
         M1[Ns+a, Ns+a] -= p.r[a]
     end
+    M1
 end
-function make_M1(p::AbstractMMiCRMParams{F}, args...) where {F}
+function make_M1(p::AbstractMMiCRMParams{F}, ss) where {F}
     Ns, Nr = get_Ns(p)
     M1 = Matrix{F}(undef, Ns + Nr, Ns + Nr)
-    make_M1!(M1, p, args...)
+    make_M1!(M1, p, ss)
     M1
 end
 export make_M1!, make_M1
 
-function make_M(M1, k, Ds)
-    M1 + Diagonal(-(k^2) .* Ds)
+function M1_to_M!(M1, Ds, k)
+    for i in 1:length(Ds)
+        M1[i, i] -= k^2 * Ds[i]
+    end
 end
-function make_M(p::AbstractMMiCRMParams, k, ss, Ds)
-    make_M(make_M1(p, ss), k, Ds)
+function M1_to_M(M1, Ds, k)
+    M = copy(M1)
+    M1_to_M!(M, Ds, k)
+    M
 end
+export M1_to_M!, M1_to_M
+
+function make_M!(M, p::AbstractMMiCRMParams, Ds, ss, k)
+    make_M1!(M, p, ss)
+    M1_to_M!(M, Ds, k)
+    M
+end
+make_M!(M, sp::AbstractSMMiCRMParams, ss, k) = make_M!(M, sp, get_Ds(sp), ss, k)
+export make_M!
+
+function make_M(p::AbstractMMiCRMParams{F}, Ds, ss, k) where {F}
+    Ns, Nr = get_Ns(p)
+    M = Matrix{F}(undef, Ns + Nr, Ns + Nr)
+    make_M!(M, p, Ds, ss, k)
+    M
+end
+make_M(sp::AbstractSMMiCRMParams, ss, k) = make_M(sp, get_Ds(sp), ss, k)
 export make_M
 
 ################################################################################
@@ -76,97 +98,32 @@ export eigen_sortby_reverse
 ################################################################################
 # Directly solving for a set of ks
 ################################################################################
-function do_linstab_for_ks(ks, p::AbstractMMiCRMParams{F}, Ds, ss; kwargs...) where {F}
-    lambda_func = linstab_make_lambda_func(p, ss, Ds; kwargs...)
-    lambdas = Matrix{Complex{F}}(undef, length(ks), length(ss))
-    for (i, k) in enumerate(ks)
-        lambdas[i, :] .= lambda_func(k)
-    end
-    lambdas
-end
-function do_linstab_for_ks(ks, p::ODEProblem, Ds, ss=nothing; kwargs...)
-    if isnothing(ss)
-        ssprob = SteadyStateProblem(p)
-        sssol = solve(ssprob, DynamicSS())
-        if sssol.retcode != ReturnCode.Success
-            @error "the steady state solver did not succeed"
-        end
-        ss = sssol.u
-    end
-    do_linstab_for_ks(ks, p.p, Ds, ss; kwargs...)
-end
-export do_linstab_for_ks
-
-function linstab_make_lambda_func(p::AbstractMMiCRMParams, ss, Ds=nothing; kwargs...)
-    if !isnothing(Ds)
-        let M1 = make_M1(p, ss)
-            function (k)
-                eigvals(M1 + Diagonal(-(k^2) .* Ds); sortby=eigen_sortby_reverse, kwargs...)
-            end
-        end
+function linstab_make_k_func(p::AbstractMMiCRMParams, Ds, ss;
+    returnobj=:evals
+)
+    func = if returnobj == :evals
+        M -> eigvals!(M; sortby=eigen_sortby_reverse)
+    elseif returnobj == :full
+        M -> eigen!(M; sortby=eigen_sortby_reverse)
+    elseif returnobj == :maxeval
+        M -> eigvals!(M; sortby=eigen_sortby_reverse)[1]
     else
-        let M1 = make_M1(p, ss)
-            function (k, Ds)
-                eigvals(M1 + Diagonal(-(k^2) .* Ds); sortby=eigen_sortby_reverse, kwargs...)
-            end
-        end
+        throw(ArgumentError(@sprintf "unrecognized returnobj %s" string(returnobj)))
     end
-end
-function linstab_make_full_func(p::AbstractMMiCRMParams, ss, Ds=nothing; kwargs...)
-    if !isnothing(Ds)
-        let M1 = make_M1(p, ss)
-            function (k)
-                eigen(M1 + Diagonal(-(k^2) .* Ds); sortby=eigen_sortby_reverse, kwargs...)
-            end
-        end
-    else
-        let M1 = make_M1(p, ss)
-            function (k, Ds)
-                eigen(M1 + Diagonal(-(k^2) .* Ds); sortby=eigen_sortby_reverse, kwargs...)
-            end
-        end
-    end
-end
-export linstab_make_lambda_func, linstab_make_full_func
 
-function fast_linstab_evals!(M1::Matrix{F}, k::F, Ds::Vector{F}) where {F}
-    for i in 1:length(Ds)
-        M1[i, i] -= k^2 * Ds[i]
+    let M1 = make_M1(p, ss), M = copy(M1), Ds = Ds, func = func
+        function (k)
+            M .= M1
+            M1_to_M!(M, Ds, k)
+            func(M)
+            # eigvals!(M; sortby=eigen_sortby_reverse)
+        end
     end
-    eigvals!(M1)
 end
-function fast_linstab_evals!(xx, M1, k, Ds)
-    xx .= M1
-    fast_linstab_evals!(xx, k, Ds)
-end
-export fast_linstab_evals!
+linstab_make_k_func(sp::AbstractSMMiCRMParams, ss) = linstab_make_k_func(sp, get_Ds(sp), ss)
+export linstab_make_k_func
 
 ################################################################################
 # The K polynomial functions, aka finding modes by solving for 0 evals
 ################################################################################
-# include("linstab_Kpolynomial.jl")
-
-################################################################################
-# Simple counters
-################################################################################
-"""Returns the number of non-decaying modes"""
-function find_number_nondec_modes(MorM1; threshold=eps(eltype(MorM1)))
-    e = eigen(MorM1)
-    count(x -> real(x) > -threshold, e.values)
-end
-function find_number_nondec_modes(args...; kwargs...)
-    M = make_M(args...)
-    find_number_nondec_modes(M; kwargs...)
-end
-export find_number_nondec_modes
-
-"""Returns the number of non-decaying modes"""
-function find_number_growing_modes(MorM1; threshold=eps(eltype(MorM1)))
-    e = eigen(MorM1)
-    count(x -> real(x) > threshold, e.values)
-end
-function find_number_growing_modes(args...; kwargs...)
-    M = make_M(args...)
-    find_number_growing_modes(M; kwargs...)
-end
-export find_number_growing_modes
+include("linstab_Kpolynomial.jl")
