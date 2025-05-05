@@ -155,8 +155,8 @@ end
 
 function main()
     @time analyze_many_mmps2("./out.jld2";
-        m=2 .^ LinRange(-7, 4, 40),
-        l=LinRange(0.0, 1.0, 10),
+        m=2 .^ LinRange(-7, 4, 50),
+        l=LinRange(0.0, 1.0, 15),
         K=[1.0],
         c=2 .^ LinRange(-7, 10, 80),
         d=2 .^ LinRange(-7, 10, 80),
