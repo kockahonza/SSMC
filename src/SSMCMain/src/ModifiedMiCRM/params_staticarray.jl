@@ -117,10 +117,15 @@ function make_sammicrmparams(Ns, Nr;
     else
         cname, cargs = split_name_args(c)
 
+        val = isempty(cargs) ? 1.0 : cargs[1]
         if cname == :uniform
-            c = make_c_uniform(Ns, Nr, cargs...)
+            c = @SMatrix fill(val, Ns, Nr)
         elseif cname == :oto
-            c = make_c_oto(Ns, Nr, cargs...)
+            mat = zeros(Ns, Nr)
+            for i in 1:min(Ns, Nr)
+                mat[i, i] = val
+            end
+            c = SMatrix{Ns,Nr}(mat)
         else
             throw(ArgumentError(@sprintf "cannot correctly parse cname %s" string(cname)))
         end
@@ -132,9 +137,18 @@ function make_sammicrmparams(Ns, Nr;
         Dname, Dargs = split_name_args(D)
 
         if Dname == :uniform
-            D = make_D_uniform(Ns, Nr, Dargs...)
+            D = @SArray fill(1 / Nr, Ns, Nr, Nr)
         elseif Dname == :euniform
-            D = make_D_euniform(Ns, Nr, Dargs...)
+            if Nr == 1
+                @warn "using euniform D with only 1 resource, this violates certain assumptions"
+            end
+            mat = fill(1 / (Nr - 1), Ns, Nr, Nr)
+            for i in 1:Ns
+                for a in 1:Nr
+                    mat[i, a, a] = 0.0
+                end
+            end
+            D = SArray{Tuple{Ns,Nr,Nr}}(mat)
         else
             throw(ArgumentError(@sprintf "cannot correctly parse Dname %s" string(Dname)))
         end
@@ -150,27 +164,6 @@ function make_sammicrmparams(Ns, Nr;
         c, D
     )
 end
-make_c_uniform(Ns, Nr, val=1.0) = @SMatrix fill(val, Ns, Nr)
-function make_c_oto(Ns, Nr, val=1.0) # strain i eats resource i if it exists
-    mat = zeros(Ns, Nr)
-    for i in 1:min(Ns, Nr)
-        mat[i, i] = val
-    end
-    SMatrix{Ns,Nr}(mat)
-end
-make_D_uniform(Ns, Nr) = @SArray fill(1 / Nr, Ns, Nr, Nr)
-function make_D_euniform(Ns, Nr)
-    if Nr == 1
-        @warn "using euniform D with only 1 resource, this violates certain assumptions"
-    end
-    mat = fill(1 / (Nr - 1), Ns, Nr, Nr)
-    for i in 1:Ns
-        for a in 1:Nr
-            mat[i, a, a] = 0.0
-        end
-    end
-    SArray{Tuple{Ns,Nr,Nr}}(mat)
-end
 export make_sammicrmparams
 
 function change_sasmmicrm_params(sp::SASMMiCRMParams;
@@ -182,4 +175,3 @@ function change_sasmmicrm_params(sp::SASMMiCRMParams;
     SASMMiCRMParams(mmicrm_params, diffusion_constants, space, usenthreads)
 end
 export change_sasmmicrm_params
-

@@ -5,11 +5,13 @@ using Reexport
 @reexport using ..SSMCMain
 
 using Base.Threads
+using OhMyThreads
+using ChunkSplitters
 
 using StatsBase
 using Interpolations
 using Polynomials
-using ChunkSplitters
+
 using ADTypes, SparseConnectivityTracer
 
 import Base: ndims, getproperty
@@ -171,7 +173,8 @@ include("cartesian_space.jl")
 include("u0_prep.jl")
 
 # Implementations of the MMiCRMParams interfaces
-include("sa_params.jl")
+include("params_staticarray.jl")
+include("params_basearray.jl")
 
 # Linear stability analysis
 include("linstab/linstab.jl")
