@@ -40,7 +40,7 @@ function mmp_nospace_sol(m, l, K, c, d; threshold=2 * eps(m))
         end
     end
 end
-mmp_nospace_sol(mmp::MinimalModelParams) = mmp_nospace_sol(mmp.m, mmp.l, mmp.K, mmp.c, mmp.d)
+mmp_nospace_sol(mmp::MinimalModelParams; kwargs...) = mmp_nospace_sol(mmp.m, mmp.l, mmp.K, mmp.c, mmp.d; kwargs...)
 export mmp_nospace_sol
 
 ################################################################################
