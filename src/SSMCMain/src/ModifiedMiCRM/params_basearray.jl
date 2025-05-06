@@ -104,7 +104,69 @@ function mmicrmfunc!(du, u, p::BMMiCRMParams{Int}, t=0)
     end
     du
 end
+function copy(p::BMMiCRMParams)
+    BMMiCRMParams(
+        copy(p.g), copy(p.w), copy(p.m), copy(p.K), copy(p.r),
+        copy(p.l), copy(p.c), copy(p.D), p.usenthreads
+    )
+end
 export BMMiCRMParams
+
+struct BSMMiCRMParams{S<:Union{Nothing,AbstractSpace},P<:Union{Nothing,Int},F} <: AbstractSMMiCRMParams{S,F}
+    mmicrm_params::BMMiCRMParams{Nothing,F}
+    Ds::Vector{F}
+    space::S
+
+    usenthreads::P
+
+    function BSMMiCRMParams(
+        mmicrm_params::BMMiCRMParams{P,F},
+        Ds,
+        space=nothing,
+        usenthreads=nothing
+    ) where {P,F}
+        if length(Ds) == sum(get_Ns(mmicrm_params))
+            mmicrm_params = change_bmmicrmparams(mmicrm_params; usenthreads=nothing)
+
+            new{typeof(space),typeof(usenthreads),F}(mmicrm_params, Ds, space, usenthreads)
+        else
+            throw(ArgumentError("passed mmicrm_params and diff are not compatible"))
+        end
+    end
+end
+get_Ns(sp::BSMMiCRMParams) = get_Ns(sp.mmicrm_params)
+mmicrmfunc!(du, u, sp::BSMMiCRMParams, t=0) = mmicrmfunc!(du, u, sp.mmicrm_params, t)
+function getproperty(sp::BSMMiCRMParams, sym::Symbol, args...)
+    if sym in (:g, :w, :m, :K, :r, :l, :c, :D)
+        getproperty(sp.mmicrm_params, sym, args...)
+    else
+        getfield(sp, sym, args...)
+    end
+end
+get_Ds(sp::BSMMiCRMParams) = sp.Ds
+get_space(sp::BSMMiCRMParams) = sp.space
+function smmicrmfunc!(du, u, p::BSMMiCRMParams, t=0)
+    if isnothing(p.usenthreads)
+        @inbounds for r in CartesianIndices(axes(u)[2:end])
+            mmicrmfunc!((@view du[:, r]), (@view u[:, r]), p.mmicrm_params, t)
+        end
+    else
+        rchunks = chunks(CartesianIndices(axes(u)[2:end]); n=p.usenthreads)
+        @sync for rs in rchunks
+            @spawn begin
+                @inbounds for r in rs
+                    mmicrmfunc!((@view du[:, r]), (@view u[:, r]), p.mmicrm_params, t)
+                end
+            end
+        end
+    end
+    add_diffusion!(du, u, p.Ds, p.space, p.usenthreads)
+    du
+end
+function copy(sp::BSMMiCRMParams)
+    BSMMiCRMParams(copy(sp.mmicrm_params), copy(sp.Ds), copy(sp.space), sp.usenthreads)
+end
+export BSMMiCRMParams
 
 ################################################################################
 # Helper functions
@@ -116,7 +178,7 @@ function make_bmmicrmparams(Ns, Nr;
     c=:uniform, D=:euniform,
     usenthreads=nothing
 )
-    # Setup the SAMMiCRMParams
+    # Setup the MMiCRMParams
     if isa(c, Number) || isa(c, AbstractArray)
         c = smart_val(c, 0.0, Ns, Nr)
     else
@@ -170,12 +232,29 @@ function make_bmmicrmparams(Ns, Nr;
 end
 export make_bmmicrmparams
 
-function change_bmmicrmparams(ps::BMMiCRMParams;
-    g=copy(ps.g), w=copy(ps.w),
-    m=copy(ps.m), K=copy(ps.K), r=copy(ps.r),
-    l=copy(ps.l), c=copy(ps.c), D=copy(ps.D),
-    usenthreads=ps.usenthreads
+function change_bmmicrmparams(p::BMMiCRMParams;
+    g=copy(p.g), w=copy(p.w),
+    m=copy(p.m), K=copy(p.K), r=copy(p.r),
+    l=copy(p.l), c=copy(p.c), D=copy(p.D),
+    usenthreads=p.usenthreads
 )
     BMMiCRMParams(g, w, m, K, r, l, c, D, usenthreads)
 end
 export change_bmmicrmparams
+
+function change_bsmmicrmparams(sp::BSMMiCRMParams;
+    mmicrm_params=nothing,
+    Ds=sp.Ds,
+    space=sp.space,
+    usenthreads=sp.usenthreads,
+    kwargs...
+)
+    if isnothing(mmicrm_params)
+        mmicrm_params = sp.mmicrm_params
+    end
+    if !isempty(kwargs)
+        mmicrm_params = change_bmmicrmparams(mmicrm_params; kwargs...)
+    end
+    BSMMiCRMParams(mmicrm_params, Ds, space, usenthreads)
+end
+export change_bsmmicrmparams

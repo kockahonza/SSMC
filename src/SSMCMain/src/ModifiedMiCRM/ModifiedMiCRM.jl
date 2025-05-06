@@ -14,7 +14,7 @@ using Polynomials
 
 using ADTypes, SparseConnectivityTracer
 
-import Base: ndims, getproperty
+import Base: ndims, getproperty, copy
 
 ################################################################################
 # Nospace Modified MiCRM model params types interface specification
@@ -41,7 +41,7 @@ end
 Adds the diffusive part of du for each field, the field index is taken to be
 the first index, the others designating space.
 """
-function add_diffusion!(du, u, diffusion_constants, s::AbstractSpace, usenthreads=nothing)
+function add_diffusion!(du, u, Ds, s::AbstractSpace, usenthreads=nothing)
     throw(ErrorException(@sprintf "no function add_diffusion! defined for space type %s" string(typeof(s))))
 end
 export add_diffusion!

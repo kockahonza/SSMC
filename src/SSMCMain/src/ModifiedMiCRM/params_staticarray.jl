@@ -53,7 +53,7 @@ export SAMMiCRMParams
 
 struct SASMMiCRMParams{Ns,Nr,S<:Union{Nothing,AbstractSpace},F,N,P<:Union{Nothing,Int},A,B} <: AbstractSMMiCRMParams{S,F}
     mmicrm_params::SAMMiCRMParams{Ns,Nr,F,A,B}
-    diffusion_constants::SVector{N,F}
+    Ds::SVector{N,F}
     space::S
 
     usenthreads::P
@@ -80,8 +80,8 @@ function getproperty(sp::SASMMiCRMParams, sym::Symbol, args...)
         getfield(sp, sym, args...)
     end
 end
-get_Ds(sp::SASMMiCRMParams) = sp.diffusion_constants
-get_space(sp::AbstractSMMiCRMParams) = sp.space
+get_Ds(sp::SASMMiCRMParams) = sp.Ds
+get_space(sp::SASMMiCRMParams) = sp.space
 function smmicrmfunc!(du, u, p::SASMMiCRMParams, t=0)
     if isnothing(p.usenthreads)
         @inbounds for r in CartesianIndices(axes(u)[2:end])
@@ -97,8 +97,8 @@ function smmicrmfunc!(du, u, p::SASMMiCRMParams, t=0)
             end
         end
     end
-    add_diffusion!(du, u, p.diffusion_constants, p.space, p.usenthreads)
-    nothing
+    add_diffusion!(du, u, p.Ds, p.space, p.usenthreads)
+    du
 end
 export SASMMiCRMParams
 
@@ -168,10 +168,10 @@ export make_sammicrmparams
 
 function change_sasmmicrm_params(sp::SASMMiCRMParams;
     mmicrm_params=sp.mmicrm_params,
-    diffusion_constants=sp.diffusion_constants,
+    Ds=sp.Ds,
     space=sp.space,
     usenthreads=sp.usenthreads
 )
-    SASMMiCRMParams(mmicrm_params, diffusion_constants, space, usenthreads)
+    SASMMiCRMParams(mmicrm_params, Ds, space, usenthreads)
 end
 export change_sasmmicrm_params
