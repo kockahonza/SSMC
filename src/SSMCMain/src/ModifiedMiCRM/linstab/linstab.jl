@@ -4,9 +4,6 @@
 function make_M1!(M1, p::AbstractMMiCRMParams, ss)
     Ns, Nr = get_Ns(p)
 
-    Nss = @view ss[1:Ns]
-    Rss = @view ss[Ns+1:Ns+Nr]
-
     for i in 1:Ns
         # 0 everywhere
         for j in 1:Ns
@@ -14,20 +11,20 @@ function make_M1!(M1, p::AbstractMMiCRMParams, ss)
         end
         # add things to the diagonal - this is T
         for a in 1:Nr
-            M1[i, i] += p.g[i] * (1 - p.l[i, a]) * p.w[a] * p.c[i, a] * Rss[a]
+            M1[i, i] += p.g[i] * (1 - p.l[i, a]) * p.w[a] * p.c[i, a] * ss[Ns+a]
         end
         M1[i, i] -= p.g[i] * p.m[i]
     end
     for i in 1:Ns
         for a in 1:Nr
             # this is U
-            M1[i, Ns+a] = p.g[i] * (1 - p.l[i, a]) * p.w[a] * p.c[i, a] * Nss[i]
+            M1[i, Ns+a] = p.g[i] * (1 - p.l[i, a]) * p.w[a] * p.c[i, a] * ss[i]
             # this is V
             M1[Ns+a, i] = 0.0
             for b in 1:Nr
-                M1[Ns+a, i] += p.D[i, a, b] * p.l[i, b] * (p.w[b] / p.w[a]) * p.c[i, b] * Rss[b]
+                M1[Ns+a, i] += p.D[i, a, b] * p.l[i, b] * (p.w[b] / p.w[a]) * p.c[i, b] * ss[Ns+b]
             end
-            M1[Ns+a, i] -= p.c[i, a] * Rss[a]
+            M1[Ns+a, i] -= p.c[i, a] * ss[Ns+a]
         end
     end
     for a in 1:Nr
@@ -36,12 +33,12 @@ function make_M1!(M1, p::AbstractMMiCRMParams, ss)
             M1[Ns+a, Ns+b] = 0.0
             # this does the complex part of W
             for i in 1:Ns
-                M1[Ns+a, Ns+b] += p.D[i, a, b] * p.l[i, b] * (p.w[b] / p.w[a]) * p.c[i, b] * Nss[i]
+                M1[Ns+a, Ns+b] += p.D[i, a, b] * p.l[i, b] * (p.w[b] / p.w[a]) * p.c[i, b] * ss[i]
             end
         end
         # and add the diagonal bit of W
         for i in 1:Ns
-            M1[Ns+a, Ns+a] -= p.c[i, a] * Nss[i]
+            M1[Ns+a, Ns+a] -= p.c[i, a] * ss[i]
         end
         M1[Ns+a, Ns+a] -= p.r[a]
     end
@@ -96,7 +93,7 @@ end
 export eigen_sortby_reverse
 
 ################################################################################
-# Directly solving for a set of ks
+# Doing linstab
 ################################################################################
 function linstab_make_k_func(p::AbstractMMiCRMParams, Ds, ss;
     returnobj=:evals
@@ -122,6 +119,38 @@ function linstab_make_k_func(p::AbstractMMiCRMParams, Ds, ss;
 end
 linstab_make_k_func(sp::AbstractSMMiCRMParams, ss) = linstab_make_k_func(sp, get_Ds(sp), ss)
 export linstab_make_k_func
+
+"""
+Optimized function that will test if a system has an instability by scanning
+a range of preselected ks.
+"""
+struct LinstabScanTester{F}
+    ks::Vector{F}
+    M1::Matrix{F}
+    M::Matrix{F}
+    threshold::F
+    function LinstabScanTester(ks, N, threshold=2 * eps())
+        M1 = Matrix{eltype(ks)}(undef, N, N)
+        M = Matrix{eltype(ks)}(undef, N, N)
+        new{eltype(ks)}(ks, M1, M, threshold)
+    end
+end
+function LinstabScanTester(ks, p::AbstractMMiCRMParams, threshold=2 * eps())
+    LinstabScanTester(ks, sum(get_Ns(p)), threshold)
+end
+function (lt::LinstabScanTester)(sp::AbstractSMMiCRMParams, ss)
+    make_M1!(lt.M1, sp, ss)
+    for k in lt.ks
+        lt.M .= lt.M1
+        M1_to_M!(lt.M, get_Ds(sp), k)
+        evals = eigvals!(lt.M)
+        if any(l -> real(l) > lt.threshold, evals)
+            return true
+        end
+    end
+    return false
+end
+export LinstabScanTester
 
 ################################################################################
 # The K polynomial functions, aka finding modes by solving for 0 evals

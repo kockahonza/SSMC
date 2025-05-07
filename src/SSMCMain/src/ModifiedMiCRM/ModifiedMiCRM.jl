@@ -193,8 +193,6 @@ include("util.jl")
 ################################################################################
 # Minimal model specific bits
 include("MinimalModelSemisymbolic/MinimalModelSemisymbolic.jl")
-
-include("RandomParamGenerators.jl")
-using .RandomParamGenerators
+include("RandomSystems/RandomSystems.jl")
 
 end

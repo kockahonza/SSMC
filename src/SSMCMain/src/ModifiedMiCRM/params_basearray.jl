@@ -112,23 +112,21 @@ function copy(p::BMMiCRMParams)
 end
 export BMMiCRMParams
 
-struct BSMMiCRMParams{S<:Union{Nothing,AbstractSpace},P<:Union{Nothing,Int},F} <: AbstractSMMiCRMParams{S,F}
-    mmicrm_params::BMMiCRMParams{Nothing,F}
+struct BSMMiCRMParams{S<:Union{Nothing,AbstractSpace},P<:Union{Nothing,Int},P2,F} <: AbstractSMMiCRMParams{S,F}
+    mmicrm_params::BMMiCRMParams{P2,F}
     Ds::Vector{F}
     space::S
 
     usenthreads::P
 
     function BSMMiCRMParams(
-        mmicrm_params::BMMiCRMParams{P,F},
+        mmicrm_params::BMMiCRMParams{P2,F},
         Ds,
         space=nothing,
-        usenthreads=nothing
-    ) where {P,F}
+        usenthreads=nothing,
+    ) where {P2,F}
         if length(Ds) == sum(get_Ns(mmicrm_params))
-            mmicrm_params = change_bmmicrmparams(mmicrm_params; usenthreads=nothing)
-
-            new{typeof(space),typeof(usenthreads),F}(mmicrm_params, Ds, space, usenthreads)
+            new{typeof(space),typeof(usenthreads),P2,F}(mmicrm_params, Ds, space, usenthreads)
         else
             throw(ArgumentError("passed mmicrm_params and diff are not compatible"))
         end
@@ -247,13 +245,18 @@ function change_bsmmicrmparams(sp::BSMMiCRMParams;
     Ds=sp.Ds,
     space=sp.space,
     usenthreads=sp.usenthreads,
+    nospace_usenthreads=false,
     kwargs...
 )
     if isnothing(mmicrm_params)
         mmicrm_params = sp.mmicrm_params
     end
-    if !isempty(kwargs)
-        mmicrm_params = change_bmmicrmparams(mmicrm_params; kwargs...)
+    if !isempty(kwargs) || (nospace_usenthreads != false)
+        if nospace_usenthreads == false
+            mmicrm_params = change_bmmicrmparams(mmicrm_params; kwargs...)
+        else
+            mmicrm_params = change_bmmicrmparams(mmicrm_params; kwargs..., usenthreads=nospace_usenthreads)
+        end
     end
     BSMMiCRMParams(mmicrm_params, Ds, space, usenthreads)
 end
