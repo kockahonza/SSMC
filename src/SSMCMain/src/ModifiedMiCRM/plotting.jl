@@ -77,7 +77,7 @@ function plot_linstab_lambdas(ks, lambdas; imthreshold=1e-8)
 
         mims = maximum(abs, ims)
         if mims > imthreshold
-            @info @sprintf "we are getting non-zero imaginary parts, max(abs(.)) is %f" mims
+            # @info @sprintf "we are getting non-zero imaginary parts, max(abs(.)) is %f" mims
             lines!(ax, ks, ims;
                 color=Cycled(li),
                 linestyle=:dash,
@@ -86,6 +86,13 @@ function plot_linstab_lambdas(ks, lambdas; imthreshold=1e-8)
         end
     end
     axislegend(ax)
+
+    mrl = maximum(ls -> maximum(real, ls), lambdas)
+    if mrl > 1000 * eps()
+        @info @sprintf "Unstable, mrl is %g" mrl
+        ylims!(ax, -0.2 * abs(mrl), 1.5 * abs(mrl))
+    end
+
     FigureAxisAnything(fig, ax, lambdas)
 end
 export plot_linstab_lambdas

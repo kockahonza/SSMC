@@ -180,7 +180,7 @@ function (srg::SRGStevens1)()
 end
 export SRGStevens1
 
-struct SRGJans1{Dm,Dr,DDN,DDR,DK,Dc,Dl}
+struct SRGJans1{Dm,Dr,DDN,DDR,DK,Ds1,Ds2,Dc,Dl}
     Ns::Int
     Nr::Int
 
@@ -192,8 +192,8 @@ struct SRGJans1{Dm,Dr,DDN,DDR,DK,Dc,Dl}
     Kp::Float64
     K::DK
 
-    num_used_resources::Int
-    num_byproducts::Int
+    num_used_resources::Ds1
+    num_byproducts::Ds2
 
     c::Dc
     l::Dl
@@ -248,15 +248,22 @@ struct SRGJans1{Dm,Dr,DDN,DDR,DK,Dc,Dl}
         elseif isnothing(num_used_resources)
             num_used_resources = round(Int, sparsity_resources * Nr)
         end
+        if isa(num_used_resources, Number)
+            num_used_resources = Dirac(num_used_resources)
+        end
 
         if isnothing(num_byproducts) && isnothing(sparsity_byproducts)
             num_byproducts = Nr
         elseif isnothing(num_byproducts)
             num_byproducts = round(Int, sparsity_byproducts * Nr)
         end
+        if isa(num_byproducts, Number)
+            num_byproducts = Dirac(num_byproducts)
+        end
 
         new{
-            typeof(m),typeof(r),typeof(DS),typeof(DR),typeof(K),typeof(c),typeof(l)
+            typeof(m),typeof(r),typeof(DS),typeof(DR),typeof(K),
+            typeof(num_used_resources),typeof(num_byproducts),typeof(c),typeof(l)
         }(Ns, Nr, m, r, DS, DR, Kp, K, num_used_resources, num_byproducts, c, l, usenthreads)
     end
 end
@@ -267,9 +274,6 @@ function (srg::SRGJans1)()
 
     m = rand(srg.m, srg.Ns)
     r = rand(srg.r, srg.Nr)
-    DS = rand(srg.DS, srg.Ns)
-    DR = rand(srg.DR, srg.Nr)
-    Ds = vcat(DS, DR)
 
     K = fill(0.0, srg.Nr)
     for a in 1:srg.Nr
@@ -282,12 +286,14 @@ function (srg::SRGJans1)()
     c = fill(0.0, (srg.Ns, srg.Nr))
     D = fill(0.0, (srg.Ns, srg.Nr, srg.Nr))
     for i in 1:srg.Ns
-        consumed_resources = sample(1:srg.Nr, srg.num_used_resources; replace=false)
+        num_resources = rand(srg.num_used_resources)
+        consumed_resources = sample(1:srg.Nr, num_resources; replace=false)
         for cr in consumed_resources
-            c[i, cr] = rand(srg.c)
+            c[i, cr] = abs(rand(srg.c))
             l[i, cr] = rand(srg.l)
 
-            byproducts = sample(1:srg.Nr, srg.num_byproducts; replace=false)
+            num_byproducts = rand(srg.num_byproducts)
+            byproducts = sample(1:srg.Nr, num_byproducts; replace=false)
             bp_Ds = rand(length(byproducts))
             bp_Ds ./= sum(bp_Ds)
             for (bp, bp_D) in zip(byproducts, bp_Ds)
@@ -295,6 +301,16 @@ function (srg::SRGJans1)()
             end
         end
     end
+
+    DS = rand(srg.DS, srg.Ns)
+    DR = rand(srg.DR, srg.Nr)
+    # DR = fill(0.0, srg.Nr)
+    # for a in 1:srg.Nr
+    #     if K[a] != 0.0
+    #         DR[a] = rand(srg.DR)
+    #     end
+    # end
+    Ds = vcat(DS, DR)
 
     mmicrm_params = BMMiCRMParams(g, w, m, K, r, l, c, D, srg.usenthreads)
     BSMMiCRMParams(mmicrm_params, Ds)
