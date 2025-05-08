@@ -150,6 +150,9 @@ function (lt::LinstabScanTester)(sp::AbstractSMMiCRMParams, ss)
     end
     return false
 end
+function copy(lst::LinstabScanTester)
+    LinstabScanTester(lst.ks, size(lst.M)[1], lst.threshold)
+end
 export LinstabScanTester
 
 ################################################################################

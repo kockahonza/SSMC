@@ -1,4 +1,8 @@
-function plot_mmicrm_sol(sol; singleax=false, plote=false)
+function plot_mmicrm_sol(sol;
+    singleax=false,
+    plote=false,
+    legends=length(sol.u[end]) < 15 ? true : false
+)
     params = sol.prob.p
     if !isa(params, AbstractMMiCRMParams)
         throw(ArgumentError("plot_mmicrm_sol can only plot solutions of MMiCRM problems"))
@@ -14,29 +18,42 @@ function plot_mmicrm_sol(sol; singleax=false, plote=false)
     else
         strainax = Axis(fig[1, 1])
         resax = Axis(fig[2, 1])
+        linkxaxes!(strainax, resax)
         if plote
             eax = Axis(fig[3, 1])
+            linkxaxes!(strainax, eax)
         end
     end
 
     # plot data
     for i in 1:Ns
-        lines!(strainax, sol.t, sol[i, :]; label=@sprintf "str %d" i)
+        scatterlines!(strainax, sol.t, sol[i, :];
+            label=(@sprintf "str %d" i),
+            marker=:vline,
+        )
     end
     for a in 1:Nr
-        lines!(resax, sol.t, sol[Ns+a, :]; label=@sprintf "res %d" a)
+        scatterlines!(resax, sol.t, sol[Ns+a, :];
+            label=(@sprintf "res %d" a),
+            marker=:vline,
+        )
     end
     if plote
-        lines!(eax, sol.t, calc_E.(sol.u, Ref(params)); label=L"\epsilon")
+        scatterlines!(eax, sol.t, calc_E.(sol.u, Ref(params));
+            label=L"\epsilon",
+            marker=:vline,
+        )
     end
 
-    if singleax
-        axislegend(strainax)
-    else
-        axislegend(strainax)
-        axislegend(resax)
-        if plote
-            axislegend(eax)
+    if legends
+        if singleax
+            axislegend(strainax)
+        else
+            axislegend(strainax)
+            axislegend(resax)
+            if plote
+                axislegend(eax)
+            end
         end
     end
     fig

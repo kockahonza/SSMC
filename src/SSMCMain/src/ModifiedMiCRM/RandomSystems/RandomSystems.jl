@@ -180,4 +180,125 @@ function (srg::SRGStevens1)()
 end
 export SRGStevens1
 
+struct SRGJans1{Dm,Dr,DDN,DDR,DK,Dc,Dl}
+    Ns::Int
+    Nr::Int
+
+    m::Dm
+    r::Dr
+    DS::DDN
+    DR::DDR
+
+    Kp::Float64
+    K::DK
+
+    num_used_resources::Int
+    num_byproducts::Int
+
+    c::Dc
+    l::Dl
+
+    usenthreads::Union{Nothing,Int}
+    function SRGJans1(Ns, Nr;
+        m=1.0, r=1.0, DS=1.0, DR=1.0,
+        Kp=1.0, K=1.0,
+        num_used_resources=nothing, sparsity_resources=nothing,
+        num_byproducts=nothing, sparsity_byproducts=nothing,
+        c=1.0, l=0.5,
+        usenthreads=nothing
+    )
+        if isa(m, Number)
+            m = Dirac(m)
+        elseif isa(m, Tuple) && length(m) == 2
+            m = Normal(m[1], m[2])
+        end
+        if isa(r, Number)
+            r = Dirac(r)
+        elseif isa(r, Tuple) && length(r) == 2
+            r = Normal(r[1], r[2])
+        end
+        if isa(DS, Number)
+            DS = Dirac(DS)
+        elseif isa(DS, Tuple) && length(DS) == 2
+            DS = Normal(DS[1], DS[2])
+        end
+        if isa(DR, Number)
+            DR = Dirac(DR)
+        elseif isa(DR, Tuple) && length(DR) == 2
+            DR = Normal(DR[1], DR[2])
+        end
+        if isa(K, Number)
+            K = Dirac(K)
+        elseif isa(K, Tuple) && length(K) == 2
+            K = Normal(K[1], K[2])
+        end
+        if isa(c, Number)
+            c = Dirac(c)
+        elseif isa(c, Tuple) && length(c) == 2
+            c = Normal(c[1], c[2])
+        end
+        if isa(l, Number)
+            l = Dirac(l)
+        elseif isa(l, Tuple) && length(l) == 2
+            l = Normal(l[1], l[2])
+        end
+
+        if isnothing(num_used_resources) && isnothing(sparsity_resources)
+            num_used_resources = Nr
+        elseif isnothing(num_used_resources)
+            num_used_resources = round(Int, sparsity_resources * Nr)
+        end
+
+        if isnothing(num_byproducts) && isnothing(sparsity_byproducts)
+            num_byproducts = Nr
+        elseif isnothing(num_byproducts)
+            num_byproducts = round(Int, sparsity_byproducts * Nr)
+        end
+
+        new{
+            typeof(m),typeof(r),typeof(DS),typeof(DR),typeof(K),typeof(c),typeof(l)
+        }(Ns, Nr, m, r, DS, DR, Kp, K, num_used_resources, num_byproducts, c, l, usenthreads)
+    end
+end
+function (srg::SRGJans1)()
+    # as usual
+    g = fill(1.0, srg.Ns)
+    w = fill(1.0, srg.Nr)
+
+    m = rand(srg.m, srg.Ns)
+    r = rand(srg.r, srg.Nr)
+    DS = rand(srg.DS, srg.Ns)
+    DR = rand(srg.DR, srg.Nr)
+    Ds = vcat(DS, DR)
+
+    K = fill(0.0, srg.Nr)
+    for a in 1:srg.Nr
+        if rand() < srg.Kp
+            K[a] = rand(srg.K)
+        end
+    end
+
+    l = fill(0.0, (srg.Ns, srg.Nr))
+    c = fill(0.0, (srg.Ns, srg.Nr))
+    D = fill(0.0, (srg.Ns, srg.Nr, srg.Nr))
+    for i in 1:srg.Ns
+        consumed_resources = sample(1:srg.Nr, srg.num_used_resources; replace=false)
+        for cr in consumed_resources
+            c[i, cr] = rand(srg.c)
+            l[i, cr] = rand(srg.l)
+
+            byproducts = sample(1:srg.Nr, srg.num_byproducts; replace=false)
+            bp_Ds = rand(length(byproducts))
+            bp_Ds ./= sum(bp_Ds)
+            for (bp, bp_D) in zip(byproducts, bp_Ds)
+                D[i, bp, cr] = bp_D
+            end
+        end
+    end
+
+    mmicrm_params = BMMiCRMParams(g, w, m, K, r, l, c, D, srg.usenthreads)
+    BSMMiCRMParams(mmicrm_params, Ds)
+end
+export SRGJans1
+
 end

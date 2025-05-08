@@ -2,14 +2,14 @@ module SSMCMain
 
 using Reexport
 @reexport using Printf
+@reexport using SciMLBase, DifferentialEquations, NonlinearSolve, Optimization
 @reexport using StaticArrays
-@reexport using DifferentialEquations, NonlinearSolve, Optimization
 @reexport using LinearAlgebra
+@reexport using StatsBase
 @reexport using Makie, LaTeXStrings
 @reexport using PrettyTables
 @reexport using Geppetto
 @reexport using NamedArrays
-@reexport using StatsBase
 @reexport using EnumX
 
 using REPL.TerminalMenus

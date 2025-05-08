@@ -118,16 +118,51 @@ end
 export check_mmicrmparams
 
 # Making ODEProblem s
-function make_mmicrm_problem(p::AbstractMMiCRMParams, u0, T; t0=0.0)
+function make_mmicrm_problem(p::AbstractMMiCRMParams, u0, T; sparse_jac=false, t0=0.0)
     if (ndims(u0) != 1) || (length(u0) != sum(get_Ns(p)))
         throw(ArgumentError(
             @sprintf "passed u0 is not compatible with passed params, size(u0) is %s and Ns, Nr are %s" string(size(u0)) string(get_Ns(p))
         ))
     end
 
-    ODEProblem(mmicrmfunc!, u0, (t0, t0 + T), p)
+    func = if sparse_jac
+        jac_prot = ADTypes.jacobian_sparsity(
+            (du, u) -> mmicrmfunc!(du, u, p),
+            similar(u0),
+            u0,
+            TracerSparsityDetector()
+        )
+        ODEFunction(mmicrmfunc!; jac_prototype=float.(jac_prot))
+    else
+        mmicrmfunc!
+    end
+
+    ODEProblem(func, u0, (t0, t0 + T), p)
 end
 export make_mmicrm_problem
+
+function make_mmicrm_ss_problem(p::AbstractMMiCRMParams, u0; sparse_jac=false)
+    if (ndims(u0) != 1) || (length(u0) != sum(get_Ns(p)))
+        throw(ArgumentError(
+            @sprintf "passed u0 is not compatible with passed params, size(u0) is %s and Ns, Nr are %s" string(size(u0)) string(get_Ns(p))
+        ))
+    end
+
+    func = if sparse_jac
+        jac_prot = ADTypes.jacobian_sparsity(
+            (du, u) -> mmicrmfunc!(du, u, p),
+            similar(u0),
+            u0,
+            TracerSparsityDetector()
+        )
+        ODEFunction(mmicrmfunc!; jac_prototype=float.(jac_prot))
+    else
+        mmicrmfunc!
+    end
+
+    SteadyStateProblem(func, u0, p)
+end
+export make_mmicrm_ss_problem
 
 function make_smmicrm_problem(p::AbstractSMMiCRMParams, u0, T; sparse_jac=true, t0=0.0)
     # check the Ns, Nr match up
