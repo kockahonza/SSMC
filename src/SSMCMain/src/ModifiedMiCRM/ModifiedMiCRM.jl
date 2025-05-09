@@ -57,7 +57,7 @@ function mmicrmfunc!(du, u, p::MMiCRMParams{Ns,Nr}, _=0) where {Ns,Nr}
 end
 export MMiCRMParams, get_Ns, mmicrmfunc!
 
-function check_mmicrmparams(p::MMiCRMParams{Ns,Nr}) where {Ns,Nr}
+function check_mmicrmparams(p::MMiCRMParams{Ns,Nr}; warnDlt1=true) where {Ns,Nr}
     # check D
     for i in 1:Ns
         for a in 1:Nr
@@ -68,7 +68,7 @@ function check_mmicrmparams(p::MMiCRMParams{Ns,Nr}) where {Ns,Nr}
             if total_out > 1.0
                 @error (@sprintf "strain %d leaks more than it energetically can through consuming %d" i a)
             end
-            if (total_out < 1.0) && (p.l[i, a] != 0)
+            if warnDlt1 && (total_out < 1.0) && (p.l[i, a] != 0)
                 @info (@sprintf "strain %d leaks less than it energetically can through consuming %d" i a)
             end
         end
