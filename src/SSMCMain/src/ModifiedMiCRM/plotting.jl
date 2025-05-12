@@ -169,16 +169,22 @@ end
 export plot_smmicrm_sol_avgs
 
 # 1D
-function plot_1dsmmicrm_sol_snap(params, snap_u; singleax=false, plote=false)
-    if !isa(params, AbstractSMMiCRMParams) || (ndims(params) != 1)
-        throw(ArgumentError("plot_smmicrm_sol_snap can only plot 1D solutions of SMMiCRM problems"))
+"""
+Base function for setting up 1D SMMiCRM solution plots.
+Returns (fig, strain_lines, resource_lines, time_label) where the lines can be updated.
+"""
+function setup_1dsmmicrm_figure(params::AbstractSMMiCRMParams, xs;
+    singleax=false, plote=false, time_value=nothing
+)
+    if ndims(params) != 1
+        throw(ArgumentError("This function can only plot 1D solutions of SMMiCRM problems"))
     end
     Ns, Nr = get_Ns(params.mmicrm_params)
 
-    len = size(snap_u)[2]
-    xs = params.space.dx[1] .* (0:(len-1))
 
     fig = Figure()
+
+    # Create axes based on singleax parameter
     if singleax
         strainax = resax = Axis(fig[1, 1])
         if plote
@@ -190,24 +196,17 @@ function plot_1dsmmicrm_sol_snap(params, snap_u; singleax=false, plote=false)
         if plote
             eax = Axis(fig[3, 1])
         end
+        linkxaxes!(strainax, resax)
+        if plote
+            linkxaxes!(strainax, eax)
+        end
     end
 
-    linkxaxes!(strainax, resax)
-    if plote
-        linkxaxes!(strainax, eax)
-    end
+    # Initialize empty lines for strains and resources
+    strain_lines = [lines!(strainax, xs, zeros(length(xs)); label=@sprintf("str %d", i)) for i in 1:Ns]
+    resource_lines = [lines!(resax, xs, zeros(length(xs)); label=@sprintf("res %d", i)) for i in 1:Nr]
 
-    # plot data
-    for i in 1:Ns
-        lines!(strainax, xs, snap_u[i, :]; label=@sprintf "str %d" i)
-    end
-    for a in 1:Nr
-        lines!(resax, xs, snap_u[Ns+a, :]; label=@sprintf "res %d" a)
-    end
-    # if plote
-    #     lines!(eax, xs, calc_E.(sol.u, Ref(params)); label=L"\epsilon")
-    # end
-
+    # Add legends
     if singleax
         axislegend(strainax)
     else
@@ -218,15 +217,133 @@ function plot_1dsmmicrm_sol_snap(params, snap_u; singleax=false, plote=false)
         end
     end
 
+    # Add time label if requested
+    time_label = nothing
+    if !isnothing(time_value)
+        if isa(time_value, Number)
+            time_label = Label(fig[3, :], @sprintf "t = %.2f" time_value)
+        elseif isa(time_value, String)
+            time_label = Label(fig[3, :], @sprintf "t = %s" time_value)
+        else
+            time_label = Label(fig[3, :], "")
+        end
+        colsize!(fig.layout, 1, Auto(false))
+    end
+
     if singleax
         axs = strainax
     else
         axs = [strainax, resax]
     end
 
-    FigureAxisAnything(fig, axs, nothing)
+    (fig, strain_lines, resource_lines, time_label)
+end
+
+"""
+Update the line plots with new data
+"""
+function update_1dsmmicrm_lines!(strain_lines, resource_lines, u, Ns)
+    # Update strain lines
+    for (i, line) in enumerate(strain_lines)
+        xs = first.(line[1][])  # Get x coordinates from current points
+        line[1][] = Point2f.(xs, u[i, :])
+    end
+
+    # Update resource lines
+    for (i, line) in enumerate(resource_lines)
+        xs = first.(line[1][])  # Get x coordinates from current points
+        line[1][] = Point2f.(xs, u[Ns+i, :])
+    end
+end
+
+"""
+Plot a single snapshot of a 1D SMMiCRM solution
+"""
+function plot_1dsmmicrm_sol_snap(params::AbstractSMMiCRMParams, snap_u, t=nothing; singleax=false, plote=false)
+    len = size(snap_u)[2]
+    xs = params.space.dx[1] .* (0:(len-1))
+
+    # Setup the figure
+    fig, strain_lines, resource_lines, _ = setup_1dsmmicrm_figure(
+        params, xs;
+        singleax=singleax,
+        plote=plote,
+        time_value=t
+    )
+
+    # Update with data
+    Ns = get_Ns(params.mmicrm_params)[1]
+    update_1dsmmicrm_lines!(strain_lines, resource_lines, snap_u, Ns)
+
+    fig
+end
+function plot_1dsmmicrm_sol_snap(sol, t; kwargs...)
+    if isa(t, Integer)
+        if t < 0
+            t = length(sol.t) + t + 1
+        end
+        u = sol.u[t]
+        t = sol.t[t]
+    else
+        u = sol(t)
+    end
+    plot_1dsmmicrm_sol_snap(sol.prob.p, u, t; kwargs...)
 end
 export plot_1dsmmicrm_sol_snap
+
+"""
+Create an interactive plot of a 1D SMMiCRM solution with a time slider
+"""
+function plot_1dsmmicrm_sol_interactive(sol; singleax=false, plote=false)
+    params = sol.prob.p
+    if !isa(params, AbstractSMMiCRMParams)
+        throw(ArgumentError("This function can only plot solutions of SMMiCRM problems"))
+    end
+
+    len = size(sol.u[1])[2]
+    xs = params.space.dx[1] .* (0:(len-1))
+    Ns = get_Ns(params.mmicrm_params)[1]
+
+    # Setup the figure
+    fig, strain_lines, resource_lines, _ = setup_1dsmmicrm_figure(
+        params, xs;
+        singleax=singleax,
+        plote=plote
+    )
+
+    # Add slider
+    slider_layout = fig[3, 1] = GridLayout()
+    timesl = Slider(slider_layout[1, 1], range=1:length(sol.t), startvalue=1)
+    time_label = Label(slider_layout[1, 2], @lift(string("t = ", round(sol.t[$(timesl.value)], digits=2))))
+
+    # Create on value change handler for slider
+    on(timesl.value) do idx
+        update_1dsmmicrm_lines!(strain_lines, resource_lines, sol.u[idx], Ns)
+    end
+
+    # Add keyboard controls
+    on(events(fig).keyboardbutton) do event
+        if event.action == Keyboard.press || event.action == Keyboard.repeat
+            idx = timesl.value[]
+            # Move 5 frames at a time when key is held
+            step = event.action == Keyboard.repeat ? 10 : 1
+
+            if event.key == Keyboard.left
+                set_close_to!(timesl, max(1, idx - step))
+            elseif event.key == Keyboard.right
+                set_close_to!(timesl, min(length(sol.t), idx + step))
+            end
+        end
+        return true
+    end
+
+    # Initialize with first frame
+    update_1dsmmicrm_lines!(strain_lines, resource_lines, sol.u[1], Ns)
+
+    fig
+end
+
+export plot_1dsmmicrm_sol_interactive
 
 # 2D
 """
