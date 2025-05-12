@@ -44,7 +44,10 @@ the first index, the others designating space.
 function add_diffusion!(du, u, Ds, s::AbstractSpace, usenthreads=nothing)
     throw(ErrorException(@sprintf "no function add_diffusion! defined for space type %s" string(typeof(s))))
 end
-export add_diffusion!
+function space_cell_size(s::AbstractSpace)
+    throw(ErrorException(@sprintf "no function space_cell_size defined for space type %s" string(typeof(s))))
+end
+export AbstractSpace, space_cell_size, add_diffusion!
 
 abstract type SingleAxisBC end
 struct Periodic <: SingleAxisBC end

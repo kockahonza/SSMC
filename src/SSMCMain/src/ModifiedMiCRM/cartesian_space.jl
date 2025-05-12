@@ -28,6 +28,9 @@ struct CartesianSpace{D,BCs,F} <: AbstractSpace
 end
 ndims(_::CartesianSpace{D}) where {D} = D
 copy(cs::CartesianSpace) = cs
+function space_cell_size(cs::CartesianSpace)
+    prod(cs.dx)
+end
 export CartesianSpace
 
 function make_cartesianspace_smart(D; dx=nothing, bcs=nothing)

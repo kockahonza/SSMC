@@ -42,7 +42,11 @@ function mmp_to_mmicrm(mmp::MinimalModelParams)
         SA[mmp.l 0.0], SA[mmp.c mmp.d], SArray{Tuple{1,2,2}}(0.0, 1.0, 0.0, 0.0),
     )
 end
-export add_space, get_Ds, mmp_to_mmicrm
+function mmps_to_smmicrm(mmps::MinimalModelParamsSpace{F}) where {F}
+    mmicrm_params = mmp_to_mmicrm(mmps)
+    SASMMiCRMParams(mmicrm_params, SA[mmps.DN, mmps.DG, mmps.DR])
+end
+export add_space, get_Ds, mmp_to_mmicrm, mmps_to_smmicrm
 
 ################################################################################
 # Dealing with the no space/well mixed case first - finding steady states

@@ -261,7 +261,7 @@ Plot a single snapshot of a 1D SMMiCRM solution
 """
 function plot_1dsmmicrm_sol_snap(params::AbstractSMMiCRMParams, snap_u, t=nothing; singleax=false, plote=false)
     len = size(snap_u)[2]
-    xs = params.space.dx[1] .* (0:(len-1))
+    xs = get_space(params).dx[1] .* (0:(len-1))
 
     # Setup the figure
     fig, strain_lines, resource_lines, _ = setup_1dsmmicrm_figure(
@@ -301,7 +301,7 @@ function plot_1dsmmicrm_sol_interactive(sol; singleax=false, plote=false)
     end
 
     len = size(sol.u[1])[2]
-    xs = params.space.dx[1] .* (0:(len-1))
+    xs = get_space(params).dx[1] .* (0:(len-1))
     Ns = get_Ns(params.mmicrm_params)[1]
 
     # Setup the figure
@@ -351,7 +351,7 @@ Base function for creating 2D heatmap plots of SMMiCRM solutions.
 Returns (fig, strain_hms, resource_hms, time_label) where the heatmaps can be updated.
 """
 function setup_2dsmmicrm_heatmap_figure(params::AbstractSMMiCRMParams, x_range, y_range,
-    strain_clims, resource_clims,
+    strain_clims=nothing, resource_clims=nothing,
     extra_data=false, extra_clims=nothing;
     aspect_ratio=1.5, time_value=nothing,
     strain_colormap=:viridis, resource_colormap=:plasma, extra_colormap=strain_colormap
@@ -400,8 +400,13 @@ function setup_2dsmmicrm_heatmap_figure(params::AbstractSMMiCRMParams, x_range, 
         ax = Axis(strain_panel[row, col]; aspect=DataAspect())
         strain_axes[row, col] = ax
 
+        extra_kwargs = []
+        if !isnothing(strain_clims)
+            push!(extra_kwargs, :colorrange => strain_clims)
+        end
         hm = heatmap!(ax, x_range, y_range, zeros(length(x_range), length(y_range));  # placeholder data
-            colorrange=strain_clims, colormap=strain_colormap)
+            colormap=strain_colormap, extra_kwargs...
+        )
         push!(strain_hms, hm)
         ax.title = "Strain $i"
         ax.xlabel = "x"
@@ -416,8 +421,13 @@ function setup_2dsmmicrm_heatmap_figure(params::AbstractSMMiCRMParams, x_range, 
         ax = Axis(resource_panel[row, col]; aspect=DataAspect())
         resource_axes[row, col] = ax
 
+        extra_kwargs = []
+        if !isnothing(resource_clims)
+            push!(extra_kwargs, :colorrange => resource_clims)
+        end
         hm = heatmap!(ax, x_range, y_range, zeros(length(x_range), length(y_range));  # placeholder data
-            colorrange=resource_clims, colormap=resource_colormap)
+            colormap=resource_colormap, extra_kwargs...
+        )
         push!(resource_hms, hm)
         ax.title = "Resource $i"
         ax.xlabel = "x"
@@ -455,11 +465,37 @@ function setup_2dsmmicrm_heatmap_figure(params::AbstractSMMiCRMParams, x_range, 
 
     # Add colorbars
     if !extra_data
-        Colorbar(colorbar_panel[1, 1], strain_hms[1], label="Strain concentration")
-        Colorbar(colorbar_panel[2, 1], resource_hms[1], label="Resource concentration")
+        if !isnothing(strain_clims)
+            Colorbar(colorbar_panel[1, 1], strain_hms[1], label="Strain concentrations")
+        else
+            for i in 1:length(strain_hms)
+                Colorbar(colorbar_panel[1, i], strain_hms[i], label="Strain $i concentration")
+            end
+        end
+        if !isnothing(resource_clims)
+            Colorbar(colorbar_panel[2, 1], resource_hms[1], label="Resource concentrations")
+        else
+            for i in 1:length(resource_hms)
+                Colorbar(colorbar_panel[2, i], resource_hms[i], label="Resource $i concentration")
+            end
+        end
     else
-        Colorbar(colorbar_panel[1, 1], strain_hms[1], label="Strain concentration")
-        Colorbar(colorbar_panel[1, 2], resource_hms[1], label="Resource concentration")
+        if !isnothing(strain_clims)
+            Colorbar(colorbar_panel[1, 1], strain_hms[1], label="Strain concentrations")
+        else
+            for i in 1:length(strain_hms)
+                Colorbar(colorbar_panel[1, i], strain_hms[i], label="Strain $i concentration")
+            end
+        end
+        num_st_hms = length(strain_hms)
+        if !isnothing(resource_clims)
+            Colorbar(colorbar_panel[1, num_st_hms+1], resource_hms[1], label="Resource concentrations")
+        else
+            for i in 1:length(resource_hms)
+                Colorbar(colorbar_panel[2, num_st_hms+i], resource_hms[i], label="Resource $i concentration")
+            end
+        end
+
         Colorbar(colorbar_panel[1, 3], extra_hm, label="Extra data")
     end
 
@@ -477,15 +513,15 @@ function setup_2dsmmicrm_heatmap_figure(params::AbstractSMMiCRMParams, x_range, 
         (fig, strain_hms, resource_hms, extra_hm, time_label)
     end
 end
-function update_2dsmmicrm_heatmaps!(strain_hms, resource_hms, u, Ns, extra_hm_data=nothing)
+function update_2dsmmicrm_heatmaps!(strain_hms, resource_hms, u, Ns, cell_size=1.0, extra_hm_data=nothing)
     # Update strain heatmaps
     for (i, hm) in enumerate(strain_hms)
-        hm[3][] = permutedims(u[i, :, :])
+        hm[3][] = permutedims(u[i, :, :]) # .* cell_size
     end
 
     # Update resource heatmaps
     for (i, hm) in enumerate(resource_hms)
-        hm[3][] = permutedims(u[Ns+i, :, :])
+        hm[3][] = permutedims(u[Ns+i, :, :]) # .* cell_size
     end
 
     if !isnothing(extra_hm_data)
@@ -494,24 +530,28 @@ function update_2dsmmicrm_heatmaps!(strain_hms, resource_hms, u, Ns, extra_hm_da
 end
 
 function plot_2dsmmicrm_sol_snap_heatmap(params::AbstractSMMiCRMParams, u, t=nothing;
-    aspect_ratio=1.5, kwargs...
+    aspect_ratio=1.5,
+    do_strain_clims=true, do_resource_clims=true,
+    kwargs...
 )
     Ns = get_Ns(params.mmicrm_params)[1]
 
     # Create colormap ranges for better visualization
-    strain_clims = (minimum(u[1:Ns, :, :]), maximum(u[1:Ns, :, :]))
-    resource_clims = (minimum(u[Ns+1:end, :, :]), maximum(u[Ns+1:end, :, :]))
+    strain_clims = do_strain_clims ? (minimum(u[1:Ns, :, :]), maximum(u[1:Ns, :, :])) : nothing
+    resource_clims = do_resource_clims ? (minimum(u[Ns+1:end, :, :]), maximum(u[Ns+1:end, :, :])) : nothing
 
     # Setup the figure
-    space_ranges = get_u_axes(u, params.space.dx)
+    space_ranges = get_u_axes(u, get_space(params).dx)
     fig, strain_hms, resource_hms, _ = setup_2dsmmicrm_heatmap_figure(
         params, space_ranges[1], space_ranges[2],
         strain_clims, resource_clims;
         aspect_ratio=aspect_ratio, time_value=t, kwargs...
     )
 
+    cell_size = space_cell_size(get_space(params))
+
     # Update with data
-    update_2dsmmicrm_heatmaps!(strain_hms, resource_hms, u, Ns)
+    update_2dsmmicrm_heatmaps!(strain_hms, resource_hms, u, Ns, cell_size)
 
     fig
 end
@@ -530,7 +570,9 @@ end
 export plot_2dsmmicrm_sol_snap_heatmap
 
 function plot_2dsmmicrm_sol_interactive_heatmap(sol, extra_data=nothing;
-    aspect_ratio=1.5, kwargs...
+    aspect_ratio=1.5,
+    do_strain_clims=true, do_resource_clims=true,
+    kwargs...
 )
     params = sol.prob.p
     if !isa(params, AbstractSMMiCRMParams)
@@ -539,10 +581,18 @@ function plot_2dsmmicrm_sol_interactive_heatmap(sol, extra_data=nothing;
     Ns = get_Ns(params.mmicrm_params)[1]
 
     # Create colormap ranges for better visualization
-    strain_clims = (minimum(minimum(u[1:Ns, :, :]) for u in sol.u),
-        maximum(maximum(u[1:Ns, :, :]) for u in sol.u))
-    resource_clims = (minimum(minimum(u[Ns+1:end, :, :]) for u in sol.u),
-        maximum(maximum(u[Ns+1:end, :, :]) for u in sol.u))
+    strain_clims = if do_strain_clims
+        (minimum(minimum(u[1:Ns, :, :]) for u in sol.u),
+            maximum(maximum(u[1:Ns, :, :]) for u in sol.u))
+    else
+        nothing
+    end
+    resource_clims = if do_resource_clims
+        (minimum(minimum(u[Ns+1:end, :, :]) for u in sol.u),
+            maximum(maximum(u[Ns+1:end, :, :]) for u in sol.u))
+    else
+        nothing
+    end
 
     extra_clims = if !isnothing(extra_data)
         (minimum(minimum, extra_data), maximum(maximum, extra_data))
@@ -551,7 +601,7 @@ function plot_2dsmmicrm_sol_interactive_heatmap(sol, extra_data=nothing;
     end
 
     # Setup the figure
-    space_ranges = get_u_axes(sol.u[1], params.space.dx)
+    space_ranges = get_u_axes(sol.u[1], get_space(params).dx)
     setup_rslt = setup_2dsmmicrm_heatmap_figure(
         params, space_ranges[1], space_ranges[2],
         strain_clims, resource_clims, !isnothing(extra_data), extra_clims;
@@ -568,12 +618,19 @@ function plot_2dsmmicrm_sol_interactive_heatmap(sol, extra_data=nothing;
     timesl = Slider(slider_layout[1, 1], range=1:length(sol.t), startvalue=1)
     time_label = Label(slider_layout[1, 2], @lift(string("t = ", round(sol.t[$(timesl.value)], digits=2))))
 
+    cell_size = space_cell_size(get_space(params))
+
     # Create on value change handler for slider
     on(timesl.value) do idx
         if isnothing(extra_data)
-            update_2dsmmicrm_heatmaps!(strain_hms, resource_hms, sol.u[idx], Ns)
+            update_2dsmmicrm_heatmaps!(
+                strain_hms, resource_hms, sol.u[idx], Ns, cell_size
+            )
         else
-            update_2dsmmicrm_heatmaps!(strain_hms, resource_hms, sol.u[idx], Ns, (extra_hm, extra_data[idx]))
+            update_2dsmmicrm_heatmaps!(
+                strain_hms, resource_hms, sol.u[idx], Ns, cell_size,
+                (extra_hm, extra_data[idx])
+            )
         end
     end
 
@@ -606,7 +663,12 @@ function plot_2dsmmicrm_sol_interactive_heatmap(sol, extra_data=nothing;
 end
 export plot_2dsmmicrm_sol_interactive_heatmap
 
-function plot_2dsmmicrm_sol_animation_heatmap(sol, filename=datadir(randname() * ".mp4"); size=(600, 400), fps=30, duration=10, aspect_ratio=1.5)
+function plot_2dsmmicrm_sol_animation_heatmap(sol, filename=datadir(randname() * ".mp4");
+    size=(600, 400), fps=30, duration=10,
+    aspect_ratio=1.5,
+    do_strain_clims=true, do_resource_clims=true,
+    kwargs...
+)
     params = sol.prob.p
     if !isa(params, AbstractSMMiCRMParams)
         throw(ArgumentError("this func can only plot solutions of SMMiCRM problems"))
@@ -619,21 +681,31 @@ function plot_2dsmmicrm_sol_animation_heatmap(sol, filename=datadir(randname() *
 
 
     # Create colormap ranges for better visualization
-    strain_clims = (minimum(minimum(u[1:Ns, :, :]) for u in sol.u),
-        maximum(maximum(u[1:Ns, :, :]) for u in sol.u))
-    resource_clims = (minimum(minimum(u[Ns+1:end, :, :]) for u in sol.u),
-        maximum(maximum(u[Ns+1:end, :, :]) for u in sol.u))
+    strain_clims = if do_strain_clims
+        (minimum(minimum(u[1:Ns, :, :]) for u in sol.u),
+            maximum(maximum(u[1:Ns, :, :]) for u in sol.u))
+    else
+        nothing
+    end
+    resource_clims = if do_resource_clims
+        (minimum(minimum(u[Ns+1:end, :, :]) for u in sol.u),
+            maximum(maximum(u[Ns+1:end, :, :]) for u in sol.u))
+    else
+        nothing
+    end
 
     # Setup the figure
-    space_ranges = get_u_axes(sol.u[1], params.space.dx)
+    space_ranges = get_u_axes(sol.u[1], get_space(params).dx)
     fig, strain_hms, resource_hms, time_label = setup_2dsmmicrm_heatmap_figure(
         params, space_ranges[1], space_ranges[2],
         strain_clims, resource_clims;
         aspect_ratio, time_value=@sprintf("t = %.2f", sol.t[1]),
     )
 
+    cell_size = space_cell_size(get_space(params))
+
     # Initial data
-    update_2dsmmicrm_heatmaps!(strain_hms, resource_hms, sol.u[1], Ns)
+    update_2dsmmicrm_heatmaps!(strain_hms, resource_hms, sol.u[1], Ns, cell_size)
 
     # Create animation
     framerate = fps
@@ -642,7 +714,7 @@ function plot_2dsmmicrm_sol_animation_heatmap(sol, filename=datadir(randname() *
         time_label.text = @sprintf("t = %.2f", sol.t[frame_idx])
 
         # Update heatmaps
-        update_2dsmmicrm_heatmaps!(strain_hms, resource_hms, sol.u[frame_idx], Ns)
+        update_2dsmmicrm_heatmaps!(strain_hms, resource_hms, sol.u[frame_idx], Ns, cell_size)
     end
 
     fig
