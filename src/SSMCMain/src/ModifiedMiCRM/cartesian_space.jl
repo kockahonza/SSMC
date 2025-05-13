@@ -94,7 +94,7 @@ function add_diffusion!(
                 -u[ui, 1] + u[ui, 2]
             ) / (cs1.dx[1]^2)
             du[ui, ssize] += Ds[ui] * (
-                u[ui, ssize-1] - u[ui, ssize-1]
+                u[ui, ssize-1] - u[ui, ssize]
             ) / (cs1.dx[1]^2)
         end
     else
