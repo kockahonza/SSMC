@@ -51,14 +51,14 @@ function main()
     out_basename = "./out/run_"
 
     # Specify the system size and time
-    sys_size = (1000, 1000)
+    sys_size = (800, 800)
     dx = SA[0.01, 0.01]
-    T = 1e20
+    T = 1e10
 
     # Testing
     # sys_size = (80, 80)
     # dx = SA[0.01, 0.01]
-    # T = 1e10
+    # T = 1e20
 
     # Choose the random initialization
     num_peaks = 20
@@ -84,7 +84,7 @@ function main()
 
         # make and solve the problem
         sp = make_smmicrm_problem(spatial_params, u0, T)
-        @time sps = solve(sp, QNDF())
+        @time sps = solve(sp, QNDF(); maxiters=1000)
         print_spatial_solution_stats(sps)
 
         # save the solution
