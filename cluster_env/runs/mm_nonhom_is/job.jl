@@ -98,3 +98,20 @@ function main()
         flush(stdout)
     end
 end
+
+################################################################################
+# Extras
+################################################################################
+function add_animation(basename)
+    sps = load_object(basename * ".jld2")
+    print_spatial_solution_stats(sps)
+    plot_2dsmmicrm_sol_animation_heatmap(sps, basename * ".mp4")
+end
+
+function add_animations_job()
+    out_basename = "./out/run_"
+    for i in 3:4
+        basename = out_basename * string(i)
+        add_animation(basename)
+    end
+end
