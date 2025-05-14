@@ -1,10 +1,9 @@
 data/**/*.jld2
 data/**/*.h5
 
-cluster_env/runs
-!cluster_env/runs/**/*.jl
-!cluster_env/runs/**/*.ipynb
-!cluster_env/runs/**/*.slurm
-!cluster_env/runs/**/input_*.jld2
+cluster_env/runs/**/*.h5
+cluster_env/runs/**/*.jld2
+cluster_env/runs/**/*.out
+cluster_env/runs/**/.*
 
 latex_and_diagrams/overleaf_CRLS_git
