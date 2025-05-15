@@ -7,3 +7,6 @@ cluster_env/runs/**/*.out
 cluster_env/runs/**/.*
 
 latex_and_diagrams/overleaf_CRLS_git
+
+.DS_Store
+.vscode
