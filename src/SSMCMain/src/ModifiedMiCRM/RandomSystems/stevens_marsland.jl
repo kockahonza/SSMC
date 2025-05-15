@@ -79,8 +79,11 @@ function BinaryRandomMatrix(a, b, p)
     return m
 end
 
-function marsland_initialization(S, M, SA=5, MA=5, q=0.9, c0=0.0, c1=1.0, muc=10,
-    fs=0.45, fw=0.45, sparsity=0.2, l=0.8)
+function marsland_initialization(S, M,
+    SA=5, MA=5,
+    q=0.9, c0=0.0, c1=1.0, muc=10,
+    fs=0.45, fw=0.45, sparsity=0.2
+)
     # To start we are going to make a speciofic subset of assumptions available in the Marsland and Cui code.
 
 
