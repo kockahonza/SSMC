@@ -1,3 +1,6 @@
+# Don't track julia Manifests as it's problematic, and they're generated from Project
+Manifest.toml
+
 # Don't track large files
 data/**/*.jld2
 data/**/*.h5
