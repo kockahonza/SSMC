@@ -1,17 +1,15 @@
-module RandomSystems
+using SSMCMain, SSMCMain.ModifiedMiCRM.RandomSystems
 
-using Reexport
-@reexport using ..ModifiedMiCRM
+using Base.Threads, OhMyThreads
+using Random, Distributions
+using NamedArrays
+using FreqTables
+using JLD2
 
-using StatsBase
-using Distributions
-using OhMyThreads
-
-
-################################################################################
-# Example random system runner
-################################################################################
-function example_do_rg_run(rg, num_repeats, ks;
+# This is copied from RandomSystems.jl so that it can be modified if needed
+# but in the future you can check there in case I've improved it in some way
+# or another
+function do_rg_run(rg, num_repeats, ks;
     extinctthreshold=1e-8,
     maxresidthreshold=1e-9
 )
@@ -74,13 +72,39 @@ function example_do_rg_run(rg, num_repeats, ks;
 
     rslts
 end
-export example_do_rg_run
 
-################################################################################
-# Sampling generators
-################################################################################
-include("stevens.jl")
+# This function will be ran on the cluster
+function main()
+    num_reps = 10000
+    ks = LinRange(0.0, 40.0, 10000)
 
-include("jans_first.jl")
+    srg = SRGStevens1(10, 10, 1.0, 0.35)
 
+    results = do_rg_run(srg, num_reps, ks;)
+        extinctthreshold=1e-8,
+        maxresidthreshold=1e-9
+    )
+
+    frequencies = freqtable(results)
+    display(frequencies)
+
+    jldsave("out.jld2"; results, frequencies)
+end
+
+# I often have these as a smaller version to test run on laptop to see if things work
+function ltest(Ns=3:5, num_reps=100, save=false; kwargs...)
+    num_reps = 100
+    ks = LinRange(0.0, 40.0, 100)
+
+    srg = SRGStevens1(10, 10, 1.0, 0.35)
+
+    results = do_rg_run(srg, num_reps, ks;)
+        extinctthreshold=1e-8,
+        maxresidthreshold=1e-9
+    )
+
+    frequencies = freqtable(results)
+    display(frequencies)
+
+    jldsave("out_lt.jld2"; results, frequencies)
 end
