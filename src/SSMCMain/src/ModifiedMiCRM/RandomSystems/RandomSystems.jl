@@ -11,10 +11,9 @@ using Distributions
 ################################################################################
 # Sampling generators
 ################################################################################
-include("stevens_first.jl")
+# TODO: Rename
+include("stevens.jl")
 
 include("jans_first.jl")
-
-include("stevens_marsland.jl")
 
 end
