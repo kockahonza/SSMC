@@ -111,7 +111,8 @@ struct MarslandSampler1
     fs::Float64
     fw::Float64
     sparsity::Float64
-    function MarslandSampler1(S, M, SA=5, MA=5,
+    function MarslandSampler1(S, M;
+        SA=5, MA=5,
         q=0.9, c0=0.0, c1=1.0,
         muc=10, fs=0.45, fw=0.45,
         sparsity=0.2
@@ -129,7 +130,7 @@ function (ms::MarslandSampler1)()
     S_overlap = ms.S % ms.SA # number of species in the last class
     M_overlap = ms.M % ms.MA # number of resources in the last class
     # we will always assume that the last species class is the "general" class 
-    println("T: ", T, " F: ", F)
+    # println("T: ", T, " F: ", F)
 
     # we will sample the consumption matrix in block form
 
@@ -140,6 +141,11 @@ function (ms::MarslandSampler1)()
                     p = ms.muc / (ms.M * ms.c1) * (1 + ms.q * (ms.M - ms.MA) / ms.M)
                 else
                     p = ms.muc / (ms.M * ms.c1) * (1 - ms.q)
+                end
+
+                # FIX: This is obviously wrong and urgently needs a fix!
+                if p > 1.0
+                    p = 1.0
                 end
 
                 if ff * ms.MA > ms.M
@@ -154,6 +160,12 @@ function (ms::MarslandSampler1)()
             else
                 # generalist class
                 p = ms.muc / (ms.M * ms.c1)
+
+                # FIX: This is obviously wrong and urgently needs a fix!
+                if p > 1.0
+                    p = 1.0
+                end
+
                 if S_overlap != 0
                     block = random_binary_matrix(S_overlap, ms.M, p)
                     c[Int(1 + ms.SA * (tt - 1)):Int(ms.S), :] .= block
@@ -220,12 +232,10 @@ function (ms::MarslandSampler1)()
 
 
     # constant dilution rate
-    rnd = rand()
-    r = fill(rnd, ms.M)
+    r = fill(rand(), ms.M)
 
     # universal death rate
-    rnd2 = rand()
-    m = rnd2
+    m = fill(rand(), ms.S)
 
     # for simplicity, lets start with a single fed resource
     # chemostat feed rate 
