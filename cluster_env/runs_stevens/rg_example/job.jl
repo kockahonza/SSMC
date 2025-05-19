@@ -1,21 +1,17 @@
-module RandomSystems
+using SSMCMain, SSMCMain.ModifiedMiCRM.RandomSystems
 
-using Reexport
-@reexport using ..ModifiedMiCRM
+using Base.Threads, OhMyThreads
+using Random, Distributions
+using NamedArrays
+using FreqTables
+using JLD2
 
-using StatsBase
-using Distributions
-using OhMyThreads
-
-
-################################################################################
-# Example random system runner
-################################################################################
-function example_do_rg_run(rg, num_repeats, ks;
+# This is copied from RandomSystems.jl so that it can be modified if needed
+# but in the future you can check there in case I've improved it in some way
+# or another
+function do_rg_run(rg, num_repeats, ks;
     extinctthreshold=1e-8,
-    maxresidthreshold=1e-9,
-    linstabthreshold=100 * eps(),
-    return_interesting=false
+    maxresidthreshold=1e-9
 )
     @time "Generating one params" sample_params = rg()
     flush(stdout)
@@ -23,18 +19,15 @@ function example_do_rg_run(rg, num_repeats, ks;
     N = Ns + Nr
 
     # prep for the run
-    lst = LinstabScanTester(ks, N, linstabthreshold)
+    lst = LinstabScanTester(ks, N, 0.0)
 
     rslts = fill(0, num_repeats)
-    interesting_systems = []
-
     @tasks for i in 1:num_repeats
         @local llst = copy(lst)
 
         params = rg()
 
         result = 0
-        interesting = false
 
         # numerically solve for the steady state
         u0 = ModifiedMiCRM.make_u0_onlyN(params)
@@ -57,7 +50,6 @@ function example_do_rg_run(rg, num_repeats, ks;
             if !warning
                 if linstab_result
                     result = 2 # spatial instability
-                    interesting = true
                 else
                     result = 1 # stable
                 end
@@ -73,27 +65,46 @@ function example_do_rg_run(rg, num_repeats, ks;
         end
 
         rslts[i] = result
-        if return_interesting && interesting
-            push!(interesting_systems, params)
-        end
 
         # @printf "Run %d -> %d\n" i rslts[i]
         # flush(stdout)
     end
 
-    if !return_interesting
-        rslts
-    else
-        rslts, interesting_systems
-    end
+    rslts
 end
-export example_do_rg_run
 
-################################################################################
-# Sampling generators
-################################################################################
-include("stevens.jl")
+# This function will be ran on the cluster
+function main()
+    num_reps = 10000
+    ks = LinRange(0.0, 40.0, 10000)
 
-include("jans_first.jl")
+    srg = SRGStevens1(10, 10, 1.0, 0.35)
 
+    results = do_rg_run(srg, num_reps, ks;)
+        extinctthreshold=1e-8,
+        maxresidthreshold=1e-9
+    )
+
+    frequencies = freqtable(results)
+    display(frequencies)
+
+    jldsave("out.jld2"; results, frequencies)
+end
+
+# I often have these as a smaller version to test run on laptop to see if things work
+function ltest(Ns=3:5, num_reps=100, save=false; kwargs...)
+    num_reps = 100
+    ks = LinRange(0.0, 40.0, 100)
+
+    srg = SRGStevens1(10, 10, 1.0, 0.35)
+
+    results = do_rg_run(srg, num_reps, ks;)
+        extinctthreshold=1e-8,
+        maxresidthreshold=1e-9
+    )
+
+    frequencies = freqtable(results)
+    display(frequencies)
+
+    jldsave("out_lt.jld2"; results, frequencies)
 end

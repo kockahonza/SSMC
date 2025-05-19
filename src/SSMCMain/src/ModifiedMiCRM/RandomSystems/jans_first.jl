@@ -1,20 +1,29 @@
+"""
+Simple, almost entirely unstructured sampling method. Has an inherent
+strain-resource sparsity of num_used_resources / Nr and an inherent
+resource-resource sparsity of num_byproducts / Nr.
+The only structure comes from each resource being either an "influx"
+one which has a non-zero K and hence is being added to the system
+or not an "influx" resource which are exclusively added through being
+byproducts of consumption processes.
+"""
 struct RSGJans1{Dm,Dr,DDN,DDR,DK,Ds1,Ds2,Dc,Dl}
-    Ns::Int
-    Nr::Int
+    Ns::Int # number of strains
+    Nr::Int # number of resources
 
-    m::Dm
-    r::Dr
-    DS::DDN
-    DR::DDR
+    m::Dm   # upkeep energy rate distribution
+    r::Dr   # resource dilution rate distribution
+    DS::DDN # strain diffusion constant distribution
+    DR::DDR # resource diffusion constant distribution
 
-    Kp::Float64
-    K::DK
+    Kp::Float64 # probability of a resource being added to the system
+    K::DK       # distribution of Ks for those resources which are being added
 
-    num_used_resources::Ds1
-    num_byproducts::Ds2
+    num_used_resources::Ds1 # discrete distribution of the number of resources each strain eats
+    num_byproducts::Ds2     # discrete distribution of the number of byproducts for each consumption process
 
-    c::Dc
-    l::Dl
+    c::Dc # distribution for those consumption rates which are not zero
+    l::Dl # leakage distribution
 
     usenthreads::Union{Nothing,Int}
     function RSGJans1(Ns, Nr;
@@ -135,6 +144,9 @@ function (rsg::RSGJans1)()
 end
 export RSGJans1
 
+"""
+Here we distinguish between the influx and not-influx resources even more
+"""
 struct RSGJans2{Dm,Dr,DDN,DDR,DK,Dci,Dli,Dcb,Dlb}
     Ns::Int
     Nr::Int
