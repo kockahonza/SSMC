@@ -13,7 +13,9 @@ using OhMyThreads
 ################################################################################
 function example_do_rg_run(rg, num_repeats, ks;
     extinctthreshold=1e-8,
-    maxresidthreshold=1e-9
+    maxresidthreshold=1e-9,
+    linstabthreshold=100 * eps(),
+    return_interesting=false
 )
     @time "Generating one params" sample_params = rg()
     flush(stdout)
@@ -21,15 +23,18 @@ function example_do_rg_run(rg, num_repeats, ks;
     N = Ns + Nr
 
     # prep for the run
-    lst = LinstabScanTester(ks, N, 0.0)
+    lst = LinstabScanTester(ks, N, linstabthreshold)
 
     rslts = fill(0, num_repeats)
+    interesting_systems = []
+
     @tasks for i in 1:num_repeats
         @local llst = copy(lst)
 
         params = rg()
 
         result = 0
+        interesting = false
 
         # numerically solve for the steady state
         u0 = ModifiedMiCRM.make_u0_onlyN(params)
@@ -52,6 +57,7 @@ function example_do_rg_run(rg, num_repeats, ks;
             if !warning
                 if linstab_result
                     result = 2 # spatial instability
+                    interesting = true
                 else
                     result = 1 # stable
                 end
@@ -67,12 +73,19 @@ function example_do_rg_run(rg, num_repeats, ks;
         end
 
         rslts[i] = result
+        if return_interesting && interesting
+            push!(interesting_systems, params)
+        end
 
         # @printf "Run %d -> %d\n" i rslts[i]
         # flush(stdout)
     end
 
-    rslts
+    if !return_interesting
+        rslts
+    else
+        rslts, interesting_systems
+    end
 end
 export example_do_rg_run
 
