@@ -1,4 +1,4 @@
-using SSMCMain, SSMCMain.ModifiedMiCRM.RandomSystems
+using SSMCMain, SSMCMain.ModifiedMiCRM.RandomSystems # do not include k=0!
 
 using Base.Threads, OhMyThreads
 using Random, Distributions
@@ -11,7 +11,9 @@ using JLD2
 # or another
 function do_rg_run(rg, num_repeats, ks;
     extinctthreshold=1e-8,
-    maxresidthreshold=1e-9
+    maxresidthreshold=1e-9,
+    linstabthreshold=100 * eps(),
+    return_interesting=false
 )
     @time "Generating one params" sample_params = rg()
     flush(stdout)
@@ -19,15 +21,18 @@ function do_rg_run(rg, num_repeats, ks;
     N = Ns + Nr
 
     # prep for the run
-    lst = LinstabScanTester(ks, N, 0.0)
+    lst = LinstabScanTester(ks, N, linstabthreshold)
 
     rslts = fill(0, num_repeats)
+    interesting_systems = []
+
     @tasks for i in 1:num_repeats
         @local llst = copy(lst)
 
         params = rg()
 
         result = 0
+        interesting = false
 
         # numerically solve for the steady state
         u0 = ModifiedMiCRM.make_u0_onlyN(params)
@@ -50,6 +55,7 @@ function do_rg_run(rg, num_repeats, ks;
             if !warning
                 if linstab_result
                     result = 2 # spatial instability
+                    interesting = true
                 else
                     result = 1 # stable
                 end
@@ -65,24 +71,32 @@ function do_rg_run(rg, num_repeats, ks;
         end
 
         rslts[i] = result
+        if return_interesting && interesting
+            push!(interesting_systems, params)
+        end
 
         # @printf "Run %d -> %d\n" i rslts[i]
         # flush(stdout)
     end
 
-    rslts
+    if !return_interesting
+        rslts
+    else
+        rslts, interesting_systems
+    end
 end
 
 # This function will be ran on the cluster
 function main()
     num_reps = 10000
-    ks = LinRange(0.0, 40.0, 10000)
+    ks = LinRange(0.0, 40.0, 100000)[2:end] # do not include k=0!
 
     srg = SRGStevens1(10, 10, 1.0, 0.35)
 
-    results = do_rg_run(srg, num_reps, ks;)
+    results = do_rg_run(srg, num_reps, ks;
         extinctthreshold=1e-8,
-        maxresidthreshold=1e-9
+        maxresidthreshold=1e-9,
+        linstabthreshold=1e-10
     )
 
     frequencies = freqtable(results)
@@ -94,13 +108,14 @@ end
 # I often have these as a smaller version to test run on laptop to see if things work
 function ltest(Ns=3:5, num_reps=100, save=false; kwargs...)
     num_reps = 100
-    ks = LinRange(0.0, 40.0, 100)
+    ks = LinRange(0.0, 40.0, 100)[2:end] # do not include k=0!
 
     srg = SRGStevens1(10, 10, 1.0, 0.35)
 
-    results = do_rg_run(srg, num_reps, ks;)
+    results = do_rg_run(srg, num_reps, ks;
         extinctthreshold=1e-8,
-        maxresidthreshold=1e-9
+        maxresidthreshold=1e-9,
+        linstabthreshold=1e-10
     )
 
     frequencies = freqtable(results)
