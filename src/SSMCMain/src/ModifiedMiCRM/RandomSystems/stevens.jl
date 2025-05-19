@@ -77,9 +77,11 @@ struct RSGStevens1
     Nr::Int
     c_sparsity::Float64
     l_sparsity::Float64
+    r
+    K
     usenthreads::Union{Nothing,Int}
-    function RSGStevens1(Ns, Nr, c_sparsity, l_sparsity, usenthreads=nothing)
-        new(Ns, Nr, c_sparsity, l_sparsity, usenthreads)
+    function RSGStevens1(Ns, Nr, c_sparsity, l_sparsity, r = nothing, K=nothing, usenthreads=nothing)
+        new(Ns, Nr, c_sparsity, l_sparsity, r, K, usenthreads)
     end
 end
 function (rsg::RSGStevens1)()
@@ -87,8 +89,11 @@ function (rsg::RSGStevens1)()
     g = fill(1.0, rsg.Ns)
     w = fill(1.0, rsg.Nr)
 
-    # universal death rate
-    m = fill(rand(), rsg.Ns)
+    # sample death rates
+    m_dist = Normal(0.5, 0.5)
+    m = rand(m_dist, rsg.Ns)
+    m = abs.(m)
+    #m = fill(rand(), rsg.Ns)
 
     # for simplicity, lets start with a single fed resource
     # chemostat feed rate 
@@ -97,11 +102,20 @@ function (rsg::RSGStevens1)()
 
     # lets allow resources some variability
     #K_dist = truncated(Normal(0.5,0.1), 0.0, 1.0)
-    K_dist = Beta(0.1, 0.3)
-    K = rand(K_dist, rsg.Nr)
+    if isnothing(rsg.K)
+        K_dist = Beta(0.1, 0.3)
+        K = rand(K_dist, rsg.Nr)
+    else
+        K = rsg.K
+    end
+
 
     # constant dilution rate
-    r = fill(rand(), rsg.Nr)
+    if isnothing(rsg.r)
+        r = fill(rand(), rsg.Nr)
+    else
+        r = rsg.r
+    end
 
     # leakage now. Lets assume its a pretty flat probability distribution
     leak = Beta(0.2 / rsg.l_sparsity, 0.2)
