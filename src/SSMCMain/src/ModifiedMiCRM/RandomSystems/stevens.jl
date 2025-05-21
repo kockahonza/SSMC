@@ -11,16 +11,19 @@ end
 struct RSGStevens1
     Ns::Int
     Nr::Int
-    c_sparsity::Float64
-    l_sparsity::Float64
+    c_richness::Float64
+    c_mu::Float64
+    l_richness::Float64
     r
     K
     usenthreads::Union{Nothing,Int}
-    function RSGStevens1(Ns, Nr, c_sparsity, l_sparsity, r = nothing, K=nothing, usenthreads=nothing)
-        new(Ns, Nr, c_sparsity, l_sparsity, r, K, usenthreads)
+    function RSGStevens1(Ns, Nr, c_richness, c_mu, l_richness, r = nothing, K=nothing, usenthreads=nothing)
+        new(Ns, Nr, c_richness, c_mu, l_richness, r, K, usenthreads)
     end
 end
-function (rsg::RSGStevens1)()
+
+
+#=function (rsg::RSGStevens1)()
     # as usual
     g = fill(1.0, rsg.Ns)
     w = fill(1.0, rsg.Nr)
@@ -80,6 +83,75 @@ function (rsg::RSGStevens1)()
                         flag = false
                     end
                 end
+            end
+
+        end
+    end
+
+    Ds = fill(0.0, (rsg.Ns + rsg.Nr))
+    Ds[1:rsg.Ns] .= 1e-5
+    Ds[1+rsg.Ns] = 100
+    Ds[rsg.Ns+2:rsg.Ns+rsg.Nr] .= 10
+
+    # return a spatial mmicrm params struct without a concrete space and with threading on the nospace level
+    p = BMMiCRMParams(g, w, m, K, r, l, c, D, rsg.usenthreads)
+    BSMMiCRMParams(p, Ds)
+end=#
+
+function (rsg::RSGStevens1)()
+    # as usual
+    g = fill(1.0, rsg.Ns)
+    w = fill(1.0, rsg.Nr)
+
+    # sample death rates
+    m_dist = Normal(0.5, 0.5)
+    m = rand(m_dist, rsg.Ns)
+    m = abs.(m)
+    #m = fill(rand(), rsg.Ns)
+
+    # for simplicity, lets start with a single fed resource
+    # chemostat feed rate 
+    #K = fill(0.,M)
+    #K[1] = 1.
+
+    # lets allow resources some variability
+    #K_dist = truncated(Normal(0.5,0.1), 0.0, 1.0)
+    if isnothing(rsg.K)
+        K_dist = Beta(0.1, 0.3)
+        K = rand(K_dist, rsg.Nr)
+    else
+        K = rsg.K
+    end
+
+
+    # constant dilution rate
+    if isnothing(rsg.r)
+        r = fill(rand(), rsg.Nr)
+    else
+        r = rsg.r
+    end
+
+    # leakage now. Lets assume its a pretty flat probability distribution
+    leak = Beta(0.2/5, 0.2)
+    l = rand(leak, (rsg.Ns, rsg.Nr))
+
+    # updated 200525 to use a Dirichlet distribution and one richness and one mu parameter
+    c = fill(0.,(rsg.Ns, rsg.Nr))
+
+    for i in rsg.Ns
+        row = rand(Dirichlet(fill(rsg.c_richness, rsg.Nr)))
+        c[i, :] = row.* rsg.c_mu
+    end
+    
+
+    # finally, the most complicated distribution
+    D = fill(0.0, (rsg.Ns, rsg.Nr, rsg.Nr))
+    for i in 1:rsg.Ns
+        for j in 1:rsg.Nr
+            if c[i, j] > 0
+                row = rand(Dirichlet(fill(rsg.l_richness, rsg.Nr)))
+                D[i, :, j] = row
+                D[i, j, j] = 0.0
             end
 
         end
