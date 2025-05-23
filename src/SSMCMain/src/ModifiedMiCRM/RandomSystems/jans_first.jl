@@ -99,13 +99,13 @@ function (rsg::RSGJans1)()
     g = fill(1.0, rsg.Ns)
     w = fill(1.0, rsg.Nr)
 
-    m = rand(rsg.m, rsg.Ns)
-    r = rand(rsg.r, rsg.Nr)
+    m = clamp.(rand(rsg.m, rsg.Ns), 0.0, Inf)
+    r = clamp.(rand(rsg.r, rsg.Nr), 0.0, Inf)
 
     K = fill(0.0, rsg.Nr)
     for a in 1:rsg.Nr
         if rand() < rsg.Kp
-            K[a] = rand(rsg.K)
+            K[a] = clamp(rand(rsg.K), 0.0, Inf)
         end
     end
 
@@ -116,8 +116,8 @@ function (rsg::RSGJans1)()
         num_resources = rand(rsg.num_used_resources)
         consumed_resources = sample(1:rsg.Nr, num_resources; replace=false)
         for cr in consumed_resources
-            c[i, cr] = abs(rand(rsg.c))
-            l[i, cr] = rand(rsg.l)
+            c[i, cr] = clamp(rand(rsg.c), 0.0, Inf)
+            l[i, cr] = clamp(rand(rsg.l), 0.0, 1.0)
 
             num_byproducts = rand(rsg.num_byproducts)
             byproducts = sample(1:rsg.Nr, num_byproducts; replace=false)
@@ -129,8 +129,8 @@ function (rsg::RSGJans1)()
         end
     end
 
-    DS = rand(rsg.DS, rsg.Ns)
-    DR = rand(rsg.DR, rsg.Nr)
+    DS = clamp.(rand(rsg.DS, rsg.Ns), 0.0, Inf)
+    DR = clamp.(rand(rsg.DR, rsg.Nr), 0.0, Inf)
     # DR = fill(0.0, rsg.Nr)
     # for a in 1:rsg.Nr
     #     if K[a] != 0.0
