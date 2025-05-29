@@ -347,6 +347,49 @@ plot_heatmaps(matrices; kwargs...) = plot_heatmaps(nothing, nothing, matrices; k
 export plot_heatmaps
 
 ################################################################################
+# Distribution demos
+################################################################################
+function dist_demo_normal(xs=range(-10.0, 10.0, 1000))
+    fig = Figure()
+    sg = SliderGrid(fig[1, 1],
+        (; label="μ", range=-10.0:0.0001:10.0, startvalue=0.0),
+        (; label="σ", range=0.0:0.0001:10.0, startvalue=1.0),
+    )
+    mu_o = sg.sliders[1].value
+    sigma_o = sg.sliders[2].value
+
+    pdf_vals = lift(mu_o, sigma_o) do mu, sigma
+        pdf(Normal(mu, sigma), xs)
+    end
+
+    ax = Axis(fig[2, 1])
+    lines!(ax, xs, pdf_vals)
+
+    fig
+end
+export dist_demo_normal
+
+function dist_demo_lognormal(xs=range(0.0, 100.0, 1000))
+    fig = Figure()
+    sg = SliderGrid(fig[1, 1],
+        (; label="μ", range=0.0:0.0001:10.0, startvalue=1.0),
+        (; label="σ", range=0.0:0.0001:10.0, startvalue=1.0),
+    )
+    mu_o = sg.sliders[1].value
+    sigma_o = sg.sliders[2].value
+
+    pdf_vals = lift(mu_o, sigma_o) do mu, sigma
+        pdf(LogNormal(mu, sigma), xs)
+    end
+
+    ax = Axis(fig[2, 1])
+    lines!(ax, xs, pdf_vals)
+
+    fig
+end
+export dist_demo_lognormal
+
+################################################################################
 # OLD
 ################################################################################
 # FIX: Should be removed as prep_paramscan is a better version of it

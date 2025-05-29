@@ -89,12 +89,18 @@ function example_do_rg_run(rg, num_repeats, ks;
 end
 export example_do_rg_run
 
+"""
+More flexible linear stability implemented directly in this function
+"""
 function example_do_rg_run2(rg, num_repeats, kmax, Nks;
-    extinctthr=1e-8,
-    maxresidthr=1e-7,
-    lszerothr=1000 * eps(),
-    lsk0maxmrlthr=lszerothr,
-    int_codes=nothing
+    extinctthr=1e-8,        # species below this value are considered extinct
+    maxresidthr=1e-7,       # will warn if ss residues are larger than this
+    lszerothr=1000 * eps(), # values +- this are considered 0 in linstab analysis
+    # array of codes to consider interesting
+    int_codes=nothing,
+    # ss solver target tolerances
+    abstol=maxresidthr / 1000,
+    reltol=maxresidthr / 1000,
 )
     # test the random system generator
     @time "Generating one params" sample_params = rg()
@@ -127,7 +133,7 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
         ######################################## 
 
         # numerically solve for the steady state
-        ssps = solve(ssp, DynamicSS(QNDF()); reltol=(maxresidthr / 1000))
+        ssps = solve(ssp, DynamicSS(QNDF()); reltol, abstol)
 
         # Check the solver
         if !SciMLBase.successful_retcode(ssps.retcode)
@@ -173,7 +179,7 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
                 result = 1
                 @goto handle_result
             end
-        elseif k0mrl < lsk0maxmrlthr # this is likely having numerical issues but still worth looking at
+        elseif k0mrl < lszerothr # this is likely having numerical issues but still worth looking at
             if maxmrl > lszerothr
                 is_separated = false
                 for intermediate_mrl in mrls[1:maxi]
@@ -242,7 +248,7 @@ function rg_run_plot_dispersions(rg, num_repeats, kmax, Nks;
     reltol=1e-8,
     maxresidthr=max(abstol, reltol),
     lszerothr=1000 * eps(),
-    lsk0maxmrlthr=lszerothr,
+    int_codes=nothing
 )
     # test the random system generator
     @time "Generating one params" sample_params = rg()
@@ -257,6 +263,9 @@ function rg_run_plot_dispersions(rg, num_repeats, kmax, Nks;
     rslts = fill(0, num_repeats)
     rslt_mrls = fill(Float64[], num_repeats)
     rslt_maxresids = Vector{Float64}(undef, num_repeats)
+    rslt_maxstrain = Vector{Float64}(undef, num_repeats)
+    rslt_numstrains = Vector{Int}(undef, num_repeats)
+    interesting_systems = []
 
     @tasks for i in 1:num_repeats
         # Prealloc variables in each thread (task)
@@ -281,6 +290,8 @@ function rg_run_plot_dispersions(rg, num_repeats, kmax, Nks;
         )
         maxresid = maximum(abs, ssps.resid)
         rslt_maxresids[i] = maxresid
+        rslt_maxstrain[i] = maximum(ssps.u[1:Ns])
+        rslt_numstrains[i] = count(x -> x > extinctthr, ssps.u[1:Ns])
 
         # Check the solver
         if !SciMLBase.successful_retcode(ssps.retcode)
@@ -327,7 +338,7 @@ function rg_run_plot_dispersions(rg, num_repeats, kmax, Nks;
                 result = 1
                 @goto handle_result
             end
-        elseif k0mrl < lsk0maxmrlthr # this is likely having numerical issues but still worth looking at
+        elseif k0mrl < lszerothr # this is likely having numerical issues but still worth looking at
             if maxmrl > lszerothr
                 is_separated = false
                 for intermediate_mrl in mrls[1:maxi]
@@ -376,6 +387,9 @@ function rg_run_plot_dispersions(rg, num_repeats, kmax, Nks;
             result *= -1
         end
         rslts[i] = result
+        if !isnothing(int_codes) && (result in int_codes)
+            push!(interesting_systems, params)
+        end
     end
 
     fig = Figure()
@@ -386,19 +400,29 @@ function rg_run_plot_dispersions(rg, num_repeats, kmax, Nks;
         rslt = rslts[i]
         mrls = rslt_mrls[i]
         maxresid = rslt_maxresids[i]
+        numstrains = rslt_numstrains[i]
+        maxstrain = rslt_maxstrain[i]
         if !isempty(mrls)
-            lines!(ax, plot_ks, mrls, label=(@sprintf "Run %d -> %d, %.2g" i rslt maxresid))
+            lines!(ax, plot_ks, mrls;
+                label=(@sprintf "Run %d -> %d, %d, %.3g, %.3g" i rslt numstrains maxstrain maxresid
+                )
+            )
         end
     end
     if any(!isempty, rslt_mrls)
         # axislegend(ax)
-        Legend(fig[1, 2], ax)
+        Legend(fig[2, 1], ax)
+        colsize!(fig.layout, 1, Relative(1))
+        rowsize!(fig.layout, 1, Relative(0.6))
     end
 
-    fig, rslts
+    if isnothing(int_codes)
+        fig, rslts
+    else
+        fig, rslts, interesting_systems
+    end
 end
 export rg_run_plot_dispersions
-
 
 ################################################################################
 # Sampling generators
