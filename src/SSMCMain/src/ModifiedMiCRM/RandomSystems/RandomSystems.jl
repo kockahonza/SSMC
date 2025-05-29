@@ -96,11 +96,14 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
     extinctthr=1e-8,        # species below this value are considered extinct
     maxresidthr=1e-7,       # will warn if ss residues are larger than this
     lszerothr=1000 * eps(), # values +- this are considered 0 in linstab analysis
-    # array of codes to consider interesting
-    int_codes=nothing,
+    lspeakthr=lszerothr,
+    # array of codes to consider interesting, params with these codes will be returned
+    return_interesting=nothing,
     # ss solver target tolerances
-    abstol=maxresidthr / 1000,
-    reltol=maxresidthr / 1000,
+    tol=maxresidthr / 10,
+    abstol=tol,
+    reltol=tol,
+    maxiters=10000,
 )
     # test the random system generator
     @time "Generating one params" sample_params = rg()
@@ -108,12 +111,24 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
     Ns, Nr = get_Ns(sample_params)
     N = Ns + Nr
 
+    # handle interesting systems setup
+    int_func = if isnothing(return_interesting)
+        nothing
+    elseif isa(return_interesting, Vector) || isa(return_interesting, Tuple)
+        c -> c in return_interesting
+    elseif isa(return_interesting, Function)
+        return_interesting
+    else
+        throw(ArgumentError("return_interesting needs to be either a list of codes or a custom function"))
+    end
+
     # setup ks for linstab analysis
     ks = LinRange(0.0, kmax, Nks)[2:end] # 0 is handled separately
 
     # setup the returned data containers
     rslts = fill(0, num_repeats)
-    interesting_systems = []
+    int_systems_to_return = typeof(sample_params)[]
+    int_lock = ReentrantLock()
 
     @tasks for i in 1:num_repeats
         # Prealloc variables in each thread (task)
@@ -133,7 +148,9 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
         ######################################## 
 
         # numerically solve for the steady state
-        ssps = solve(ssp, DynamicSS(QNDF()); reltol, abstol)
+        ssps = solve(ssp, DynamicSS(QNDF());
+            maxiters, reltol, abstol
+        )
 
         # Check the solver
         if !SciMLBase.successful_retcode(ssps.retcode)
@@ -172,15 +189,15 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
         maxmrl, maxi = findmax(mrls)
 
         if k0mrl < -lszerothr # this is the ideal case
-            if maxmrl > lszerothr
+            if maxmrl > lspeakthr
                 result = 2
                 @goto handle_result
             else
                 result = 1
                 @goto handle_result
             end
-        elseif k0mrl < lszerothr # this is likely having numerical issues but still worth looking at
-            if maxmrl > lszerothr
+        elseif k0mrl < lszerothr # this can happen when there are interchangeable species, or when close to numerical issues
+            if maxmrl > lspeakthr
                 is_separated = false
                 for intermediate_mrl in mrls[1:maxi]
                     if intermediate_mrl < -lszerothr
@@ -200,7 +217,7 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
                 @goto handle_result
             end
         else # something is definitely off here, however still do the same analysis for extra info
-            if maxmrl > lszerothr
+            if maxmrl > lspeakthr
                 is_separated = false
                 for intermediate_mrl in mrls[1:maxi]
                     if intermediate_mrl < -lszerothr
@@ -228,20 +245,28 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
             result *= -1
         end
         rslts[i] = result
-        if !isnothing(int_codes) && (result in int_codes)
-            push!(interesting_systems, params)
+        if !isnothing(int_func) && int_func(result)
+            lock(int_lock) do
+                push!(int_systems_to_return, params)
+            end
         end
     end
 
-    if isnothing(int_codes)
+    if isnothing(int_func)
         rslts
     else
-        rslts, interesting_systems
+        rslts, int_systems_to_return
     end
 end
 export example_do_rg_run2
 
 
+################################################################################
+# Debugging variants
+################################################################################
+"""
+Similar to example_do_rg_run2 but instead plots the dispersion relations
+"""
 function rg_run_plot_dispersions(rg, num_repeats, kmax, Nks;
     extinctthr=1e-8,
     abstol=1e-8,
