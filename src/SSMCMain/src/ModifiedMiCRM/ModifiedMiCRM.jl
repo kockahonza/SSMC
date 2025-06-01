@@ -14,6 +14,8 @@ using Polynomials
 
 using ADTypes, SparseConnectivityTracer
 
+using GraphvizDotLang: digraph, node, edge, attr, save
+
 import Base: ndims, getproperty, copy
 
 ################################################################################
@@ -225,6 +227,7 @@ include("physics.jl")
 include("dimensional_analysis.jl")
 
 include("util.jl")
+include("diagrams.jl")
 
 ################################################################################
 # Sub/optional bits that come in submodules

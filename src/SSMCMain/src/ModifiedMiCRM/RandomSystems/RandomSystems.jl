@@ -97,9 +97,10 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
     maxresidthr=1e-7,       # will warn if ss residues are larger than this
     lszerothr=1000 * eps(), # values +- this are considered 0 in linstab analysis
     lspeakthr=lszerothr,
-    # array of codes to consider interesting, params with these codes will be returned
-    return_interesting=nothing,
-    # ss solver target tolerances
+    # whether and which params to return for further examination (int <-> interesting)
+    return_int=nothing,
+    return_int_sss=true,
+    # ss solver target tolerances and maxiters
     tol=maxresidthr / 10,
     abstol=tol,
     reltol=tol,
@@ -112,12 +113,14 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
     N = Ns + Nr
 
     # handle interesting systems setup
-    int_func = if isnothing(return_interesting)
+    int_func = if isnothing(return_int)
         nothing
-    elseif isa(return_interesting, Vector) || isa(return_interesting, Tuple)
-        c -> c in return_interesting
-    elseif isa(return_interesting, Function)
-        return_interesting
+    elseif isa(return_int, Vector) || isa(return_int, Tuple)
+        c -> c in return_int
+    elseif isa(return_int, Function)
+        return_int
+    elseif return_int == :all
+        c -> true
     else
         throw(ArgumentError("return_interesting needs to be either a list of codes or a custom function"))
     end
@@ -127,9 +130,13 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
 
     # setup the returned data containers
     rslts = fill(0, num_repeats)
-    int_systems_to_return = typeof(sample_params)[]
-    int_lock = ReentrantLock()
 
+    # these may not be used, skipping the if to not have them boxed
+    int_lock = ReentrantLock()
+    int_systems_to_return = typeof(sample_params)[]
+    int_systems_sss = Vector{Float64}[]
+
+    # the core of the function
     @tasks for i in 1:num_repeats
         # Prealloc variables in each thread (task)
         @local begin
@@ -189,15 +196,18 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
         maxmrl, maxi = findmax(mrls)
 
         if k0mrl < -lszerothr # this is the ideal case
-            if maxmrl > lspeakthr
-                result = 2
+            if maxmrl < -lspeakthr
+                result = 1
                 @goto handle_result
             else
-                result = 1
+                result = 2
                 @goto handle_result
             end
         elseif k0mrl < lszerothr # this can happen when there are interchangeable species, or when close to numerical issues
-            if maxmrl > lspeakthr
+            if maxmrl < -lspeakthr
+                result = 11
+                @goto handle_result
+            else
                 is_separated = false
                 for intermediate_mrl in mrls[1:maxi]
                     if intermediate_mrl < -lszerothr
@@ -209,15 +219,15 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
                     result = 12
                     @goto handle_result
                 else # the largest peak is connected to a positive k0 - clearly messy
-                    result = 11
+                    result = 13
                     @goto handle_result
                 end
-            else
-                result = 10
-                @goto handle_result
             end
         else # something is definitely off here, however still do the same analysis for extra info
-            if maxmrl > lspeakthr
+            if maxmrl < lspeakthr
+                result = 21
+                @goto handle_result
+            else
                 is_separated = false
                 for intermediate_mrl in mrls[1:maxi]
                     if intermediate_mrl < -lszerothr
@@ -229,12 +239,9 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
                     result = 22
                     @goto handle_result
                 else
-                    result = 21
+                    result = 23
                     @goto handle_result
                 end
-            else
-                result = 20
-                @goto handle_result
             end
         end
 
@@ -248,6 +255,9 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
         if !isnothing(int_func) && int_func(result)
             lock(int_lock) do
                 push!(int_systems_to_return, params)
+                if return_int_sss
+                    push!(int_systems_sss, ssps.u)
+                end
             end
         end
     end
@@ -255,7 +265,11 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
     if isnothing(int_func)
         rslts
     else
-        rslts, int_systems_to_return
+        if !return_int_sss
+            rslts, int_systems_to_return
+        else
+            rslts, int_systems_to_return, int_systems_sss
+        end
     end
 end
 export example_do_rg_run2
