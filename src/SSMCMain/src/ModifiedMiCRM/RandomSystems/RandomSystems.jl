@@ -5,461 +5,469 @@ using Reexport
 
 using StatsBase
 using Distributions
+using OhMyThreads
 
-abstract type MMiCRMParamGenerator end
-function generate_random_mmicrmparams(generator::MMiCRMParamGenerator)
-    throw(ErrorException(@sprintf "no function generate_random_mmicrmparams defined for generator type %s" string(typeof(generator))))
-end
-export MMiCRMParamGenerator, generate_random_mmicrmparams
 
 ################################################################################
-# Methods that will sample generators
+# Example random system runners
 ################################################################################
-function rg_sample_spatial(rg, num_repeats, ss_finder, test_func; save_succ=false)
-    num_succ = 0
-    if save_succ
-        succ = []
+function example_do_rg_run(rg, num_repeats, ks;
+    extinctthreshold=1e-8,
+    maxresidthreshold=1e-9,
+    linstabthreshold=100 * eps(),
+    return_interesting=false
+)
+    @time "Generating one params" sample_params = rg()
+    flush(stdout)
+    Ns, Nr = get_Ns(sample_params)
+    N = Ns + Nr
+
+    # prep for the run
+    lst = LinstabScanTester(ks, N, linstabthreshold)
+
+    rslts = fill(0, num_repeats)
+    interesting_systems = []
+
+    @tasks for i in 1:num_repeats
+        @local llst = copy(lst)
+
+        params = rg()
+
+        result = 0
+        interesting = false
+
+        # numerically solve for the steady state
+        u0 = ModifiedMiCRM.make_u0_onlyN(params)
+        ssp = make_mmicrm_ss_problem(params, u0)
+        ssps = solve(ssp, DynamicSS(QNDF()); reltol=maxresidthreshold)
+
+        if SciMLBase.successful_retcode(ssps.retcode)
+            warning = false
+            maxresid = maximum(abs, ssps.resid)
+            if maxresid > maxresidthreshold * 100
+                @warn (@sprintf "maxresid reached is %g which is close to %g" maxresid (maxresidthreshold * 100))
+                warning = true
+            end
+
+            if all(x -> abs(x) < extinctthreshold, ssps.u[1:Ns])
+                result = -101 # gone extinct in nospace ss
+            else
+                linstab_result = llst(params, ssps.u)
+                if !warning
+                    if linstab_result
+                        result = 2 # spatial instability
+                        interesting = true
+                    else
+                        result = 1 # stable
+                    end
+                else
+                    if linstab_result
+                        result = -2 # spatial instability but may be wrong
+                    else
+                        result = -1 # stable but may be wrong
+                    end
+                end
+            end
+        else
+            result = -100
+        end
+
+        rslts[i] = result
+        if return_interesting && interesting
+            push!(interesting_systems, params)
+        end
+
+        # @printf "Run %d -> %d\n" i rslts[i]
+        # flush(stdout)
     end
 
-    for i in 1:num_repeats
-        smmicrm_params = rg()
-        ss = ss_finder(smmicrm_params)
-        if test_func(smmicrm_params, ss)
-            num_succ += 1
-            if save_succ
-                push!(succ, smmicrm_params)
+    if !return_interesting
+        rslts
+    else
+        rslts, interesting_systems
+    end
+end
+export example_do_rg_run
+
+"""
+More flexible linear stability implemented directly in this function
+"""
+function example_do_rg_run2(rg, num_repeats, kmax, Nks;
+    extinctthr=1e-8,        # species below this value are considered extinct
+    maxresidthr=1e-7,       # will warn if ss residues are larger than this
+    lszerothr=1000 * eps(), # values +- this are considered 0 in linstab analysis
+    lspeakthr=lszerothr,
+    # whether and which params to return for further examination (int <-> interesting)
+    return_int=nothing,
+    return_int_sss=true,
+    # ss solver target tolerances and maxiters
+    tol=maxresidthr / 10,
+    abstol=tol,
+    reltol=tol,
+    maxiters=10000,
+)
+    # test the random system generator
+    @time "Generating one params" sample_params = rg()
+    flush(stdout)
+    Ns, Nr = get_Ns(sample_params)
+    N = Ns + Nr
+
+    # handle interesting systems setup
+    int_func = if isnothing(return_int)
+        nothing
+    elseif isa(return_int, Vector) || isa(return_int, Tuple)
+        c -> c in return_int
+    elseif isa(return_int, Function)
+        return_int
+    elseif return_int == :all
+        c -> true
+    else
+        throw(ArgumentError("return_interesting needs to be either a list of codes or a custom function"))
+    end
+
+    # setup ks for linstab analysis
+    ks = LinRange(0.0, kmax, Nks)[2:end] # 0 is handled separately
+
+    # setup the returned data containers
+    rslts = fill(0, num_repeats)
+
+    # these may not be used, skipping the if to not have them boxed
+    int_lock = ReentrantLock()
+    int_systems_to_return = typeof(sample_params)[]
+    int_systems_sss = Vector{Float64}[]
+
+    # the core of the function
+    @tasks for i in 1:num_repeats
+        # Prealloc variables in each thread (task)
+        @local begin
+            M1 = Matrix{Float64}(undef, N, N)
+            M = Matrix{Float64}(undef, N, N)
+            mrls = Vector{Float64}(undef, length(ks))
+        end
+
+        # Setup one random system
+        params = rg()
+        u0 = ModifiedMiCRM.make_u0_onlyN(params)
+        ssp = make_mmicrm_ss_problem(params, u0)
+        result = 0
+        warning = false
+
+        ######################################## 
+
+        # numerically solve for the steady state
+        ssps = solve(ssp, DynamicSS(QNDF());
+            maxiters, reltol, abstol
+        )
+
+        # Check the solver
+        if !SciMLBase.successful_retcode(ssps.retcode)
+            result = -100 # solver failed return code
+            @goto handle_result
+        end
+        # Check that the steady state is steady enough
+        maxresid = maximum(abs, ssps.resid)
+        if maxresid > maxresidthr
+            @warn (@sprintf "maxresid reached is %g which is close to %g" maxresid maxresidthr)
+            warning = true
+        end
+
+        # Check for a full extinction
+        if all(x -> abs(x) < extinctthr, ssps.u[1:Ns])
+            result = 101 # gone extinct in nospace ss
+            @goto handle_result
+        end
+
+        # Do linear stability
+
+        # handle the k=0 case
+        make_M1!(M1, params, ssps.u)
+        k0mrl = maximum(real, eigvals!(M1))
+
+        # calculate mrls
+        make_M1!(M1, params, ssps.u)
+        for (ki, k) in enumerate(ks)
+            M .= M1
+            M1_to_M!(M, get_Ds(params), k)
+            evals = eigvals!(M)
+            mrls[ki] = maximum(real, evals)
+        end
+
+        # evaluate the mrl results
+        maxmrl, maxi = findmax(mrls)
+
+        if k0mrl < -lszerothr # this is the ideal case
+            if maxmrl < -lspeakthr
+                result = 1
+                @goto handle_result
+            else
+                result = 2
+                @goto handle_result
+            end
+        elseif k0mrl < lszerothr # this can happen when there are interchangeable species, or when close to numerical issues
+            if maxmrl < -lspeakthr
+                result = 11
+                @goto handle_result
+            else
+                is_separated = false
+                for intermediate_mrl in mrls[1:maxi]
+                    if intermediate_mrl < -lszerothr
+                        is_separated = true
+                        break
+                    end
+                end
+                if is_separated # k0 is sketchy but we have a separated positive peak
+                    result = 12
+                    @goto handle_result
+                else # the largest peak is connected to a positive k0 - clearly messy
+                    result = 13
+                    @goto handle_result
+                end
+            end
+        else # something is definitely off here, however still do the same analysis for extra info
+            if maxmrl < lspeakthr
+                result = 21
+                @goto handle_result
+            else
+                is_separated = false
+                for intermediate_mrl in mrls[1:maxi]
+                    if intermediate_mrl < -lszerothr
+                        is_separated = true
+                        break
+                    end
+                end
+                if is_separated
+                    result = 22
+                    @goto handle_result
+                else
+                    result = 23
+                    @goto handle_result
+                end
+            end
+        end
+
+        ######################################## 
+
+        @label handle_result
+        if warning
+            result *= -1
+        end
+        rslts[i] = result
+        if !isnothing(int_func) && int_func(result)
+            lock(int_lock) do
+                push!(int_systems_to_return, params)
+                if return_int_sss
+                    push!(int_systems_sss, ssps.u)
+                end
             end
         end
     end
 
-    if save_succ
-        num_succ, succ
+    if isnothing(int_func)
+        rslts
     else
-        num_succ
+        if !return_int_sss
+            rslts, int_systems_to_return
+        else
+            rslts, int_systems_to_return, int_systems_sss
+        end
     end
 end
-export rg_sample_spatial
+export example_do_rg_run2
+
+
+################################################################################
+# Debugging variants
+################################################################################
+"""
+Similar to example_do_rg_run2 but instead plots the dispersion relations
+"""
+function rg_run_plot_dispersions(rg, num_repeats, kmax, Nks;
+    extinctthr=1e-8,
+    abstol=1e-8,
+    reltol=1e-8,
+    maxresidthr=max(abstol, reltol),
+    lszerothr=1000 * eps(),
+    int_codes=nothing
+)
+    # test the random system generator
+    @time "Generating one params" sample_params = rg()
+    flush(stdout)
+    Ns, Nr = get_Ns(sample_params)
+    N = Ns + Nr
+
+    # setup ks for linstab analysis
+    ks = LinRange(0.0, kmax, Nks)[2:end] # 0 is handled separately
+
+    # setup the returned data containers
+    rslts = fill(0, num_repeats)
+    rslt_mrls = fill(Float64[], num_repeats)
+    rslt_maxresids = Vector{Float64}(undef, num_repeats)
+    rslt_maxstrain = Vector{Float64}(undef, num_repeats)
+    rslt_numstrains = Vector{Int}(undef, num_repeats)
+    interesting_systems = []
+
+    @tasks for i in 1:num_repeats
+        # Prealloc variables in each thread (task)
+        @local begin
+            M1 = Matrix{Float64}(undef, N, N)
+            M = Matrix{Float64}(undef, N, N)
+            mrls = Vector{Float64}(undef, length(ks))
+        end
+
+        # Setup one random system
+        params = rg()
+        u0 = ModifiedMiCRM.make_u0_onlyN(params)
+        ssp = make_mmicrm_ss_problem(params, u0)
+        result = 0
+        warning = false
+
+        ######################################## 
+
+        # numerically solve for the steady state
+        ssps = solve(ssp, DynamicSS(QNDF());
+            reltol, abstol
+        )
+        maxresid = maximum(abs, ssps.resid)
+        rslt_maxresids[i] = maxresid
+        rslt_maxstrain[i] = maximum(ssps.u[1:Ns])
+        rslt_numstrains[i] = count(x -> x > extinctthr, ssps.u[1:Ns])
+
+        # Check the solver
+        if !SciMLBase.successful_retcode(ssps.retcode)
+            result = -100 # solver failed return code
+            @goto handle_result
+        end
+        # Check that the steady state is steady enough
+        if maxresid > maxresidthr
+            @warn (@sprintf "maxresid reached is %g which is close to %g" maxresid maxresidthr)
+            warning = true
+        end
+
+        # Check for a full extinction
+        if all(x -> abs(x) < extinctthr, ssps.u[1:Ns])
+            result = 101 # gone extinct in nospace ss
+            @goto handle_result
+        end
+
+        # Do linear stability
+
+        # handle the k=0 case
+        make_M1!(M1, params, ssps.u)
+        k0mrl = maximum(real, eigvals!(M1))
+
+        # calculate mrls
+        make_M1!(M1, params, ssps.u)
+        for (ki, k) in enumerate(ks)
+            M .= M1
+            M1_to_M!(M, get_Ds(params), k)
+            evals = eigvals!(M)
+            mrls[ki] = maximum(real, evals)
+        end
+
+        rslt_mrls[i] = vcat(k0mrl, mrls)
+
+        # evaluate the mrl results
+        maxmrl, maxi = findmax(mrls)
+
+        if k0mrl < -lszerothr # this is the ideal case
+            if maxmrl > lszerothr
+                result = 2
+                @goto handle_result
+            else
+                result = 1
+                @goto handle_result
+            end
+        elseif k0mrl < lszerothr # this is likely having numerical issues but still worth looking at
+            if maxmrl > lszerothr
+                is_separated = false
+                for intermediate_mrl in mrls[1:maxi]
+                    if intermediate_mrl < -lszerothr
+                        is_separated = true
+                        break
+                    end
+                end
+                if is_separated # k0 is sketchy but we have a separated positive peak
+                    result = 12
+                    @goto handle_result
+                else # the largest peak is connected to a positive k0 - clearly messy
+                    result = 11
+                    @goto handle_result
+                end
+            else
+                result = 10
+                @goto handle_result
+            end
+        else # something is definitely off here, however still do the same analysis for extra info
+            if maxmrl > lszerothr
+                is_separated = false
+                for intermediate_mrl in mrls[1:maxi]
+                    if intermediate_mrl < -lszerothr
+                        is_separated = true
+                        break
+                    end
+                end
+                if is_separated
+                    result = 22
+                    @goto handle_result
+                else
+                    result = 21
+                    @goto handle_result
+                end
+            else
+                result = 20
+                @goto handle_result
+            end
+        end
+
+        ######################################## 
+
+        @label handle_result
+        if warning
+            result *= -1
+        end
+        rslts[i] = result
+        if !isnothing(int_codes) && (result in int_codes)
+            push!(interesting_systems, params)
+        end
+    end
+
+    fig = Figure()
+    ax = Axis(fig[1, 1])
+
+    plot_ks = vcat(0.0, ks)
+    for i in 1:num_repeats
+        rslt = rslts[i]
+        mrls = rslt_mrls[i]
+        maxresid = rslt_maxresids[i]
+        numstrains = rslt_numstrains[i]
+        maxstrain = rslt_maxstrain[i]
+        if !isempty(mrls)
+            lines!(ax, plot_ks, mrls;
+                label=(@sprintf "Run %d -> %d, %d, %.3g, %.3g" i rslt numstrains maxstrain maxresid
+                )
+            )
+        end
+    end
+    if any(!isempty, rslt_mrls)
+        # axislegend(ax)
+        Legend(fig[2, 1], ax)
+        colsize!(fig.layout, 1, Relative(1))
+        rowsize!(fig.layout, 1, Relative(0.6))
+    end
+
+    if isnothing(int_codes)
+        fig, rslts
+    else
+        fig, rslts, interesting_systems
+    end
+end
+export rg_run_plot_dispersions
 
 ################################################################################
 # Sampling generators
 ################################################################################
-"""
-110425 to start let us just randomly draw D and c without structure
-similarly, we will generate some random guesses for the other parameters
-"""
-function rg_stevens1_original(Ns, Nr, c_sparsity=1.0, l_sparsity=0.35)
-    # constant dilution rate
-    r = fill(rand(), Nr)
+include("stevens.jl")
 
-    # universal death rate
-    rnd2 = rand()
-    m = rnd2
-
-    # for simplicity, lets start with a single fed resource
-    # chemostat feed rate 
-    #K = fill(0.,M)
-    #K[1] = 1.
-
-    # lets allow resources some variability
-    #K_dist = truncated(Normal(0.5,0.1), 0.0, 1.0)
-    K_dist = Beta(0.1, 0.3)
-    K = rand(K_dist, Nr)
-
-    # leakage now. Lets assume its a pretty flat probability distribution
-    leak = Beta(0.2 / l_sparsity, 0.2)
-    l = rand(leak, (Ns, Nr))
-
-    # most values around 0. This is essentially a proxy for sparsity
-    c_i_alpha = Beta(0.5 / c_sparsity, 0.5)
-    c = rand(c_i_alpha, (Ns, Nr))
-
-    # finally, the most complicated distribution
-    D = fill(0.0, (Ns, Nr, Nr))
-    for i in 1:Ns
-        for j in 1:Nr
-            if c[i, j] > 0
-                flag = true
-                while flag
-                    for k in 1:Nr
-                        if j == k
-                            D[i, k, j] = 0.0
-                        else
-                            D[i, k, j] = rand(Beta(0.5 / (Nr / 5), 0.5))
-                        end
-                    end
-                    # check if the sum of the row is less than 1
-                    if sum(D[i, :, j]) < 1.0
-                        flag = false
-                    end
-                end
-            end
-
-        end
-    end
-
-    Ds = fill(0.0, (Ns + Nr))
-    Ds[1:Ns] .= 1e-5
-    Ds[1+Ns] = 100
-    Ds[Ns+2:Ns+Nr] .= 10
-
-    return r, m, K, l, c, D, Ds
-end
-export rg_stevens1_original
-
-struct SRGStevens1
-    Ns::Int
-    Nr::Int
-    c_sparsity::Float64
-    l_sparsity::Float64
-    usenthreads::Union{Nothing,Int}
-    function SRGStevens1(Ns, Nr, c_sparsity, l_sparsity, usenthreads=nothing)
-        new(Ns, Nr, c_sparsity, l_sparsity, usenthreads)
-    end
-end
-function (srg::SRGStevens1)()
-    # as usual
-    g = fill(1.0, srg.Ns)
-    w = fill(1.0, srg.Nr)
-
-    # universal death rate
-    m = fill(rand(), srg.Ns)
-
-    # for simplicity, lets start with a single fed resource
-    # chemostat feed rate 
-    #K = fill(0.,M)
-    #K[1] = 1.
-
-    # lets allow resources some variability
-    #K_dist = truncated(Normal(0.5,0.1), 0.0, 1.0)
-    K_dist = Beta(0.1, 0.3)
-    K = rand(K_dist, srg.Nr)
-
-    # constant dilution rate
-    r = fill(rand(), srg.Nr)
-
-    # leakage now. Lets assume its a pretty flat probability distribution
-    leak = Beta(0.2 / srg.l_sparsity, 0.2)
-    l = rand(leak, (srg.Ns, srg.Nr))
-
-    # most values around 0. This is essentially a proxy for sparsity
-    c_i_alpha = Beta(0.5 / srg.c_sparsity, 0.5)
-    c = rand(c_i_alpha, (srg.Ns, srg.Nr))
-
-    # finally, the most complicated distribution
-    D = fill(0.0, (srg.Ns, srg.Nr, srg.Nr))
-    for i in 1:srg.Ns
-        for j in 1:srg.Nr
-            if c[i, j] > 0
-                flag = true
-                while flag
-                    for k in 1:srg.Nr
-                        if j == k
-                            D[i, k, j] = 0.0
-                        else
-                            D[i, k, j] = rand(Beta(0.5 / (srg.Nr / 5), 0.5))
-                        end
-                    end
-                    # check if the sum of the row is less than 1
-                    if sum(D[i, :, j]) < 1.0
-                        flag = false
-                    end
-                end
-            end
-
-        end
-    end
-
-    Ds = fill(0.0, (srg.Ns + srg.Nr))
-    Ds[1:srg.Ns] .= 1e-5
-    Ds[1+srg.Ns] = 100
-    Ds[srg.Ns+2:srg.Ns+srg.Nr] .= 10
-
-    # return a spatial mmicrm params struct without a concrete space and with threading on the nospace level
-    p = BMMiCRMParams(g, w, m, K, r, l, c, D, srg.usenthreads)
-    BSMMiCRMParams(p, Ds)
-end
-export SRGStevens1
-
-struct SRGJans1{Dm,Dr,DDN,DDR,DK,Ds1,Ds2,Dc,Dl}
-    Ns::Int
-    Nr::Int
-
-    m::Dm
-    r::Dr
-    DS::DDN
-    DR::DDR
-
-    Kp::Float64
-    K::DK
-
-    num_used_resources::Ds1
-    num_byproducts::Ds2
-
-    c::Dc
-    l::Dl
-
-    usenthreads::Union{Nothing,Int}
-    function SRGJans1(Ns, Nr;
-        m=1.0, r=1.0, DS=1.0, DR=1.0,
-        Kp=1.0, K=1.0,
-        num_used_resources=nothing, sparsity_resources=nothing,
-        num_byproducts=nothing, sparsity_byproducts=nothing,
-        c=1.0, l=0.5,
-        usenthreads=nothing
-    )
-        if isa(m, Number)
-            m = Dirac(m)
-        elseif isa(m, Tuple) && length(m) == 2
-            m = Normal(m[1], m[2])
-        end
-        if isa(r, Number)
-            r = Dirac(r)
-        elseif isa(r, Tuple) && length(r) == 2
-            r = Normal(r[1], r[2])
-        end
-        if isa(DS, Number)
-            DS = Dirac(DS)
-        elseif isa(DS, Tuple) && length(DS) == 2
-            DS = Normal(DS[1], DS[2])
-        end
-        if isa(DR, Number)
-            DR = Dirac(DR)
-        elseif isa(DR, Tuple) && length(DR) == 2
-            DR = Normal(DR[1], DR[2])
-        end
-        if isa(K, Number)
-            K = Dirac(K)
-        elseif isa(K, Tuple) && length(K) == 2
-            K = Normal(K[1], K[2])
-        end
-        if isa(c, Number)
-            c = Dirac(c)
-        elseif isa(c, Tuple) && length(c) == 2
-            c = Normal(c[1], c[2])
-        end
-        if isa(l, Number)
-            l = Dirac(l)
-        elseif isa(l, Tuple) && length(l) == 2
-            l = Normal(l[1], l[2])
-        end
-
-        if isnothing(num_used_resources) && isnothing(sparsity_resources)
-            num_used_resources = Nr
-        elseif isnothing(num_used_resources)
-            num_used_resources = round(Int, sparsity_resources * Nr)
-        end
-        if isa(num_used_resources, Number)
-            num_used_resources = Dirac(num_used_resources)
-        end
-
-        if isnothing(num_byproducts) && isnothing(sparsity_byproducts)
-            num_byproducts = Nr
-        elseif isnothing(num_byproducts)
-            num_byproducts = round(Int, sparsity_byproducts * Nr)
-        end
-        if isa(num_byproducts, Number)
-            num_byproducts = Dirac(num_byproducts)
-        end
-
-        new{
-            typeof(m),typeof(r),typeof(DS),typeof(DR),typeof(K),
-            typeof(num_used_resources),typeof(num_byproducts),typeof(c),typeof(l)
-        }(Ns, Nr, m, r, DS, DR, Kp, K, num_used_resources, num_byproducts, c, l, usenthreads)
-    end
-end
-function (srg::SRGJans1)()
-    # as usual
-    g = fill(1.0, srg.Ns)
-    w = fill(1.0, srg.Nr)
-
-    m = rand(srg.m, srg.Ns)
-    r = rand(srg.r, srg.Nr)
-
-    K = fill(0.0, srg.Nr)
-    for a in 1:srg.Nr
-        if rand() < srg.Kp
-            K[a] = rand(srg.K)
-        end
-    end
-
-    l = fill(0.0, (srg.Ns, srg.Nr))
-    c = fill(0.0, (srg.Ns, srg.Nr))
-    D = fill(0.0, (srg.Ns, srg.Nr, srg.Nr))
-    for i in 1:srg.Ns
-        num_resources = rand(srg.num_used_resources)
-        consumed_resources = sample(1:srg.Nr, num_resources; replace=false)
-        for cr in consumed_resources
-            c[i, cr] = abs(rand(srg.c))
-            l[i, cr] = rand(srg.l)
-
-            num_byproducts = rand(srg.num_byproducts)
-            byproducts = sample(1:srg.Nr, num_byproducts; replace=false)
-            bp_Ds = rand(length(byproducts))
-            bp_Ds ./= sum(bp_Ds)
-            for (bp, bp_D) in zip(byproducts, bp_Ds)
-                D[i, bp, cr] = bp_D
-            end
-        end
-    end
-
-    DS = rand(srg.DS, srg.Ns)
-    DR = rand(srg.DR, srg.Nr)
-    # DR = fill(0.0, srg.Nr)
-    # for a in 1:srg.Nr
-    #     if K[a] != 0.0
-    #         DR[a] = rand(srg.DR)
-    #     end
-    # end
-    Ds = vcat(DS, DR)
-
-    mmicrm_params = BMMiCRMParams(g, w, m, K, r, l, c, D, srg.usenthreads)
-    BSMMiCRMParams(mmicrm_params, Ds)
-end
-export SRGJans1
-
-struct SRGJans2{Dm,Dr,DDN,DDR,DK,Dci,Dli,Dcb,Dlb}
-    Ns::Int
-    Nr::Int
-
-    m::Dm
-    r::Dr
-    DS::DDN
-    DR::DDR
-
-    Kp::Float64
-    K::DK
-
-    num_used_in_resources::Int
-    num_in_byproducts::Int
-    c_in::Dci
-    l_in::Dli
-
-
-    num_used_bp_resources::Int
-    num_bp_byproducts::Int
-    c_bp::Dcb
-    l_bp::Dlb
-
-    usenthreads::Union{Nothing,Int}
-    function SRGJans2(Ns, Nr;
-        m=1.0, r=1.0, DS=1.0, DR=1.0,
-        Kp=1.0, K=1.0,
-        sparsity_in_resources=1.0, sparsity_in_byproducts=1.0,
-        c_in=1.0, l_in=0.5,
-        sparsity_bp_resources=1.0, sparsity_bp_byproducts=1.0,
-        c_bp=0.0, l_bp=0.0,
-        usenthreads=nothing
-    )
-        if isa(m, Number)
-            m = Dirac(m)
-        elseif isa(m, Tuple) && length(m) == 2
-            m = Normal(m[1], m[2])
-        end
-        if isa(r, Number)
-            r = Dirac(r)
-        elseif isa(r, Tuple) && length(r) == 2
-            r = Normal(r[1], r[2])
-        end
-        if isa(DS, Number)
-            DS = Dirac(DS)
-        elseif isa(DS, Tuple) && length(DS) == 2
-            DS = Normal(DS[1], DS[2])
-        end
-        if isa(DR, Number)
-            DR = Dirac(DR)
-        elseif isa(DR, Tuple) && length(DR) == 2
-            DR = Normal(DR[1], DR[2])
-        end
-        if isa(K, Number)
-            K = Dirac(K)
-        elseif isa(K, Tuple) && length(K) == 2
-            K = Normal(K[1], K[2])
-        end
-
-        num_used_in_resources = round(Int, sparsity_in_resources * Nr)
-        num_in_byproducts = round(Int, sparsity_in_byproducts * Nr)
-        if isa(c_in, Number)
-            c_in = Dirac(c_in)
-        elseif isa(c_in, Tuple) && length(c_in) == 2
-            c_in = Normal(c_in[1], c_in[2])
-        end
-        if isa(l_in, Number)
-            l_in = Dirac(l_in)
-        elseif isa(l_in, Tuple) && length(l_in) == 2
-            l_in = Normal(l_in[1], l_in[2])
-        end
-
-        num_used_bp_resources = round(Int, sparsity_bp_resources * Nr)
-        num_bp_byproducts = round(Int, sparsity_bp_byproducts * Nr)
-        if isa(c_bp, Number)
-            c_bp = Dirac(c_bp)
-        elseif isa(c_bp, Tuple) && length(c_bp) == 2
-            c_bp = Normal(c_bp[1], c_bp[2])
-        end
-        if isa(l_bp, Number)
-            l_bp = Dirac(l_bp)
-        elseif isa(l_bp, Tuple) && length(l_bp) == 2
-            l_bp = Normal(l_bp[1], l_bp[2])
-        end
-
-        new{
-            typeof(m),typeof(r),typeof(DS),typeof(DR),typeof(K),
-            typeof(c_in),typeof(l_in),typeof(c_bp),typeof(l_bp)
-        }(Ns, Nr, m, r, DS, DR, Kp, K,
-            num_used_in_resources, num_in_byproducts, c_in, l_in,
-            num_used_bp_resources, num_bp_byproducts, c_bp, l_bp,
-            usenthreads
-        )
-    end
-end
-function (srg::SRGJans2)()
-    # as usual
-    g = fill(1.0, srg.Ns)
-    w = fill(1.0, srg.Nr)
-
-    m = rand(srg.m, srg.Ns)
-    r = rand(srg.r, srg.Nr)
-
-    K = fill(0.0, srg.Nr)
-    for a in 1:srg.Nr
-        if rand() < srg.Kp
-            K[a] = rand(srg.K)
-        end
-    end
-
-    l = fill(0.0, (srg.Ns, srg.Nr))
-    c = fill(0.0, (srg.Ns, srg.Nr))
-    D = fill(0.0, (srg.Ns, srg.Nr, srg.Nr))
-    for i in 1:srg.Ns
-        num_resources = rand(srg.num_used_resources)
-        consumed_resources = sample(1:srg.Nr, num_resources; replace=false)
-        for cr in consumed_resources
-            c[i, cr] = abs(rand(srg.c))
-            l[i, cr] = rand(srg.l)
-
-            num_byproducts = rand(srg.num_byproducts)
-            byproducts = sample(1:srg.Nr, num_byproducts; replace=false)
-            bp_Ds = rand(length(byproducts))
-            bp_Ds ./= sum(bp_Ds)
-            for (bp, bp_D) in zip(byproducts, bp_Ds)
-                D[i, bp, cr] = bp_D
-            end
-        end
-    end
-
-    DS = rand(srg.DS, srg.Ns)
-    DR = rand(srg.DR, srg.Nr)
-    # DR = fill(0.0, srg.Nr)
-    # for a in 1:srg.Nr
-    #     if K[a] != 0.0
-    #         DR[a] = rand(srg.DR)
-    #     end
-    # end
-    Ds = vcat(DS, DR)
-
-    mmicrm_params = BMMiCRMParams(g, w, m, K, r, l, c, D, srg.usenthreads)
-    BSMMiCRMParams(mmicrm_params, Ds)
-end
-export SRGJans2
+include("jans_first.jl")
 
 end
