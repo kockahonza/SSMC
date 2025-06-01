@@ -196,16 +196,22 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
     end
 end
 
-function scan_func(func, result_type; kwargs...)
+function scan_func(func, result_type; progress=true, kwargs...)
     params_prod = product(values(values(kwargs))...)
     params_size = size(params_prod)
     params_cis = CartesianIndices(params_size)
 
+    if progress
+        p = Progress(length(params_cis); showspeed=true)
+    end
+
     results = Array{result_type}(undef, params_size)
-    @showprogress for (params, ci) in zip(params_prod, params_cis)
+    for (params, ci) in zip(params_prod, params_cis)
         results[ci] = func(params...)
-        flush(stdout)
-        flush(stderr)
+        if progress
+            next!(p)
+            flush(p.core.output)
+        end
     end
 
     DimArray(results, (; kwargs...))
@@ -250,6 +256,37 @@ function run1(num_repeats=100, kmax=100, Nks=1000;
     scan_func(func, Dict{Int,Int}; N, m, c, l, si, sr, sb)
 end
 
+function run2(N, num_repeats=100, kmax=100, Nks=1000;
+    m=[1.0],
+    c=[1.0],
+    l=[0.5],
+    si=[1.0],
+    sr=[0.5],
+    sb=[1.0],
+)
+    function func(lm, lc, ll, lsi, lsr, lsb)
+        rsg = RSGJans1(N, N;
+            m=(lm, lm * sigma_to_mu_ratio1()),
+            r=1.0, # setting T
+            sparsity_influx=lsi,
+            K=(1.0, sigma_to_mu_ratio1()), # setting E (or E/V)
+            sparsity_resources=lsr,
+            sparsity_byproducts=lsb,
+            c=(lc, lc * sigma_to_mu_ratio1()),
+            l=(ll, ll * sigma_to_mu_ratio1()),
+            Ds=1e-8, Dr=1.0, # setting L plus assuming the specific values don't matter as long as Ds << Dr
+        )
+        raw_results = do_rg_run2(rsg, num_repeats, kmax, Nks;
+            maxresidthr=1e-10,
+            abstol=1000 * eps(),
+            reltol=1000 * eps(),
+            maxiters=10000,
+        )
+        countmap(raw_results)
+    end
+    scan_func(func, Dict{Int,Int}; m, c, l, si, sr, sb)
+end
+
 ################################################################################
 # Main function
 ################################################################################
@@ -280,5 +317,19 @@ function ltest_run1()
         sb=range(0.0, 1.0, 3),
     )
     save_object("./run1_ltest.jld2", rslts)
+    rslts
+end
+
+function main_run2()
+    BLAS.set_num_threads(1)
+    @time rslts = run2(50, nthreads() - 1, 100.0, 1000;
+        m=2 .^ range(-5, 5, 6),
+        c=2 .^ range(-5, 5, 6),
+        l=range(0.0, 1.0, 5),
+        si=range(0.0, 1.0, 5),
+        sr=range(0.0, 1.0, 5),
+        sb=range(0.0, 1.0, 5),
+    )
+    save_object("./run2_main.jld2", rslts)
     rslts
 end
