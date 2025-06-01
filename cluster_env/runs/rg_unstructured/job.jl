@@ -323,12 +323,12 @@ end
 function main_run2()
     BLAS.set_num_threads(1)
     @time rslts = run2(50, nthreads() - 1, 100.0, 1000;
-        m=2 .^ range(-5, 5, 6),
-        c=2 .^ range(-5, 5, 6),
-        l=range(0.0, 1.0, 5),
-        si=range(0.0, 1.0, 5),
-        sr=range(0.0, 1.0, 5),
-        sb=range(0.0, 1.0, 5),
+        m=2 .^ range(-3, 3, 3),
+        c=2 .^ range(-3, 3, 3),
+        l=range(0.0, 1.0, 4),
+        si=range(0.0, 1.0, 4),
+        sr=range(0.0, 1.0, 4),
+        sb=range(0.0, 1.0, 4),
     )
     save_object("./run2_main.jld2", rslts)
     rslts

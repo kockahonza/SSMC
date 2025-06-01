@@ -17,7 +17,7 @@ struct RSGJans1{Dm,Dr,DDs,DDr,Di,DK,Ds1,Ds2,Dc,Dl}
     Dr::DDr # resource diffusion constant distribution
 
     num_influx_resources::Di # a discrete distribution for generating the number of resources with non-zero K
-    K::DK       # distribution of Ks for those resources which are being added
+    K::DK # distribution of Ks for those resources which are being added
 
     num_used_resources::Ds1 # discrete distribution of the number of resources each strain eats
     num_byproducts::Ds2     # discrete distribution of the number of byproducts for each consumption process
