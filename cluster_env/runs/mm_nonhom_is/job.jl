@@ -110,8 +110,14 @@ end
 
 function add_animations_job()
     out_basename = "./out/run_"
-    for i in 3:4
+    for i in 4:11
+        @printf "Starting on %d\n" i
+        flush(stdout)
+
         basename = out_basename * string(i)
         add_animation(basename)
+
+        @printf "Finished %d\n" i
+        flush(stdout)
     end
 end
