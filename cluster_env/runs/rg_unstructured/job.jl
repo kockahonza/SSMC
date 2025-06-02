@@ -305,6 +305,21 @@ function main_run1()
     rslts
 end
 
+function main_run1_shorter()
+    BLAS.set_num_threads(1)
+    @time rslts = run1(nthreads() - 1, 50, 1000;
+        N=[4, 10, 20],
+        m=2 .^ range(-3, 3, 3),
+        c=2 .^ range(-3, 3, 3),
+        l=[0.0, 0.5, 1.0],
+        si=range(0.0, 1.0, 5),
+        sr=range(0.0, 1.0, 5),
+        sb=range(0.0, 1.0, 5),
+    )
+    save_object("./run1_shorter.jld2", rslts)
+    rslts
+end
+
 function ltest_run1()
     BLAS.set_num_threads(1)
     @time rslts = run1(100, 50, 100;
