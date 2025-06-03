@@ -93,22 +93,21 @@ export example_do_rg_run
 More flexible linear stability implemented directly in this function
 """
 function example_do_rg_run2(rg, num_repeats, kmax, Nks;
-    extinctthr=1e-8,        # species below this value are considered extinct
-    maxresidthr=1e-7,       # will warn if ss residues are larger than this
-    lszerothr=1000 * eps(), # values +- this are considered 0 in linstab analysis
+    maxresidthr=1e-7,            # will warn if ss residues are larger than this
+    extinctthr=maxresidthr / 10, # species below this value are considered extinct
+    lszerothr=1000 * eps(),      # values +- this are considered 0 in linstab analysis
     lspeakthr=lszerothr,
     # whether and which params to return for further examination (int <-> interesting)
     return_int=nothing,
     return_int_sss=true,
     # ss solver target tolerances and maxiters
     tol=maxresidthr / 10,
+    timelimit=nothing, # time limit for one solver run in seconds
     abstol=tol,
     reltol=tol,
-    maxiters=10000,
+    maxiters=100000,
 )
-    # test the random system generator
-    @time "Generating one params" sample_params = rg()
-    flush(stdout)
+    sample_params = rg()
     Ns, Nr = get_Ns(sample_params)
     N = Ns + Nr
 
@@ -125,6 +124,11 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
         throw(ArgumentError("return_interesting needs to be either a list of codes or a custom function"))
     end
 
+    solver_kwargs = (; maxiters, abstol, reltol)
+    if !isnothing(timelimit)
+        solver_kwargs = (; solver_kwargs..., callback=make_timer_callback(timelimit))
+    end
+
     # setup ks for linstab analysis
     ks = LinRange(0.0, kmax, Nks)[2:end] # 0 is handled separately
 
@@ -137,7 +141,7 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
     int_systems_sss = Vector{Float64}[]
 
     # the core of the function
-    @tasks for i in 1:num_repeats
+    @allow_boxed_captures @tasks for i in 1:num_repeats
         # Prealloc variables in each thread (task)
         @local begin
             M1 = Matrix{Float64}(undef, N, N)
@@ -155,13 +159,16 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
         ######################################## 
 
         # numerically solve for the steady state
-        ssps = solve(ssp, DynamicSS(QNDF());
-            maxiters, reltol, abstol
-        )
+        ssps = solve(ssp, DynamicSS(QNDF()); solver_kwargs...)
 
         # Check the solver
         if !SciMLBase.successful_retcode(ssps.retcode)
-            result = -100 # solver failed return code
+            result = -1000 # solver failed return code
+            result -= Int(ssps.original.retcode)
+            if ssps.original.retcode == ReturnCode.MaxTime
+                @warn "Solver quit due to time limit being reached"
+                flush(stderr)
+            end
             @goto handle_result
         end
         # Check that the steady state is steady enough
@@ -273,7 +280,6 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
     end
 end
 export example_do_rg_run2
-
 
 ################################################################################
 # Debugging variants

@@ -136,6 +136,36 @@ function linear_spacing_edges(xs)
 end
 export linear_spacing_edges
 
+mutable struct TimerCallback
+    time_limit::Float64
+    init_time::Float64
+    last_time::Float64
+    TimerCallback(limit) = new(limit, 0.0, 0.0)
+end
+function init_timer!(tc::TimerCallback)
+    tc.init_time = time()
+    tc.last_time = tc.init_time
+end
+function check_timer!(tc::TimerCallback)
+    now = time()
+    last_delta_t = now - tc.last_time
+    if (now + last_delta_t - tc.init_time) > tc.time_limit
+        true
+    else
+        tc.last_time = now
+        false
+    end
+end
+function make_timer_callback(limit)
+    tc = TimerCallback(limit)
+    DiscreteCallback(
+        (u, t, i) -> check_timer!(tc),
+        i -> terminate!(i, ReturnCode.MaxTime);
+        initialize=(c, u, t, i) -> init_timer!(tc)
+    )
+end
+export make_timer_callback
+
 ################################################################################
 # Plotting
 ################################################################################
