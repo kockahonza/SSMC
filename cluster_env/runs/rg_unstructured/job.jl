@@ -287,6 +287,47 @@ function run2(N, num_repeats=100, kmax=100, Nks=1000;
     scan_func(func, Dict{Int,Int}; m, c, l, si, sr, sb)
 end
 
+"""
+Does a scan for a single N while keeping the total influx energy rate at 1.0 for
+each strain (hopefully valid through dimensional reduction) no matter the rest
+of the params.
+"""
+function run3(N, num_repeats=100, kmax=100, Nks=1000;
+    m=[1.0],
+    c=[1.0],
+    l=[0.5],
+    si=[1.0],
+    sr=[0.5],
+    sb=[1.0],
+)
+    function func(lm, lc, ll, lsi, lsr, lsb)
+        total_influx = 1.0 * N # setting E (or E/V)
+        Kmean = total_influx / (lsi * N)
+        K = (Kmean, Kmean * sigma_to_mu_ratio1())
+
+        rsg = RSGJans1(N, N;
+            m=(lm, lm * sigma_to_mu_ratio1()),
+            r=1.0, # setting T
+            sparsity_influx=lsi,
+            K,
+            sparsity_resources=lsr,
+            sparsity_byproducts=lsb,
+            c=(lc, lc * sigma_to_mu_ratio1()),
+            l=(ll, ll * sigma_to_mu_ratio1()),
+            Ds=1e-8, Dr=1.0, # setting L plus assuming the specific values don't matter as long as Ds << Dr
+        )
+        raw_results = do_rg_run2(rsg, num_repeats, kmax, Nks;
+            extinctthr=1e-8,
+            maxresidthr=1e-8,
+            abstol=1000 * eps(),
+            reltol=1000 * eps(),
+            maxiters=5000,
+        )
+        countmap(raw_results)
+    end
+    scan_func(func, Dict{Int,Int}; m, c, l, si, sr, sb)
+end
+
 ################################################################################
 # Main function
 ################################################################################
@@ -346,5 +387,19 @@ function main_run2()
         sb=range(0.0, 1.0, 4),
     )
     save_object("./run2_main.jld2", rslts)
+    rslts
+end
+
+function main_run3_N10()
+    BLAS.set_num_threads(1)
+    @time rslts = run2(10, nthreads() - 1, 100.0, 1000;
+        m=2 .^ range(-4, 2, 5),
+        c=2 .^ range(-2, 6, 5),
+        l=range(0.0, 1.0, 4)[1:end],
+        si=range(0.0, 1.0, 5)[1:end],
+        sr=range(0.0, 1.0, 5)[1:end],
+        sb=range(0.0, 1.0, 5)[1:end],
+    )
+    save_object("./run3_N10.jld2", rslts)
     rslts
 end
