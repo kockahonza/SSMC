@@ -11,6 +11,7 @@ using Reexport
 @reexport using PrettyTables
 @reexport using Geppetto
 @reexport using NamedArrays
+@reexport using DimensionalData
 @reexport using EnumX
 
 using REPL.TerminalMenus

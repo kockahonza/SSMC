@@ -175,6 +175,39 @@ end
 export make_grid
 
 ################################################################################
+# Plotting DimensionalData.jl stuff
+################################################################################
+function plot_2ddimdata_heatmap_int(data, xvar, yvar;
+    colorbar=true,
+    kwargs...
+)
+    fig = Figure()
+
+    odims = otherdims(data, xvar, yvar)
+    odim_names = name.(odims)
+
+    specs = [(label=string(name(od)), range=val(od)) for od in odims]
+    sg = SliderGrid(fig[1, 1], specs...)
+
+    sovals = [s.value for s in sg.sliders]
+    marginalized_data = lift(sovals...) do svals...
+        getindex(data; (odim_names .=> At.(svals))...)
+    end
+
+    ax = Axis(fig[2, 1])
+    ax.xlabel = string(xvar)
+    ax.ylabel = string(yvar)
+    hm = heatmap!(ax, marginalized_data; kwargs...)
+
+    if colorbar
+        cb = Colorbar(fig[2, 2], hm)
+    end
+
+    FigureAxisAnything(fig, ax, marginalized_data)
+end
+export plot_2ddimdata_heatmap_int
+
+################################################################################
 # Plotting NamedArrays with labels etc plus DataFrames helpers
 ################################################################################
 function plot_namedvector_numeric!(ax, nv::NamedVector;
