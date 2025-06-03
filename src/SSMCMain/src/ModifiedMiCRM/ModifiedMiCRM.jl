@@ -15,6 +15,8 @@ using Polynomials
 using ADTypes, SparseConnectivityTracer
 
 using GraphvizDotLang: digraph, node, edge, attr, save
+using Colors
+using ColorSchemes
 
 import Base: ndims, getproperty, copy
 
