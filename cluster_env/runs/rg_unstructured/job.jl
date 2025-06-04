@@ -6,7 +6,6 @@ using Base.Iterators
 using Base.Threads
 
 using OhMyThreads
-using ProgressMeter
 using Distributions
 using DimensionalData
 using JLD2
@@ -22,6 +21,7 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
     # whether and which params to return for further examination (int <-> interesting)
     return_int=nothing,
     return_int_sss=true,
+    debug_save_problem=nothing,
     # ss solver target tolerances and maxiters
     tol=maxresidthr / 10,
     timelimit=nothing, # time limit for one solver run in seconds
@@ -62,6 +62,8 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
     int_systems_to_return = typeof(sample_params)[]
     int_systems_sss = Vector{Float64}[]
 
+    inprogress_save_lock = ReentrantLock()
+
     # the core of the function
     @allow_boxed_captures @tasks for i in 1:num_repeats
         # Prealloc variables in each thread (task)
@@ -75,6 +77,16 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
         params = rg()
         u0 = ModifiedMiCRM.make_u0_onlyN(params)
         ssp = make_mmicrm_ss_problem(params, u0)
+
+        if !isnothing(debug_save_problem)
+            lock(int_lock) do
+                fname = debug_save_problem * string(rand(1:1000000)) * ".jld2"
+                save_object(fname, ssp)
+                @printf "Saved a problem to %s\n" fname
+                flush(stdout)
+            end
+        end
+
         result = 0
         warning = false
 
@@ -202,24 +214,48 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
     end
 end
 
-function scan_func(func, result_type; progress=true, kwargs...)
+function scan_func(func, result_type;
+    progress=true,
+    async_progress=nothing,
+    kwargs...
+)
     params_prod = product(values(values(kwargs))...)
     params_size = size(params_prod)
     params_cis = CartesianIndices(params_size)
 
+    num_runs = length(params_cis)
     if progress
-	i = 1
-	total_runs = length(params_cis)
+        pi = 1
+    end
+    if !isnothing(async_progress)
+        api = 1
+        ap_running = true
+        ap_task = Task(function ()
+            while ap_running
+                @printf "Working on run %d out of %d\n" api num_runs
+                sleep(async_progress)
+            end
+        end)
+        schedule(ap_task)
     end
 
     results = Array{result_type}(undef, params_size)
     for (params, ci) in zip(params_prod, params_cis)
         results[ci] = func(params...)
+
         if progress
-	    @printf "Just finished run %d out of %d\n" i total_runs
-	    i += 1
+            @printf "Just finished run %d out of %d\n" pi num_runs
+            pi += 1
             flush(stdout)
         end
+        if !isnothing(async_progress)
+            api += 1
+        end
+    end
+
+    if !isnothing(async_progress)
+        ap_running = false
+        wait(ap_task)
     end
 
     DimArray(results, (; kwargs...))
@@ -330,10 +366,14 @@ function run3(N, num_repeats=100, kmax=100, Nks=1000;
             abstol=1000 * eps(),
             reltol=1000 * eps(),
             timelimit=10 * 60.0,
+            debug_save_problem="debug_sp/"
         )
         countmap(raw_results)
     end
-    scan_func(func, Dict{Int,Int}; m, c, l, si, sr, sb)
+    scan_func(func, Dict{Int,Int}; m, c, l, si, sr, sb,
+        progress=true,
+        async_progress=60, # async progress report once every minute
+    )
 end
 
 ################################################################################
@@ -400,7 +440,7 @@ end
 
 function main_run3_N10()
     BLAS.set_num_threads(1)
-    @time rslts = run2(10, nthreads() - 1, 100.0, 1000;
+    @time rslts = run3(10, nthreads() - 1, 100.0, 1000;
         m=2 .^ range(-4, 2, 5),
         c=2 .^ range(-2, 6, 5),
         l=range(0.0, 1.0, 4)[1:end],
@@ -409,5 +449,19 @@ function main_run3_N10()
         sb=range(0.0, 1.0, 5)[1:end],
     )
     save_object("./run3_N10.jld2", rslts)
+    rslts
+end
+
+function ltest_run3_N10()
+    BLAS.set_num_threads(1)
+    @time rslts = run3(10, nthreads() - 1, 50.0, 100;
+        m=2 .^ range(-4, 2, 5),
+        c=2 .^ range(-2, 6, 5),
+        l=[1.0],
+        si=[0.5],
+        sr=[0.5],
+        sb=[0.5],
+    )
+    save_object("./ltest_run3_N10.jld2", rslts)
     rslts
 end
