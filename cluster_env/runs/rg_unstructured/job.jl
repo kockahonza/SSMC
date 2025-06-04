@@ -208,15 +208,17 @@ function scan_func(func, result_type; progress=true, kwargs...)
     params_cis = CartesianIndices(params_size)
 
     if progress
-        p = Progress(length(params_cis); showspeed=true)
+	i = 1
+	total_runs = length(params_cis)
     end
 
     results = Array{result_type}(undef, params_size)
     for (params, ci) in zip(params_prod, params_cis)
         results[ci] = func(params...)
         if progress
-            next!(p)
-            flush(p.core.output)
+	    @printf "Just finished run %d out of %d\n" i total_runs
+	    i += 1
+            flush(stdout)
         end
     end
 
