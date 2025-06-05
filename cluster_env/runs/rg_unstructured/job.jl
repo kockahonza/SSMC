@@ -508,16 +508,16 @@ function ltest_run3_N10()
     rslts
 end
 
-function ltest_run3_N10_testing()
+function main_run3_N10_testing()
     BLAS.set_num_threads(1)
-    @time rslts = run3_testing(10, 100, 50.0, 100;
+    @time rslts = run3_testing(10, 100, 100.0, 1000;
         m=2 .^ range(-4, 2, 5),
         c=2 .^ range(-2, 6, 5),
-        l=[1.0],
-        si=[0.5],
-        sr=[0.5],
-        sb=[0.5],
+        l=range(0.0, 1.0, 4)[1:end],
+        si=range(0.0, 1.0, 5)[1:end],
+        sr=range(0.0, 1.0, 5)[1:end],
+        sb=range(0.0, 1.0, 5)[1:end],
     )
-    save_object("./ltest_run3_N10_t.jld2", rslts)
+    save_object("./run3_N10_testing.jld2", rslts)
     rslts
 end
