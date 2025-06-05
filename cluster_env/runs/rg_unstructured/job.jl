@@ -81,7 +81,11 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
         if !isnothing(debug_save_problem)
             lock(debug_save_lock) do
                 fname = debug_save_problem * string(i) * ".jld2"
-                save_object(fname, ssp)
+                try
+                    save_object(fname, ssp)
+                catch
+                    @error (@sprintf "Failed to save to file %s" fname)
+                end
             end
         end
 
