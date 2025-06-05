@@ -397,7 +397,7 @@ end
 
 function main_run1_shorter()
     BLAS.set_num_threads(1)
-    @time rslts = run1(nthreads() - 1, 50, 1000;
+    @time rslts = run1(100, 50, 1000;
         N=[4, 10, 20],
         m=2 .^ range(-3, 3, 3),
         c=2 .^ range(-3, 3, 3),
@@ -427,7 +427,7 @@ end
 
 function main_run2()
     BLAS.set_num_threads(1)
-    @time rslts = run2(50, nthreads() - 1, 100.0, 1000;
+    @time rslts = run2(50, 100, 100.0, 1000;
         m=2 .^ range(-3, 3, 3),
         c=2 .^ range(-3, 3, 3),
         l=range(0.0, 1.0, 4),
@@ -441,7 +441,7 @@ end
 
 function main_run3_N10()
     BLAS.set_num_threads(1)
-    @time rslts = run3(10, nthreads() - 1, 100.0, 1000;
+    @time rslts = run3(10, 100, 100.0, 1000;
         m=2 .^ range(-4, 2, 5),
         c=2 .^ range(-2, 6, 5),
         l=range(0.0, 1.0, 4)[1:end],
@@ -455,7 +455,7 @@ end
 
 function ltest_run3_N10()
     BLAS.set_num_threads(1)
-    @time rslts = run3(10, nthreads() - 1, 50.0, 100;
+    @time rslts = run3(10, 100, 50.0, 100;
         m=2 .^ range(-4, 2, 5),
         c=2 .^ range(-2, 6, 5),
         l=[1.0],
