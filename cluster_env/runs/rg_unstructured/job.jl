@@ -91,10 +91,10 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
         ######################################## 
 
         # numerically solve for the steady state
-        @printf "%d starting solver" i
+        @printf "%d starting solver\n" i
         flush(stdout)
         ssps = solve(ssp, DynamicSS(QNDF()); solver_kwargs...)
-        @printf "%d finished solver" i
+        @printf "%d finished solver\n" i
         flush(stdout)
 
         # Check the solver
@@ -122,7 +122,7 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
 
         # Do linear stability
 
-        @printf "%d starting linstab" i
+        @printf "%d starting linstab\n" i
         flush(stdout)
 
         # handle the k=0 case
@@ -191,13 +191,10 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
             end
         end
 
-        @printf "%d finished linstab" i
-        flush(stdout)
-
         ######################################## 
 
         @label handle_result
-        @printf "%d handling result" i
+        @printf "%d handling result\n" i
         flush(stdout)
         if warning
             result *= -1
