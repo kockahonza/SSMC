@@ -63,7 +63,7 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
     int_systems_sss = Vector{Float64}[]
 
     # the core of the function
-    @tasks for i in 1:num_repeats
+    @disallow_boxed_captures @tasks for i in 1:num_repeats
         # Prealloc variables in each thread (task)
         @local begin
             M1 = Matrix{Float64}(undef, N, N)
