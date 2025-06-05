@@ -100,7 +100,8 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
     # whether and which params to return for further examination (int <-> interesting)
     return_int=nothing,
     return_int_sss=true,
-    # ss solver target tolerances and maxiters
+    # ss solver setup
+    ode_solver=QNDF(),
     tol=maxresidthr / 10,
     timelimit=nothing, # time limit for one solver run in seconds
     abstol=tol,
@@ -141,7 +142,7 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
     int_systems_sss = Vector{Float64}[]
 
     # the core of the function
-    @allow_boxed_captures @tasks for i in 1:num_repeats
+    @localize solver_kwargs @tasks for i in 1:num_repeats
         # Prealloc variables in each thread (task)
         @local begin
             M1 = Matrix{Float64}(undef, N, N)
@@ -159,7 +160,7 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
         ######################################## 
 
         # numerically solve for the steady state
-        ssps = solve(ssp, DynamicSS(QNDF()); solver_kwargs...)
+        ssps = solve(ssp, DynamicSS(ode_solver); solver_kwargs...)
 
         # Check the solver
         if !SciMLBase.successful_retcode(ssps.retcode)
