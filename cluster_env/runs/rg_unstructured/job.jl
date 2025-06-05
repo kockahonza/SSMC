@@ -63,7 +63,7 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
     int_systems_sss = Vector{Float64}[]
 
     # the core of the function
-    @allow_boxed_captures @tasks for i in 1:num_repeats
+    @tasks for i in 1:num_repeats
         # Prealloc variables in each thread (task)
         @local begin
             M1 = Matrix{Float64}(undef, N, N)
@@ -77,7 +77,7 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
         ssp = make_mmicrm_ss_problem(params, u0)
 
         if !isnothing(debug_save_problem)
-            fname = debug_save_problem * string(rand(1:1000000)) * ".jld2"
+            fname = debug_save_problem * string(i) * ".jld2"
             save_object(fname, ssp)
             @printf "Saved a problem to %s\n" fname
             flush(stdout)
