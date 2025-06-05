@@ -368,7 +368,7 @@ function run3(N, num_repeats=100, kmax=100, Nks=1000;
             abstol=1000 * eps(),
             reltol=1000 * eps(),
             timelimit=10 * 60.0,
-            debug_save_problem="debug_sp/"
+            # debug_save_problem="debug_sp/"
         )
         countmap(raw_results)
     end
