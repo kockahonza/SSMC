@@ -229,6 +229,7 @@ function scan_func(func, result_type;
         ap_task = Task(function ()
             while ap_running
                 @printf "Working on run %d out of %d\n" api num_runs
+                flush(stdout)
                 sleep(async_progress)
             end
         end)
