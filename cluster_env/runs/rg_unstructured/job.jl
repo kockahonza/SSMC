@@ -46,9 +46,12 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
         throw(ArgumentError("return_interesting needs to be either a list of codes or a custom function"))
     end
 
-    solver_kwargs = (; maxiters, abstol, reltol)
+    solver_kwargs = Dict{Symbol,Any}()
+    solver_kwargs[:maxiters] = maxiters
+    solver_kwargs[:abstol] = abstol
+    solver_kwargs[:reltol] = reltol
     if !isnothing(timelimit)
-        solver_kwargs = (; solver_kwargs..., callback=make_timer_callback(timelimit))
+        solver_kwargs[:callback] = make_timer_callback(timelimit)
     end
 
     # setup ks for linstab analysis
@@ -65,7 +68,7 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
     debug_save_lock = ReentrantLock()
 
     # the core of the function
-    @allow_boxed_captures @tasks for i in 1:num_repeats
+    @tasks for i in 1:num_repeats
         # Prealloc variables in each thread (task)
         @local begin
             M1 = Matrix{Float64}(undef, N, N)
