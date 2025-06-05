@@ -82,8 +82,6 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
             lock(debug_save_lock) do
                 fname = debug_save_problem * string(i) * ".jld2"
                 save_object(fname, ssp)
-                @printf "Saved a problem to %s\n" fname
-                flush(stdout)
             end
         end
 
@@ -93,7 +91,11 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
         ######################################## 
 
         # numerically solve for the steady state
+        @printf "%d starting solver" i
+        flush(stdout)
         ssps = solve(ssp, DynamicSS(QNDF()); solver_kwargs...)
+        @printf "%d finished solver" i
+        flush(stdout)
 
         # Check the solver
         if !SciMLBase.successful_retcode(ssps.retcode)
@@ -119,6 +121,9 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
         end
 
         # Do linear stability
+
+        @printf "%d starting linstab" i
+        flush(stdout)
 
         # handle the k=0 case
         make_M1!(M1, params, ssps.u)
@@ -186,9 +191,14 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
             end
         end
 
+        @printf "%d finished linstab" i
+        flush(stdout)
+
         ######################################## 
 
         @label handle_result
+        @printf "%d handling result" i
+        flush(stdout)
         if warning
             result *= -1
         end
