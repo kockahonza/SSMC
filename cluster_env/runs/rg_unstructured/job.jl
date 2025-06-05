@@ -91,11 +91,7 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
         ######################################## 
 
         # numerically solve for the steady state
-        @printf "%d starting solver\n" i
-        flush(stdout)
-        ssps = solve(ssp, DynamicSS(QNDF()); solver_kwargs...)
-        @printf "%d finished solver\n" i
-        flush(stdout)
+        ssps = solve(ssp, DynamicSS(TRBDF2()); solver_kwargs...)
 
         # Check the solver
         if !SciMLBase.successful_retcode(ssps.retcode)
@@ -121,10 +117,6 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
         end
 
         # Do linear stability
-
-        @printf "%d starting linstab\n" i
-        flush(stdout)
-
         # handle the k=0 case
         make_M1!(M1, params, ssps.u)
         k0mrl = maximum(real, eigvals!(M1))
@@ -194,8 +186,6 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
         ######################################## 
 
         @label handle_result
-        @printf "%d handling result\n" i
-        flush(stdout)
         if warning
             result *= -1
         end
