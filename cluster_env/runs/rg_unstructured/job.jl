@@ -365,8 +365,7 @@ function run3(N, num_repeats=100, kmax=100, Nks=1000;
         raw_results = do_rg_run2(rsg, num_repeats, kmax, Nks;
             extinctthr=1e-8,
             maxresidthr=1e-8,
-            abstol=1000 * eps(),
-            reltol=1000 * eps(),
+            tol=1e-11,
             timelimit=10 * 60.0,
             # debug_save_problem="debug_sp/"
         )
