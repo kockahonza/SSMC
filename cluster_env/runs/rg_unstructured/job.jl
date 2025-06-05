@@ -62,8 +62,6 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
     int_systems_to_return = typeof(sample_params)[]
     int_systems_sss = Vector{Float64}[]
 
-    inprogress_save_lock = ReentrantLock()
-
     # the core of the function
     @allow_boxed_captures @tasks for i in 1:num_repeats
         # Prealloc variables in each thread (task)
@@ -79,12 +77,10 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
         ssp = make_mmicrm_ss_problem(params, u0)
 
         if !isnothing(debug_save_problem)
-            lock(int_lock) do
-                fname = debug_save_problem * string(rand(1:1000000)) * ".jld2"
-                save_object(fname, ssp)
-                @printf "Saved a problem to %s\n" fname
-                flush(stdout)
-            end
+            fname = debug_save_problem * string(rand(1:1000000)) * ".jld2"
+            save_object(fname, ssp)
+            @printf "Saved a problem to %s\n" fname
+            flush(stdout)
         end
 
         result = 0
