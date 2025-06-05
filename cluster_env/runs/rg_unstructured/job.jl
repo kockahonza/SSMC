@@ -377,6 +377,47 @@ function run3(N, num_repeats=100, kmax=100, Nks=1000;
     )
 end
 
+function run3_testing(N, num_repeats=100, kmax=100, Nks=1000;
+    m=[1.0],
+    c=[1.0],
+    l=[0.5],
+    si=[1.0],
+    sr=[0.5],
+    sb=[1.0],
+)
+    function func(lm, lc, ll, lsi, lsr, lsb)
+        total_influx = 1.0 * N # setting E (or E/V)
+        Kmean = total_influx / (lsi * N)
+        K = (Kmean, Kmean * sigma_to_mu_ratio1())
+
+        GC.gc()
+        rsg = RSGJans1(N, N;
+            m=(lm, lm * sigma_to_mu_ratio1()),
+            r=1.0, # setting T
+            sparsity_influx=lsi,
+            K,
+            sparsity_resources=lsr,
+            sparsity_byproducts=lsb,
+            c=(lc, lc * sigma_to_mu_ratio1()),
+            l=(ll, ll * sigma_to_mu_ratio1()),
+            Ds=1e-8, Dr=1.0, # setting L plus assuming the specific values don't matter as long as Ds << Dr
+        )
+        raw_results = do_rg_run2(rsg, num_repeats, kmax, Nks;
+            extinctthr=1e-8,
+            maxresidthr=1e-8,
+            abstol=1000 * eps(),
+            reltol=1000 * eps(),
+            timelimit=10 * 60.0,
+            # debug_save_problem="debug_sp/"
+        )
+        countmap(raw_results)
+    end
+    scan_func(func, Dict{Int,Int}; m, c, l, si, sr, sb,
+        progress=true,
+        async_progress=60, # async progress report once every minute
+    )
+end
+
 ################################################################################
 # Main function
 ################################################################################
@@ -464,5 +505,19 @@ function ltest_run3_N10()
         sb=[0.5],
     )
     save_object("./ltest_run3_N10.jld2", rslts)
+    rslts
+end
+
+function ltest_run3_N10_testing()
+    BLAS.set_num_threads(1)
+    @time rslts = run3_testing(10, 100, 50.0, 100;
+        m=2 .^ range(-4, 2, 5),
+        c=2 .^ range(-2, 6, 5),
+        l=[1.0],
+        si=[0.5],
+        sr=[0.5],
+        sb=[0.5],
+    )
+    save_object("./ltest_run3_N10_t.jld2", rslts)
     rslts
 end
