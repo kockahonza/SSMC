@@ -119,7 +119,7 @@ export extend_solprob
 
 function remake_guarantee_positive(prob)
     fclosure = let zz = zero(eltype(prob.u0))
-        (u, _, _) -> minimum(u) < zz
+        (u, _, _) -> any(x -> x < zz, u)
     end
     remake(prob; isoutofdomain=fclosure)
 end

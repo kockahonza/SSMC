@@ -15,6 +15,7 @@ function diagram_sfss_v3(p::AbstractMMiCRMParams, ss=nothing;
     edge_colormap=colorschemes[:viridis],
     edge_colorrange=nothing,
     edge_colorscale=colorscale,
+    cluster=false
 )
     Ns, Nr = get_Ns(p)
     if isnothing(ss)
@@ -22,7 +23,7 @@ function diagram_sfss_v3(p::AbstractMMiCRMParams, ss=nothing;
     end
 
     # prep graph
-    g = digraph()
+    g = digraph(rankdir="LR")
     node_names = vcat(["N" * string(i) for i in 1:Ns], ["R" * string(a) for a in 1:Nr])
 
     # make the C matrix first to decide on which resources to include
@@ -51,6 +52,9 @@ function diagram_sfss_v3(p::AbstractMMiCRMParams, ss=nothing;
                 end
             end
         end
+    end
+    if isempty(strains_to_include)
+        return "No strains are above the threshold and so cannot build a diagram"
     end
     resource_E_vals = [ss[Ns+a] * p.w[a] for a in resources_to_include]
 
@@ -102,7 +106,7 @@ function diagram_sfss_v3(p::AbstractMMiCRMParams, ss=nothing;
 
     edge_cvals = [edge_colorscale(v) for (_, _, v) in edges]
     if isnothing(edge_colorrange)
-        edge_E_val_min, edge_E_val_max = extrema(edge_cvals)
+        edge_E_val_min, edge_E_val_max = extrema(edge_cvals; init=(0.0, 0.0))
         edge_E_val_delta = edge_E_val_max - edge_E_val_min
     else
         edge_E_val_min, edge_E_val_max = edge_colorrange
@@ -120,9 +124,24 @@ function diagram_sfss_v3(p::AbstractMMiCRMParams, ss=nothing;
         shape="rect"
         # color="#" * hex(get(node_colormap, 1.0))
     )
+    if cluster
+        influx_resource_cluster = subgraph(g, "cluster inR";
+            label="Influx Resources",
+        )
+        strain_cluster = subgraph(g, "cluster N";
+            label="Strains",
+        )
+        byproduct_resource_cluster = subgraph(g, "cluster byR";
+            label="Byproduct Resources",
+        )
+    else
+        influx_resource_cluster = g
+        strain_cluster = g
+        byproduct_resource_cluster = g
+    end
     for (i, val, cval) in zip(strains_to_include, strain_E_vals, strain_cvals)
         label = @sprintf "N_%d\n%.3g" i val
-        g |> node(node_names[i];
+        strain_cluster |> node(node_names[i];
             label,
             shape="ellipse",
             color="#" * hex(get(node_colormap, node_cfunc(cval)))
@@ -130,7 +149,12 @@ function diagram_sfss_v3(p::AbstractMMiCRMParams, ss=nothing;
     end
     for (a, val, cval) in zip(resources_to_include, resource_E_vals, resource_cvals)
         label = @sprintf "R_%d\n%.3g" a val
-        g |> node(node_names[Ns+a];
+        target_cluster = if iszero(p.K[a])
+            byproduct_resource_cluster
+        else
+            influx_resource_cluster
+        end
+        target_cluster |> node(node_names[Ns+a];
             label,
             shape="rect",
             color="#" * hex(get(node_colormap, node_cfunc(cval)))

@@ -14,7 +14,7 @@ using Polynomials
 
 using ADTypes, SparseConnectivityTracer
 
-using GraphvizDotLang: digraph, node, edge, attr, save
+using GraphvizDotLang: digraph, subgraph, node, edge, attr, save
 using Colors
 using ColorSchemes
 
@@ -125,7 +125,9 @@ end
 export check_mmicrmparams
 
 # Making ODEProblem s
-function make_mmicrm_problem(p::AbstractMMiCRMParams, u0, T; sparse_jac=false, t0=0.0)
+function make_mmicrm_problem(p::AbstractMMiCRMParams, u0, T;
+    sparse_jac=false, t0=0.0, kwargs...
+)
     if (ndims(u0) != 1) || (length(u0) != sum(get_Ns(p)))
         throw(ArgumentError(
             @sprintf "passed u0 is not compatible with passed params, size(u0) is %s and Ns, Nr are %s" string(size(u0)) string(get_Ns(p))
@@ -144,11 +146,13 @@ function make_mmicrm_problem(p::AbstractMMiCRMParams, u0, T; sparse_jac=false, t
         mmicrmfunc!
     end
 
-    ODEProblem(func, u0, (t0, t0 + T), p)
+    ODEProblem(func, u0, (t0, t0 + T), p; kwargs...)
 end
 export make_mmicrm_problem
 
-function make_mmicrm_ss_problem(p::AbstractMMiCRMParams, u0; sparse_jac=false)
+function make_mmicrm_ss_problem(p::AbstractMMiCRMParams, u0;
+    sparse_jac=false, kwargs...
+)
     if (ndims(u0) != 1) || (length(u0) != sum(get_Ns(p)))
         throw(ArgumentError(
             @sprintf "passed u0 is not compatible with passed params, size(u0) is %s and Ns, Nr are %s" string(size(u0)) string(get_Ns(p))
@@ -167,11 +171,13 @@ function make_mmicrm_ss_problem(p::AbstractMMiCRMParams, u0; sparse_jac=false)
         mmicrmfunc!
     end
 
-    SteadyStateProblem(func, u0, p)
+    SteadyStateProblem(func, u0, p; kwargs...)
 end
 export make_mmicrm_ss_problem
 
-function make_smmicrm_problem(p::AbstractSMMiCRMParams, u0, T; sparse_jac=true, t0=0.0)
+function make_smmicrm_problem(p::AbstractSMMiCRMParams, u0, T;
+    sparse_jac=true, t0=0.0, kwargs...
+)
     # check the Ns, Nr match up
     if size(u0)[1] != sum(get_Ns(p))
         throw(ArgumentError(
@@ -201,7 +207,7 @@ function make_smmicrm_problem(p::AbstractSMMiCRMParams, u0, T; sparse_jac=true, 
         smmicrmfunc!
     end
 
-    ODEProblem(func, u0, (t0, t0 + T), p)
+    ODEProblem(func, u0, (t0, t0 + T), p; kwargs...)
 end
 export make_smmicrm_problem
 

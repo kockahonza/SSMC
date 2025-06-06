@@ -94,6 +94,7 @@ More flexible linear stability implemented directly in this function
 """
 function example_do_rg_run2(rg, num_repeats, kmax, Nks;
     maxresidthr=1e-7,            # will warn if ss residues are larger than this
+    errmaxresidthr=1e6 * maxresidthr, # if above this will return error code
     extinctthr=maxresidthr / 10, # species below this value are considered extinct
     lszerothr=1000 * eps(),      # values +- this are considered 0 in linstab analysis
     lspeakthr=lszerothr,
@@ -107,6 +108,8 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
     abstol=tol,
     reltol=tol,
     maxiters=100000,
+    # passed to make_mmicrm_ss_problem
+    kwargs...
 )
     sample_params = rg()
     Ns, Nr = get_Ns(sample_params)
@@ -153,7 +156,7 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
         # Setup one random system
         params = rg()
         u0 = ModifiedMiCRM.make_u0_onlyN(params)
-        ssp = make_mmicrm_ss_problem(params, u0)
+        ssp = make_mmicrm_ss_problem(params, u0; kwargs...)
         result = 0
         warning = false
 
@@ -174,8 +177,12 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
         end
         # Check that the steady state is steady enough
         maxresid = maximum(abs, ssps.resid)
-        if maxresid > maxresidthr
-            @warn (@sprintf "maxresid reached is %g which is close to %g" maxresid maxresidthr)
+        if maxresid > errmaxresidthr
+            @warn (@sprintf "maxresid reached is %g which is above the error threshold of %g" maxresid maxresidthr)
+            result = -2000 # maxresid is way beyond any reasonable values
+            @goto handle_result
+        elseif maxresid > maxresidthr
+            @warn (@sprintf "maxresid reached is %g > %g" maxresid maxresidthr)
             warning = true
         end
 
