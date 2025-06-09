@@ -6,10 +6,12 @@ using Reexport
 @reexport using StaticArrays
 @reexport using LinearAlgebra
 @reexport using StatsBase
+@reexport using Distributions
 @reexport using Makie, LaTeXStrings
 @reexport using PrettyTables
 @reexport using Geppetto
 @reexport using NamedArrays
+@reexport using DimensionalData
 @reexport using EnumX
 
 using REPL.TerminalMenus

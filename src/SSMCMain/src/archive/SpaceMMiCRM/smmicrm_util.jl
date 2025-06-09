@@ -1,5 +1,9 @@
 function print_spatial_solution_stats(sol)
-    println(sol.retcode)
+    if SciMLBase.successful_retcode(sol.retcode)
+        println(sol.retcode)
+    else
+        @error (@sprintf "Non successful retcode of %s" string(sol.retcode))
+    end
     @printf "nf is %d\n" sol.destats.nf
     @printf "solution has %d saved states\n" length(sol.u)
     max_resid = maximum(abs, uninplace(sol.prob.f)(sol.u[end], sol.prob.p))

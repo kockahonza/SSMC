@@ -1,4 +1,4 @@
-# Don't track large files
+# Don't track data files
 data/**/*.jld2
 data/**/*.h5
 

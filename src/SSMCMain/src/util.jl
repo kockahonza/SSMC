@@ -119,7 +119,7 @@ export extend_solprob
 
 function remake_guarantee_positive(prob)
     fclosure = let zz = zero(eltype(prob.u0))
-        (u, _, _) -> minimum(u) < zz
+        (u, _, _) -> any(x -> x < zz, u)
     end
     remake(prob; isoutofdomain=fclosure)
 end
@@ -135,6 +135,36 @@ function linear_spacing_edges(xs)
     ss
 end
 export linear_spacing_edges
+
+mutable struct TimerCallback
+    time_limit::Float64
+    init_time::Float64
+    last_time::Float64
+    TimerCallback(limit) = new(limit, 0.0, 0.0)
+end
+function init_timer!(tc::TimerCallback)
+    tc.init_time = time()
+    tc.last_time = tc.init_time
+end
+function check_timer!(tc::TimerCallback)
+    now = time()
+    last_delta_t = now - tc.last_time
+    if (now + last_delta_t - tc.init_time) > tc.time_limit
+        true
+    else
+        tc.last_time = now
+        false
+    end
+end
+function make_timer_callback(limit)
+    tc = TimerCallback(limit)
+    DiscreteCallback(
+        (u, t, i) -> check_timer!(tc),
+        i -> terminate!(i, ReturnCode.MaxTime);
+        initialize=(c, u, t, i) -> init_timer!(tc)
+    )
+end
+export make_timer_callback
 
 ################################################################################
 # Plotting
@@ -173,6 +203,115 @@ function make_grid(n;
     return rows, cols
 end
 export make_grid
+
+################################################################################
+# Plotting DimensionalData.jl stuff
+################################################################################
+function plot_dimdata_heatmap_int(data, xvar, yvar;
+    colorbar=true,
+    kwargs...
+)
+    fig = Figure()
+
+    odims = otherdims(data, xvar, yvar)
+    odim_names = name.(odims)
+
+    specs = [(label=string(name(od)), range=val(od)) for od in odims]
+    sg = SliderGrid(fig[1, 1], specs...)
+
+    sovals = [s.value for s in sg.sliders]
+    marginalized_data = lift(sovals...) do svals...
+        getindex(data; (odim_names .=> At.(svals))...)
+    end
+
+    ax = Axis(fig[2, 1])
+    ax.xlabel = string(xvar)
+    ax.ylabel = string(yvar)
+    hm = heatmap!(ax, marginalized_data; kwargs...)
+
+    if colorbar
+        cb = Colorbar(fig[2, 2], hm)
+    end
+
+    FigureAxisAnything(fig, ax, marginalized_data)
+end
+export plot_dimdata_heatmap_int
+
+function plot_many_dimdata_heatmap_int(data, xvar, yvar;
+    colorbar=true,
+    fixed_colorrange=true,
+    kwargs...
+)
+    fig = Figure()
+
+    numplots = length(data)
+    nrows, ncols = make_grid(numplots)
+
+    refdata = data[1]
+    odims = otherdims(refdata, xvar, yvar)
+    odim_names = name.(odims)
+
+    specs = [(label=string(name(od)), range=val(od)) for od in odims]
+    sg = SliderGrid(fig[1, 1:ncols*2], specs...)
+
+    sovals = [s.value for s in sg.sliders]
+    marginalized_data = [
+        lift(sovals...) do svals...
+            getindex(d; (odim_names .=> At.(svals))...)
+        end for d in data
+    ]
+
+    auto_kwargs = [Dict{Symbol,Any}() for _ in data]
+    for i in 1:numplots
+        ak = auto_kwargs[i]
+        d = data[i]
+        if fixed_colorrange
+            ak[:colorrange] = extrema(d)
+        end
+    end
+
+    axs = []
+    for i in 1:numplots
+        row = div(i - 1, ncols) + 1 + 1
+        col = (mod(i - 1, ncols) + 1) * 2 - 1
+        ax = Axis(fig[row, col])
+        ax.title = data[i].name
+        ax.xlabel = string(xvar)
+        ax.ylabel = string(yvar)
+        push!(axs, ax)
+
+        hm = heatmap!(ax, marginalized_data[i]; auto_kwargs[i]..., kwargs...)
+        cb = Colorbar(fig[row, col+1], hm)
+    end
+
+    FigureAxisAnything(fig, axs, marginalized_data)
+end
+export plot_many_dimdata_heatmap_int
+
+function plot_dimdata_scatterlines_int(data, xvar;
+    kwargs...
+)
+    fig = Figure()
+
+    odims = otherdims(data, xvar)
+    odim_names = name.(odims)
+
+    specs = [(label=string(name(od)), range=val(od)) for od in odims]
+    sg = SliderGrid(fig[1, 1], specs...)
+
+    sovals = [s.value for s in sg.sliders]
+    marginalized_data = lift(sovals...) do svals...
+        getindex(data; (odim_names .=> At.(svals))...)
+    end
+
+    ax = Axis(fig[2, 1])
+    ax.xlabel = string(xvar)
+    scatterlines!(ax, marginalized_data; kwargs...)
+
+    FigureAxisAnything(fig, ax, marginalized_data)
+end
+export plot_dimdata_scatterlines_int
+
 
 ################################################################################
 # Plotting NamedArrays with labels etc plus DataFrames helpers
@@ -345,6 +484,49 @@ function plot_heatmaps(xs, ys, matrices;
 end
 plot_heatmaps(matrices; kwargs...) = plot_heatmaps(nothing, nothing, matrices; kwargs...)
 export plot_heatmaps
+
+################################################################################
+# Distribution demos
+################################################################################
+function dist_demo_normal(xs=range(-10.0, 10.0, 1000))
+    fig = Figure()
+    sg = SliderGrid(fig[1, 1],
+        (; label="μ", range=-10.0:0.0001:10.0, startvalue=0.0),
+        (; label="σ", range=0.0:0.0001:10.0, startvalue=1.0),
+    )
+    mu_o = sg.sliders[1].value
+    sigma_o = sg.sliders[2].value
+
+    pdf_vals = lift(mu_o, sigma_o) do mu, sigma
+        pdf(Normal(mu, sigma), xs)
+    end
+
+    ax = Axis(fig[2, 1])
+    lines!(ax, xs, pdf_vals)
+
+    fig
+end
+export dist_demo_normal
+
+function dist_demo_lognormal(xs=range(0.0, 100.0, 1000))
+    fig = Figure()
+    sg = SliderGrid(fig[1, 1],
+        (; label="μ", range=0.0:0.0001:10.0, startvalue=1.0),
+        (; label="σ", range=0.0:0.0001:10.0, startvalue=1.0),
+    )
+    mu_o = sg.sliders[1].value
+    sigma_o = sg.sliders[2].value
+
+    pdf_vals = lift(mu_o, sigma_o) do mu, sigma
+        pdf(LogNormal(mu, sigma), xs)
+    end
+
+    ax = Axis(fig[2, 1])
+    lines!(ax, xs, pdf_vals)
+
+    fig
+end
+export dist_demo_lognormal
 
 ################################################################################
 # OLD

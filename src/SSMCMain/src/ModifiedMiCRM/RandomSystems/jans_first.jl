@@ -7,17 +7,17 @@ one which has a non-zero K and hence is being added to the system
 or not an "influx" resource which are exclusively added through being
 byproducts of consumption processes.
 """
-struct RSGJans1{Dm,Dr,DDN,DDR,DK,Ds1,Ds2,Dc,Dl}
+struct RSGJans1{Dm,Dr,DDs,DDr,Di,DK,Ds1,Ds2,Dc,Dl}
     Ns::Int # number of strains
     Nr::Int # number of resources
 
     m::Dm   # upkeep energy rate distribution
     r::Dr   # resource dilution rate distribution
-    DS::DDN # strain diffusion constant distribution
-    DR::DDR # resource diffusion constant distribution
+    Ds::DDs # strain diffusion constant distribution
+    Dr::DDr # resource diffusion constant distribution
 
-    Kp::Float64 # probability of a resource being added to the system
-    K::DK       # distribution of Ks for those resources which are being added
+    num_influx_resources::Di # a discrete distribution for generating the number of resources with non-zero K
+    K::DK # distribution of Ks for those resources which are being added
 
     num_used_resources::Ds1 # discrete distribution of the number of resources each strain eats
     num_byproducts::Ds2     # discrete distribution of the number of byproducts for each consumption process
@@ -27,8 +27,8 @@ struct RSGJans1{Dm,Dr,DDN,DDR,DK,Ds1,Ds2,Dc,Dl}
 
     usenthreads::Union{Nothing,Int}
     function RSGJans1(Ns, Nr;
-        m=1.0, r=1.0, DS=1.0, DR=1.0,
-        Kp=1.0, K=1.0,
+        m=1.0, r=1.0, Ds=1.0, Dr=1.0,
+        num_influx_resources=nothing, Kp=nothing, sparsity_influx=nothing, K=1.0,
         num_used_resources=nothing, sparsity_resources=nothing,
         num_byproducts=nothing, sparsity_byproducts=nothing,
         c=1.0, l=0.5,
@@ -44,15 +44,15 @@ struct RSGJans1{Dm,Dr,DDN,DDR,DK,Ds1,Ds2,Dc,Dl}
         elseif isa(r, Tuple) && length(r) == 2
             r = Normal(r[1], r[2])
         end
-        if isa(DS, Number)
-            DS = Dirac(DS)
-        elseif isa(DS, Tuple) && length(DS) == 2
-            DS = Normal(DS[1], DS[2])
+        if isa(Ds, Number)
+            Ds = Dirac(Ds)
+        elseif isa(Ds, Tuple) && length(Ds) == 2
+            Ds = Normal(Ds[1], Ds[2])
         end
-        if isa(DR, Number)
-            DR = Dirac(DR)
-        elseif isa(DR, Tuple) && length(DR) == 2
-            DR = Normal(DR[1], DR[2])
+        if isa(Dr, Number)
+            Dr = Dirac(Dr)
+        elseif isa(Dr, Tuple) && length(Dr) == 2
+            Dr = Normal(Dr[1], Dr[2])
         end
         if isa(K, Number)
             K = Dirac(K)
@@ -68,6 +68,18 @@ struct RSGJans1{Dm,Dr,DDN,DDR,DK,Ds1,Ds2,Dc,Dl}
             l = Dirac(l)
         elseif isa(l, Tuple) && length(l) == 2
             l = Normal(l[1], l[2])
+        end
+
+        if isnothing(num_influx_resources) && isnothing(Kp) && isnothing(sparsity_influx)
+            num_influx_resources = Dirac(Nr)
+        elseif isnothing(num_influx_resources)
+            if isnothing(sparsity_influx)
+                num_influx_resources = Binomial(Nr, Kp)
+            else
+                num_influx_resources = Dirac(round(Int, sparsity_influx * Nr))
+            end
+        elseif !isnothing(Kp) && !isnothing(sparsity_influx)
+            @warn "RSGJans1 has been passed multiple kwargs for influx resources some are being ignored"
         end
 
         if isnothing(num_used_resources) && isnothing(sparsity_resources)
@@ -89,9 +101,9 @@ struct RSGJans1{Dm,Dr,DDN,DDR,DK,Ds1,Ds2,Dc,Dl}
         end
 
         new{
-            typeof(m),typeof(r),typeof(DS),typeof(DR),typeof(K),
+            typeof(m),typeof(r),typeof(Ds),typeof(Dr),typeof(num_influx_resources),typeof(K),
             typeof(num_used_resources),typeof(num_byproducts),typeof(c),typeof(l)
-        }(Ns, Nr, m, r, DS, DR, Kp, K, num_used_resources, num_byproducts, c, l, usenthreads)
+        }(Ns, Nr, m, r, Ds, Dr, num_influx_resources, K, num_used_resources, num_byproducts, c, l, usenthreads)
     end
 end
 function (rsg::RSGJans1)()
@@ -99,25 +111,25 @@ function (rsg::RSGJans1)()
     g = fill(1.0, rsg.Ns)
     w = fill(1.0, rsg.Nr)
 
-    m = rand(rsg.m, rsg.Ns)
-    r = rand(rsg.r, rsg.Nr)
+    m = clamp.(rand(rsg.m, rsg.Ns), 0.0, Inf)
+    r = clamp.(rand(rsg.r, rsg.Nr), 0.0, Inf)
 
     K = fill(0.0, rsg.Nr)
-    for a in 1:rsg.Nr
-        if rand() < rsg.Kp
-            K[a] = rand(rsg.K)
-        end
+    num_influx_resources = rand(rsg.num_influx_resources)
+    influx_resources = sample(1:rsg.Nr, num_influx_resources; replace=false)
+    for a in influx_resources
+        K[a] = clamp(rand(rsg.K), 0.0, Inf)
     end
 
     l = fill(0.0, (rsg.Ns, rsg.Nr))
     c = fill(0.0, (rsg.Ns, rsg.Nr))
     D = fill(0.0, (rsg.Ns, rsg.Nr, rsg.Nr))
     for i in 1:rsg.Ns
-        num_resources = rand(rsg.num_used_resources)
-        consumed_resources = sample(1:rsg.Nr, num_resources; replace=false)
-        for cr in consumed_resources
-            c[i, cr] = abs(rand(rsg.c))
-            l[i, cr] = rand(rsg.l)
+        num_used_resources = rand(rsg.num_used_resources)
+        used_resources = sample(1:rsg.Nr, num_used_resources; replace=false)
+        for cr in used_resources
+            c[i, cr] = clamp(rand(rsg.c), 0.0, Inf)
+            l[i, cr] = clamp(rand(rsg.l), 0.0, 1.0)
 
             num_byproducts = rand(rsg.num_byproducts)
             byproducts = sample(1:rsg.Nr, num_byproducts; replace=false)
@@ -129,15 +141,9 @@ function (rsg::RSGJans1)()
         end
     end
 
-    DS = rand(rsg.DS, rsg.Ns)
-    DR = rand(rsg.DR, rsg.Nr)
-    # DR = fill(0.0, rsg.Nr)
-    # for a in 1:rsg.Nr
-    #     if K[a] != 0.0
-    #         DR[a] = rand(rsg.DR)
-    #     end
-    # end
-    Ds = vcat(DS, DR)
+    Ds = clamp.(rand(rsg.Ds, rsg.Ns), 0.0, Inf)
+    Dr = clamp.(rand(rsg.Dr, rsg.Nr), 0.0, Inf)
+    Ds = vcat(Ds, Dr)
 
     mmicrm_params = BMMiCRMParams(g, w, m, K, r, l, c, D, rsg.usenthreads)
     BSMMiCRMParams(mmicrm_params, Ds)
@@ -147,16 +153,16 @@ export RSGJans1
 """
 Here we distinguish between the influx and not-influx resources even more
 """
-struct RSGJans2{Dm,Dr,DDN,DDR,DK,Dci,Dli,Dcb,Dlb}
+struct RSGJans2{Dm,Dr,DDs,DDr,DK,Dci,Dli,Dcb,Dlb}
     Ns::Int
     Nr::Int
 
     m::Dm
     r::Dr
-    DS::DDN
-    DR::DDR
+    Ds::DDs
+    Dr::DDr
 
-    Kp::Float64
+    Kp::Float64 # FIX: adapt to copy the behaviour of RSGJans1
     K::DK
 
     num_used_in_resources::Int
@@ -172,7 +178,7 @@ struct RSGJans2{Dm,Dr,DDN,DDR,DK,Dci,Dli,Dcb,Dlb}
 
     usenthreads::Union{Nothing,Int}
     function RSGJans2(Ns, Nr;
-        m=1.0, r=1.0, DS=1.0, DR=1.0,
+        m=1.0, r=1.0, Ds=1.0, Dr=1.0,
         Kp=1.0, K=1.0,
         sparsity_in_resources=1.0, sparsity_in_byproducts=1.0,
         c_in=1.0, l_in=0.5,
@@ -190,15 +196,15 @@ struct RSGJans2{Dm,Dr,DDN,DDR,DK,Dci,Dli,Dcb,Dlb}
         elseif isa(r, Tuple) && length(r) == 2
             r = Normal(r[1], r[2])
         end
-        if isa(DS, Number)
-            DS = Dirac(DS)
-        elseif isa(DS, Tuple) && length(DS) == 2
-            DS = Normal(DS[1], DS[2])
+        if isa(Ds, Number)
+            Ds = Dirac(Ds)
+        elseif isa(Ds, Tuple) && length(Ds) == 2
+            Ds = Normal(Ds[1], Ds[2])
         end
-        if isa(DR, Number)
-            DR = Dirac(DR)
-        elseif isa(DR, Tuple) && length(DR) == 2
-            DR = Normal(DR[1], DR[2])
+        if isa(Dr, Number)
+            Dr = Dirac(Dr)
+        elseif isa(Dr, Tuple) && length(Dr) == 2
+            Dr = Normal(Dr[1], Dr[2])
         end
         if isa(K, Number)
             K = Dirac(K)
@@ -233,9 +239,9 @@ struct RSGJans2{Dm,Dr,DDN,DDR,DK,Dci,Dli,Dcb,Dlb}
         end
 
         new{
-            typeof(m),typeof(r),typeof(DS),typeof(DR),typeof(K),
+            typeof(m),typeof(r),typeof(Ds),typeof(Dr),typeof(K),
             typeof(c_in),typeof(l_in),typeof(c_bp),typeof(l_bp)
-        }(Ns, Nr, m, r, DS, DR, Kp, K,
+        }(Ns, Nr, m, r, Ds, Dr, Kp, K,
             num_used_in_resources, num_in_byproducts, c_in, l_in,
             num_used_bp_resources, num_bp_byproducts, c_bp, l_bp,
             usenthreads
@@ -277,15 +283,15 @@ function (rsg::RSGJans2)()
         end
     end
 
-    DS = rand(rsg.DS, rsg.Ns)
-    DR = rand(rsg.DR, rsg.Nr)
-    # DR = fill(0.0, rsg.Nr)
+    Ds = rand(rsg.Ds, rsg.Ns)
+    Dr = rand(rsg.Dr, rsg.Nr)
+    # Dr = fill(0.0, rsg.Nr)
     # for a in 1:rsg.Nr
     #     if K[a] != 0.0
-    #         DR[a] = rand(rsg.DR)
+    #         Dr[a] = rand(rsg.Dr)
     #     end
     # end
-    Ds = vcat(DS, DR)
+    Ds = vcat(Ds, Dr)
 
     mmicrm_params = BMMiCRMParams(g, w, m, K, r, l, c, D, rsg.usenthreads)
     BSMMiCRMParams(mmicrm_params, Ds)
