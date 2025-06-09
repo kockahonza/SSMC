@@ -96,7 +96,10 @@ function main()
 
         # make and solve the problem
         sp = make_smmicrm_problem(spatial_params, u0, T)
-        @time sps = solve(sp, QNDF(); maxiters=1000)
+        @time sps = solve(sp, QNDF();
+            callback=make_timer_callback(60 * 60 * 24),
+            dense=false
+        )
         print_spatial_solution_stats(sps)
 
         # save the solution
@@ -155,7 +158,10 @@ function ltest()
 
         # make and solve the problem
         sp = make_smmicrm_problem(spatial_params, u0, T)
-        @time sps = solve(sp, QNDF(); maxiters=1000)
+        @time sps = solve(sp, QNDF();
+            callback=make_timer_callback(60 * 60 * 24),
+            dense=false
+        )
         print_spatial_solution_stats(sps)
 
         # save the solution
