@@ -280,7 +280,6 @@ function plot_many_dimdata_heatmap_int(data, xvar, yvar;
         ax.ylabel = string(yvar)
         push!(axs, ax)
 
-        @show auto_kwargs[i]
         hm = heatmap!(ax, marginalized_data[i]; auto_kwargs[i]..., kwargs...)
         cb = Colorbar(fig[row, col+1], hm)
     end
