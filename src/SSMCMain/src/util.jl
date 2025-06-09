@@ -207,7 +207,7 @@ export make_grid
 ################################################################################
 # Plotting DimensionalData.jl stuff
 ################################################################################
-function plot_2ddimdata_heatmap_int(data, xvar, yvar;
+function plot_dimdata_heatmap_int(data, xvar, yvar;
     colorbar=true,
     kwargs...
 )
@@ -235,7 +235,84 @@ function plot_2ddimdata_heatmap_int(data, xvar, yvar;
 
     FigureAxisAnything(fig, ax, marginalized_data)
 end
-export plot_2ddimdata_heatmap_int
+export plot_dimdata_heatmap_int
+
+function plot_many_dimdata_heatmap_int(data, xvar, yvar;
+    colorbar=true,
+    fixed_colorrange=true,
+    kwargs...
+)
+    fig = Figure()
+
+    numplots = length(data)
+    nrows, ncols = make_grid(numplots)
+
+    refdata = data[1]
+    odims = otherdims(refdata, xvar, yvar)
+    odim_names = name.(odims)
+
+    specs = [(label=string(name(od)), range=val(od)) for od in odims]
+    sg = SliderGrid(fig[1, 1:ncols*2], specs...)
+
+    sovals = [s.value for s in sg.sliders]
+    marginalized_data = [
+        lift(sovals...) do svals...
+            getindex(d; (odim_names .=> At.(svals))...)
+        end for d in data
+    ]
+
+    auto_kwargs = [Dict{Symbol,Any}() for _ in data]
+    for i in 1:numplots
+        ak = auto_kwargs[i]
+        d = data[i]
+        if fixed_colorrange
+            ak[:colorrange] = extrema(d)
+        end
+    end
+
+    axs = []
+    for i in 1:numplots
+        row = div(i - 1, ncols) + 1 + 1
+        col = (mod(i - 1, ncols) + 1) * 2 - 1
+        ax = Axis(fig[row, col])
+        ax.title = data[i].name
+        ax.xlabel = string(xvar)
+        ax.ylabel = string(yvar)
+        push!(axs, ax)
+
+        @show auto_kwargs[i]
+        hm = heatmap!(ax, marginalized_data[i]; auto_kwargs[i]..., kwargs...)
+        cb = Colorbar(fig[row, col+1], hm)
+    end
+
+    FigureAxisAnything(fig, axs, marginalized_data)
+end
+export plot_many_dimdata_heatmap_int
+
+function plot_dimdata_scatterlines_int(data, xvar;
+    kwargs...
+)
+    fig = Figure()
+
+    odims = otherdims(data, xvar)
+    odim_names = name.(odims)
+
+    specs = [(label=string(name(od)), range=val(od)) for od in odims]
+    sg = SliderGrid(fig[1, 1], specs...)
+
+    sovals = [s.value for s in sg.sliders]
+    marginalized_data = lift(sovals...) do svals...
+        getindex(data; (odim_names .=> At.(svals))...)
+    end
+
+    ax = Axis(fig[2, 1])
+    ax.xlabel = string(xvar)
+    scatterlines!(ax, marginalized_data; kwargs...)
+
+    FigureAxisAnything(fig, ax, marginalized_data)
+end
+export plot_dimdata_scatterlines_int
+
 
 ################################################################################
 # Plotting NamedArrays with labels etc plus DataFrames helpers
