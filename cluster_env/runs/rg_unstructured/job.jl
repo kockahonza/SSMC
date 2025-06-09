@@ -15,19 +15,22 @@ using JLD2
 ################################################################################
 function do_rg_run2(rg, num_repeats, kmax, Nks;
     maxresidthr=1e-7,            # will warn if ss residues are larger than this
+    errmaxresidthr=1e6 * maxresidthr, # if above this will return error code
     extinctthr=maxresidthr / 10, # species below this value are considered extinct
     lszerothr=1000 * eps(),      # values +- this are considered 0 in linstab analysis
     lspeakthr=lszerothr,
     # whether and which params to return for further examination (int <-> interesting)
     return_int=nothing,
     return_int_sss=true,
-    debug_save_problem=nothing,
-    # ss solver target tolerances and maxiters
+    # ss solver setup
+    ode_solver=QNDF(),
     tol=maxresidthr / 10,
     timelimit=nothing, # time limit for one solver run in seconds
     abstol=tol,
     reltol=tol,
     maxiters=100000,
+    # passed to make_mmicrm_ss_problem
+    kwargs...
 )
     sample_params = rg()
     Ns, Nr = get_Ns(sample_params)
@@ -62,8 +65,6 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
     int_systems_to_return = typeof(sample_params)[]
     int_systems_sss = Vector{Float64}[]
 
-    debug_save_lock = ReentrantLock()
-
     # the core of the function
     @localize solver_kwargs @tasks for i in 1:num_repeats
         # Prealloc variables in each thread (task)
@@ -76,26 +77,14 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
         # Setup one random system
         params = rg()
         u0 = ModifiedMiCRM.make_u0_onlyN(params)
-        ssp = make_mmicrm_ss_problem(params, u0)
-
-        if !isnothing(debug_save_problem)
-            lock(debug_save_lock) do
-                fname = debug_save_problem * string(i) * ".jld2"
-                try
-                    save_object(fname, ssp)
-                catch
-                    @error (@sprintf "Failed to save to file %s" fname)
-                end
-            end
-        end
-
+        ssp = make_mmicrm_ss_problem(params, u0; kwargs...)
         result = 0
         warning = false
 
         ######################################## 
 
         # numerically solve for the steady state
-        ssps = solve(ssp, DynamicSS(TRBDF2()); solver_kwargs...)
+        ssps = solve(ssp, DynamicSS(ode_solver); solver_kwargs...)
 
         # Check the solver
         if !SciMLBase.successful_retcode(ssps.retcode)
@@ -109,8 +98,12 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
         end
         # Check that the steady state is steady enough
         maxresid = maximum(abs, ssps.resid)
-        if maxresid > maxresidthr
-            @warn (@sprintf "maxresid reached is %g which is close to %g" maxresid maxresidthr)
+        if maxresid > errmaxresidthr
+            @warn (@sprintf "maxresid reached is %g which is above the error threshold of %g" maxresid maxresidthr)
+            result = -2000 # maxresid is way beyond any reasonable values
+            @goto handle_result
+        elseif maxresid > maxresidthr
+            @warn (@sprintf "maxresid reached is %g > %g" maxresid maxresidthr)
             warning = true
         end
 
@@ -121,6 +114,7 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
         end
 
         # Do linear stability
+
         # handle the k=0 case
         make_M1!(M1, params, ssps.u)
         k0mrl = maximum(real, eigvals!(M1))
@@ -302,82 +296,12 @@ function run1(num_repeats=100, kmax=100, Nks=1000;
     scan_func(func, Dict{Int,Int}; N, m, c, l, si, sr, sb)
 end
 
-function run2(N, num_repeats=100, kmax=100, Nks=1000;
-    m=[1.0],
-    c=[1.0],
-    l=[0.5],
-    si=[1.0],
-    sr=[0.5],
-    sb=[1.0],
-)
-    function func(lm, lc, ll, lsi, lsr, lsb)
-        rsg = RSGJans1(N, N;
-            m=(lm, lm * sigma_to_mu_ratio1()),
-            r=1.0, # setting T
-            sparsity_influx=lsi,
-            K=(1.0, sigma_to_mu_ratio1()), # setting E (or E/V)
-            sparsity_resources=lsr,
-            sparsity_byproducts=lsb,
-            c=(lc, lc * sigma_to_mu_ratio1()),
-            l=(ll, ll * sigma_to_mu_ratio1()),
-            Ds=1e-8, Dr=1.0, # setting L plus assuming the specific values don't matter as long as Ds << Dr
-        )
-        raw_results = do_rg_run2(rsg, num_repeats, kmax, Nks;
-            maxresidthr=1e-10,
-            abstol=1000 * eps(),
-            reltol=1000 * eps(),
-            maxiters=10000,
-        )
-        countmap(raw_results)
-    end
-    scan_func(func, Dict{Int,Int}; m, c, l, si, sr, sb)
-end
-
 """
 Does a scan for a single N while keeping the total influx energy rate at 1.0 for
 each strain (hopefully valid through dimensional reduction) no matter the rest
 of the params.
 """
 function run3(N, num_repeats=100, kmax=100, Nks=1000;
-    m=[1.0],
-    c=[1.0],
-    l=[0.5],
-    si=[1.0],
-    sr=[0.5],
-    sb=[1.0],
-)
-    function func(lm, lc, ll, lsi, lsr, lsb)
-        total_influx = 1.0 * N # setting E (or E/V)
-        Kmean = total_influx / (lsi * N)
-        K = (Kmean, Kmean * sigma_to_mu_ratio1())
-
-        rsg = RSGJans1(N, N;
-            m=(lm, lm * sigma_to_mu_ratio1()),
-            r=1.0, # setting T
-            sparsity_influx=lsi,
-            K,
-            sparsity_resources=lsr,
-            sparsity_byproducts=lsb,
-            c=(lc, lc * sigma_to_mu_ratio1()),
-            l=(ll, ll * sigma_to_mu_ratio1()),
-            Ds=1e-8, Dr=1.0, # setting L plus assuming the specific values don't matter as long as Ds << Dr
-        )
-        raw_results = do_rg_run2(rsg, num_repeats, kmax, Nks;
-            extinctthr=1e-8,
-            maxresidthr=1e-8,
-            tol=1e-11,
-            timelimit=10 * 60.0,
-            # debug_save_problem="debug_sp/"
-        )
-        countmap(raw_results)
-    end
-    scan_func(func, Dict{Int,Int}; m, c, l, si, sr, sb,
-        progress=true,
-        async_progress=60, # async progress report once every minute
-    )
-end
-
-function run3_testing(N, num_repeats=100, kmax=100, Nks=1000;
     m=[1.0],
     c=[1.0],
     l=[0.5],
@@ -402,14 +326,25 @@ function run3_testing(N, num_repeats=100, kmax=100, Nks=1000;
             l=(ll, ll * sigma_to_mu_ratio1()),
             Ds=1e-8, Dr=1.0, # setting L plus assuming the specific values don't matter as long as Ds << Dr
         )
-        raw_results = do_rg_run2(rsg, num_repeats, kmax, Nks;
+        raw_results, maybe_chaotic_systems = do_rg_run2(rsg, num_repeats, kmax, Nks;
             extinctthr=1e-8,
             maxresidthr=1e-8,
-            abstol=1000 * eps(),
-            reltol=1000 * eps(),
-            timelimit=10 * 60.0,
-            # debug_save_problem="debug_sp/"
+            # solver stuff
+            ode_solver=TRBDF2(),
+            tol=1e-11,
+            timelimit=10 * 60,
+            # return and save potentially chaotic systems
+            errmaxresidthr=0.1,
+            return_int=(-2000,),
+            return_int_sss=false,
         )
+        if !isempty(maybe_chaotic_systems)
+            try
+                save_object((@sprintf "maybe_chaotic_%d.jld2" rand(1:10000)), maybe_chaotic_systems)
+            catch
+                @error "Failed to save maybe chaotic systems"
+            end
+        end
         countmap(raw_results)
     end
     scan_func(func, Dict{Int,Int}; m, c, l, si, sr, sb,
@@ -421,21 +356,6 @@ end
 ################################################################################
 # Main function
 ################################################################################
-function main_run1()
-    BLAS.set_num_threads(1)
-    @time rslts = run1(100, 50, 1000;
-        N=4:2:20,
-        m=2 .^ range(-5, 5, 6),
-        c=2 .^ range(-5, 5, 6),
-        l=range(0.0, 1.0, 5),
-        si=range(0.0, 1.0, 5),
-        sr=range(0.0, 1.0, 5),
-        sb=range(0.0, 1.0, 5),
-    )
-    save_object("./run1_main.jld2", rslts)
-    rslts
-end
-
 function main_run1_shorter()
     BLAS.set_num_threads(1)
     @time rslts = run1(100, 50, 1000;
@@ -451,35 +371,6 @@ function main_run1_shorter()
     rslts
 end
 
-function ltest_run1()
-    BLAS.set_num_threads(1)
-    @time rslts = run1(100, 50, 100;
-        N=[10],
-        m=[1.0],
-        c=[1.0],
-        l=range(0.0, 1.0, 3),
-        si=range(0.0, 1.0, 3),
-        sr=range(0.0, 1.0, 3),
-        sb=range(0.0, 1.0, 3),
-    )
-    save_object("./run1_ltest.jld2", rslts)
-    rslts
-end
-
-function main_run2()
-    BLAS.set_num_threads(1)
-    @time rslts = run2(50, 100, 100.0, 1000;
-        m=2 .^ range(-3, 3, 3),
-        c=2 .^ range(-3, 3, 3),
-        l=range(0.0, 1.0, 4),
-        si=range(0.0, 1.0, 4),
-        sr=range(0.0, 1.0, 4),
-        sb=range(0.0, 1.0, 4),
-    )
-    save_object("./run2_main.jld2", rslts)
-    rslts
-end
-
 function main_run3_N10()
     BLAS.set_num_threads(1)
     @time rslts = run3(10, 100, 100.0, 1000;
@@ -490,34 +381,20 @@ function main_run3_N10()
         sr=range(0.0, 1.0, 5)[1:end],
         sb=range(0.0, 1.0, 5)[1:end],
     )
-    save_object("./run3_N10.jld2", rslts)
+    save_object("./run3_N10_testing.jld2", rslts)
     rslts
 end
 
-function ltest_run3_N10()
+function main_run3_N5()
     BLAS.set_num_threads(1)
-    @time rslts = run3(10, 100, 50.0, 100;
-        m=2 .^ range(-4, 2, 5),
-        c=2 .^ range(-2, 6, 5),
-        l=[1.0],
-        si=[0.5],
-        sr=[0.5],
-        sb=[0.5],
-    )
-    save_object("./ltest_run3_N10.jld2", rslts)
-    rslts
-end
-
-function main_run3_N10_testing()
-    BLAS.set_num_threads(1)
-    @time rslts = run3_testing(10, 100, 100.0, 1000;
+    @time rslts = run3(5, 100, 100.0, 1000;
         m=2 .^ range(-4, 2, 5),
         c=2 .^ range(-2, 6, 5),
         l=range(0.0, 1.0, 4)[1:end],
-        si=range(0.0, 1.0, 5)[1:end],
-        sr=range(0.0, 1.0, 5)[1:end],
-        sb=range(0.0, 1.0, 5)[1:end],
+        si=range(0.0, 1.0, 5)[2:end],
+        sr=range(0.0, 1.0, 5)[2:end],
+        sb=range(0.0, 1.0, 5)[2:end],
     )
-    save_object("./run3_N10_testing.jld2", rslts)
+    save_object("./run3_N5.jld2", rslts)
     rslts
 end
