@@ -132,8 +132,12 @@ function (rsg::RSGStevens1)()
     end
 
     # leakage now. Lets assume its a pretty flat probability distribution
-    leak = Beta(0.2/5, 0.2)
+    leak = Normal(0.8, 0.2)
     l = rand(leak, (rsg.Ns, rsg.Nr))
+    #l = fill(rand(),(rsg.Ns, rsg.Nr))
+
+    # guarantee that the leakage is non-negative and less than or equal to 1
+    l = clamp.(l, 0.0, 1.0)
 
     # updated 200525 to use a Dirichlet distribution and one richness and one mu parameter
     c = fill(0.,(rsg.Ns, rsg.Nr))
