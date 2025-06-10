@@ -16,6 +16,7 @@ using Reexport
 
 using REPL.TerminalMenus
 using Logging
+using Dates
 
 import Base: show
 
