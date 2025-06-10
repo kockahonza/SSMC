@@ -212,6 +212,7 @@ end
 function scan_func(func, result_type;
     progress=true,
     async_progress=nothing,
+    include_i=false,
     kwargs...
 )
     params_prod = product(values(values(kwargs))...)
@@ -236,8 +237,12 @@ function scan_func(func, result_type;
     end
 
     results = Array{result_type}(undef, params_size)
-    for (params, ci) in zip(params_prod, params_cis)
-        results[ci] = func(params...)
+    for (pi, (params, ci)) in enumerate(zip(params_prod, params_cis))
+        if include_i
+            results[ci] = func(pi, params...)
+        else
+            results[ci] = func(params...)
+        end
 
         if progress
             @printf "Just finished run %d out of %d\n" pi num_runs
@@ -326,23 +331,78 @@ function run3(N, num_repeats=100, kmax=100, Nks=1000;
             l=(ll, ll * sigma_to_mu_ratio1()),
             Ds=1e-8, Dr=1.0, # setting L plus assuming the specific values don't matter as long as Ds << Dr
         )
-        raw_results, maybe_chaotic_systems = do_rg_run2(rsg, num_repeats, kmax, Nks;
+        raw_results = do_rg_run2(rsg, num_repeats, kmax, Nks;
             extinctthr=1e-8,
             maxresidthr=1e-8,
+            errmaxresidthr=0.1,
             # solver stuff
             ode_solver=TRBDF2(),
             tol=1e-11,
             timelimit=10 * 60,
-            # return and save potentially chaotic systems
-            errmaxresidthr=0.1,
-            return_int=(-2000,),
-            return_int_sss=false,
         )
-        if !isempty(maybe_chaotic_systems)
+        countmap(raw_results)
+    end
+    scan_func(func, Dict{Int,Int}; m, c, l, si, sr, sb,
+        progress=true,
+        async_progress=60, # async progress report once every minute
+    )
+end
+
+"""
+Same as run3 but also saves systems which did have a spatial instability.
+"""
+function run4(N, num_repeats=100, kmax=100, Nks=1000;
+    m=[1.0],
+    c=[1.0],
+    l=[0.5],
+    si=[1.0],
+    sr=[0.5],
+    sb=[1.0],
+    return_int=(2,),
+    int_sys_save_dir=(@sprintf "intsys_%s" timestamp())
+)
+    jld2_lock = ReentrantLock()
+
+    function func(pi, lm, lc, ll, lsi, lsr, lsb)
+        total_influx = 1.0 * N # setting E (or E/V)
+        Kmean = total_influx / (lsi * N)
+        K = (Kmean, Kmean * sigma_to_mu_ratio1())
+
+        GC.gc()
+        rsg = RSGJans1(N, N;
+            m=(lm, lm * sigma_to_mu_ratio1()),
+            r=1.0, # setting T
+            sparsity_influx=lsi,
+            K,
+            sparsity_resources=lsr,
+            sparsity_byproducts=lsb,
+            c=(lc, lc * sigma_to_mu_ratio1()),
+            l=(ll, ll * sigma_to_mu_ratio1()),
+            Ds=1e-8, Dr=1.0, # setting L plus assuming the specific values don't matter as long as Ds << Dr
+        )
+        raw_results, int_params, int_ss = do_rg_run2(rsg, num_repeats, kmax, Nks;
+            extinctthr=1e-8,
+            maxresidthr=1e-8,
+            errmaxresidthr=0.1,
+            # solver stuff
+            ode_solver=TRBDF2(),
+            tol=1e-11,
+            timelimit=10 * 60,
+            # return and save interesting systems
+            return_int,
+            return_int_sss=true,
+        )
+        if !isempty(int_params)
+            fname = joinpath(int_sys_save_dir, (@sprintf "pi_%d.jld2" pi))
             try
-                save_object((@sprintf "maybe_chaotic_%d.jld2" rand(1:10000)), maybe_chaotic_systems)
+                lock(jld2_lock) do
+                    jldsave(fname;
+                        params=(; m=lm, c=lc, l=ll, si=lsi, sr=lsr, sb=lsr),
+                        int_params, int_ss
+                    )
+                end
             catch
-                @error "Failed to save maybe chaotic systems"
+                @error "Failed to save interesting systems"
             end
         end
         countmap(raw_results)
@@ -350,6 +410,7 @@ function run3(N, num_repeats=100, kmax=100, Nks=1000;
     scan_func(func, Dict{Int,Int}; m, c, l, si, sr, sb,
         progress=true,
         async_progress=60, # async progress report once every minute
+        include_i=true
     )
 end
 
@@ -396,5 +457,20 @@ function main_run3_N5()
         sb=range(0.0, 1.0, 5)[2:end],
     )
     save_object("./run3_N5.jld2", rslts)
+    rslts
+end
+
+function main_run4_N20()
+    BLAS.set_num_threads(1)
+    @time rslts = run4(20, 100, 100.0, 1000;
+        m=2 .^ range(-4, 2, 5),
+        c=2 .^ range(-2, 6, 5),
+        l=range(0.0, 1.0, 4)[1:end],
+        si=range(0.0, 1.0, 5)[2:end],
+        sr=range(0.0, 1.0, 5)[2:end],
+        sb=range(0.0, 1.0, 5)[2:end],
+        int_sys_save_dir="run4_N20_intsys/"
+    )
+    save_object("./run4_N20.jld2", rslts)
     rslts
 end

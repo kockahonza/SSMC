@@ -166,6 +166,9 @@ function make_timer_callback(limit)
 end
 export make_timer_callback
 
+timestamp() = Dates.format(Dates.now(), "yymmdd_HMS")
+export timestamp
+
 ################################################################################
 # Plotting
 ################################################################################
