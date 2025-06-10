@@ -53,6 +53,3 @@ SparseConnectivityTracer = "9f842d2f-2579-4b1d-911e-f412cf18a3f5"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
-
-[compat]
-Distributions = "0.25.119"
