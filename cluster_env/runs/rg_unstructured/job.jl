@@ -349,15 +349,21 @@ function run3(N, num_repeats=100, kmax=100, Nks=1000;
 end
 
 """
-Same as run3 but also saves systems which did have a spatial instability.
+Same as run3 but also saves systems which did have a spatial instability and
+allows setting different diffusions (not pscanned though!).
 """
 function run4(N, num_repeats=100, kmax=100, Nks=1000;
+    # pscan variables
     m=[1.0],
     c=[1.0],
     l=[0.5],
     si=[1.0],
     sr=[0.5],
     sb=[1.0],
+    # diffusions are just passed through, not scanned, can be Dirac or Normal
+    Ds=1e-8,
+    Dr=1.0,   # setting L
+    # options for saving certain params
     return_int=(2,),
     int_sys_save_dir=(@sprintf "intsys_%s" timestamp())
 )
@@ -378,7 +384,7 @@ function run4(N, num_repeats=100, kmax=100, Nks=1000;
             sparsity_byproducts=lsb,
             c=(lc, lc * sigma_to_mu_ratio1()),
             l=(ll, ll * sigma_to_mu_ratio1()),
-            Ds=1e-8, Dr=1.0, # setting L plus assuming the specific values don't matter as long as Ds << Dr
+            Ds, Dr # diffusions passed through
         )
         raw_results, int_params, int_ss = do_rg_run2(rsg, num_repeats, kmax, Nks;
             extinctthr=1e-8,
@@ -457,6 +463,23 @@ function main_run3_N5()
         sb=range(0.0, 1.0, 5)[2:end],
     )
     save_object("./run3_N5.jld2", rslts)
+    rslts
+end
+
+function main_run4_N5_lower_Ds()
+    BLAS.set_num_threads(1)
+    @time rslts = run4(5, 100, 100.0, 1000;
+        m=2 .^ range(-4, 2, 5),
+        c=2 .^ range(-2, 6, 5),
+        l=range(0.0, 1.0, 4)[1:end],
+        si=range(0.0, 1.0, 5)[2:end],
+        sr=range(0.0, 1.0, 5)[2:end],
+        sb=range(0.0, 1.0, 5)[2:end],
+        # Change diff and don't save
+        Ds=1e-12,
+        return_int=nothing,
+    )
+    save_object("./run4_N5_lowerDs.jld2", rslts)
     rslts
 end
 
