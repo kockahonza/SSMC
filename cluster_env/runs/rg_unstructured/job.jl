@@ -477,7 +477,7 @@ function main_run4_N5_lower_Ds()
         sb=range(0.0, 1.0, 5)[2:end],
         # Change diff and don't save
         Ds=1e-12,
-        return_int=nothing,
+        return_int=(c -> false),
     )
     save_object("./run4_N5_lowerDs.jld2", rslts)
     rslts
