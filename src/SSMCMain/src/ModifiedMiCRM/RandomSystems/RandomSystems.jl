@@ -102,8 +102,8 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
     return_int=nothing,
     return_int_sss=true,
     # ss solver setup
-    ode_solver=QNDF(),
-    tol=maxresidthr / 10,
+    ode_solver=TRBDF2(),
+    tol=maxresidthr / 1000,
     timelimit=nothing, # time limit for one solver run in seconds
     abstol=tol,
     reltol=tol,
