@@ -504,7 +504,7 @@ function main_run4_N20()
     rslts
 end
 
-function main_run4_N5_lDs_positive()
+function main_run4_N5_lower_Ds()
     BLAS.set_num_threads(1)
     @time rslts = run4(5, 100, 100.0, 1000;
         m=2 .^ range(-4, 2, 5),
@@ -518,6 +518,6 @@ function main_run4_N5_lDs_positive()
         return_int=(c -> false),
         guarantee_positive=true,
     )
-    save_object("./run4_N5_lDs_positive.jld2", rslts)
+    save_object("./run4_N5_lowerDs.jld2", rslts)
     rslts
 end
