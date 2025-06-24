@@ -297,3 +297,173 @@ function (rsg::RSGJans2)()
     BSMMiCRMParams(mmicrm_params, Ds)
 end
 export RSGJans2
+
+"""
+Modified version of steven's Marsland sampler
+"""
+struct Marsland2
+    Ns::Int
+    Nr::Int
+    SA::Int
+    MA::Int
+    q::Float64
+    c0::Float64
+    c1::Float64
+    muc::Float64
+    fs::Float64
+    fw::Float64
+    sparsity::Float64
+    function Marsland2(Ns, Nr;
+        SA=5, MA=5,
+        q=0.9, c0=0.0, c1=1.0,
+        muc=10, fs=0.45, fw=0.45,
+        sparsity=0.2
+    )
+        new(Ns, Nr, SA, MA, q, c0, c1, muc, fs, fw, sparsity)
+    end
+end
+function (ms::Marsland2)()
+    # let us begin by assigning the whole array c0
+    c = fill(ms.c0 / ms.Nr, (ms.Ns, ms.Nr))
+
+    # now we will calculate the block structure of the matrix
+    F = ceil(ms.Nr / ms.MA) #number of resource classes
+    T = ceil(ms.Ns / ms.SA) #number of species classes
+    S_overlap = ms.Ns % ms.SA # number of species in the last class
+    M_overlap = ms.Nr % ms.MA # number of resources in the last class
+    # we will always assume that the last species class is the "general" class 
+    # println("T: ", T, " F: ", F)
+
+    # we will sample the consumption matrix in block form
+
+    for tt in 1:T
+        for ff in 1:F
+            if tt != T
+                if ff == tt
+                    p = ms.muc / (ms.Nr * ms.c1) * (1 + ms.q * (ms.Nr - ms.MA) / ms.Nr)
+                else
+                    p = ms.muc / (ms.Nr * ms.c1) * (1 - ms.q)
+                end
+
+                # FIX: This is obviously wrong and urgently needs a fix!
+                if p > 1.0
+                    p = 1.0
+                end
+
+                if ff * ms.MA > ms.Nr
+                    # ensure that the last block is not larger than the matrix
+                    block = random_binary_matrix(ms.SA, M_overlap, p)
+                    c[Int(1 + ms.SA * (tt - 1)):Int(tt * ms.SA), Int(1 + ms.MA * (ff - 1)):Int(ms.Nr)] .= block
+                else
+                    block = random_binary_matrix(ms.SA, ms.MA, p)
+                    c[Int(1 + ms.SA * (tt - 1)):Int(tt * ms.SA), Int(1 + ms.MA * (ff - 1)):Int(ff * ms.MA)] .= block
+                end
+
+            else
+                # generalist class
+                p = ms.muc / (ms.Nr * ms.c1)
+
+                # FIX: This is obviously wrong and urgently needs a fix!
+                if p > 1.0
+                    p = 1.0
+                end
+
+                if S_overlap != 0
+                    block = random_binary_matrix(S_overlap, ms.Nr, p)
+                    c[Int(1 + ms.SA * (tt - 1)):Int(ms.Ns), :] .= block
+                else
+
+                    block = random_binary_matrix(ms.SA, ms.Nr, p)
+                    c[Int(1 + ms.SA * (tt - 1)):Int(tt * ms.SA), :] .= block
+                end
+            end
+        end
+    end
+
+
+    # Time for D_iab
+    strain_class = 0
+    D = fill(0.0, (ms.Ns, ms.Nr, ms.Nr))
+    for i in 1:ms.Ns
+        if (i - 1) % ms.SA == 0
+            strain_class += 1
+            #println("Class: ", class, " i: ", i)
+        end
+
+        resource_class = 0
+        for j in 1:ms.Nr
+            if (j - 1) % ms.MA == 0
+                resource_class += 1
+            end
+
+            #start with background levels
+            bkg = (1 - ms.fw - ms.fs) / (ms.Nr - ms.MA)
+            p = fill(bkg, ms.Nr)
+
+            if resource_class == strain_class
+                if strain_class == T
+                    if M_overlap != 0
+                        p[(ms.Nr-M_overlap):ms.Nr] .= ms.fw + ms.fs
+                    else
+                        p[(ms.Nr-ms.MA):ms.Nr] .= ms.fw + ms.fs
+                    end
+                else
+                    #the within class resource
+                    upper_limit = minimum(((strain_class - 1) * ms.MA + ms.MA, ms.Nr))
+                    p[1+(strain_class-1)*ms.MA:upper_limit] .= ms.fs
+
+                    # the waste resources
+                    if M_overlap != 0
+                        p[(ms.Nr-M_overlap):ms.Nr] .= ms.fw
+                    else
+                        p[(ms.Nr-ms.MA):ms.Nr] .= ms.fw
+                    end
+                end
+            else
+                p = fill(1.0, ms.M)
+            end
+
+
+
+            #lets sample the distribution
+            vec = rand(Dirichlet(p))
+            D[i, :, j] = vec
+
+        end
+    end
+
+
+    # constant dilution rate
+    r = fill(rand(), ms.M)
+
+    # universal death rate
+    m = fill(rand(), ms.Ns)
+
+    # for simplicity, lets start with a single fed resource
+    # chemostat feed rate 
+    #K = fill(0.,ms.M)
+    #K[1] = 1.
+
+    # lets allow resources some variability
+    #K_dist = truncated(Normal(0.5,0.1), 0.0, 1.0)
+    K_dist = Beta(0.1, 0.3)
+    K = rand(K_dist, ms.M)
+
+
+    # leakage now. Lets assume its a pretty flat probability distribution
+    leak = Beta(0.2 / ms.sparsity, 0.2)
+    l = rand(leak, (ms.Ns, ms.M))
+
+
+    Ds = fill(0.0, (ms.Ns + ms.M))
+    Ds[1:ms.Ns] .= 1e-5
+    Ds[1+ms.Ns] = 100
+    Ds[ms.Ns+2:ms.Ns+ms.M] .= 10
+
+    g = fill(1.0, ms.Ns)
+    w = fill(1.0, ms.M)
+
+    p = BMMiCRMParams(g, w, m, K, r, l, c, D, nothing)
+    BSMMiCRMParams(p, Ds)
+end
+export Marsland2

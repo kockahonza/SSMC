@@ -278,7 +278,7 @@ function plot_many_dimdata_heatmap_int(data, xvar, yvar;
         row = div(i - 1, ncols) + 1 + 1
         col = (mod(i - 1, ncols) + 1) * 2 - 1
         ax = Axis(fig[row, col])
-        ax.title = data[i].name
+        ax.title = String(data[i].name)
         ax.xlabel = string(xvar)
         ax.ylabel = string(yvar)
         push!(axs, ax)

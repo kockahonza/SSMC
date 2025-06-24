@@ -6,6 +6,7 @@ using Reexport
 using StatsBase
 using Distributions
 using OhMyThreads
+using HypothesisTests
 
 
 ################################################################################
@@ -102,8 +103,8 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
     return_int=nothing,
     return_int_sss=true,
     # ss solver setup
-    ode_solver=QNDF(),
-    tol=maxresidthr / 10,
+    ode_solver=TRBDF2(),
+    tol=maxresidthr / 1000,
     timelimit=nothing, # time limit for one solver run in seconds
     abstol=tol,
     reltol=tol,
@@ -288,6 +289,30 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
     end
 end
 export example_do_rg_run2
+
+################################################################################
+# Other util bits
+################################################################################
+function instability_stats(cm;
+    unstable_codes=[2],
+    other_good_codes=[101, 1],
+    return_confint_only=true
+)
+    unstable_runs = sum(c -> get(cm, c, 0), unstable_codes)
+    other_good_runs = sum(c -> get(cm, c, 0), other_good_codes)
+
+    bt = BinomialTest(unstable_runs, unstable_runs + other_good_runs)
+
+    if return_confint_only
+        (bt.x / bt.n), confint(bt; method=:wilson)
+    else
+        bt
+    end
+end
+function instability_stats(rslt_codes::Vector; kwargs...)
+    instability_stats(countmap(rslt_codes); kwargs...)
+end
+export instability_stats
 
 ################################################################################
 # Debugging variants

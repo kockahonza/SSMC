@@ -29,6 +29,7 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
     abstol=tol,
     reltol=tol,
     maxiters=100000,
+    guarantee_positive=false,
     # passed to make_mmicrm_ss_problem
     kwargs...
 )
@@ -52,6 +53,9 @@ function do_rg_run2(rg, num_repeats, kmax, Nks;
     solver_kwargs = (; maxiters, abstol, reltol)
     if !isnothing(timelimit)
         solver_kwargs = (; solver_kwargs..., callback=make_timer_callback(timelimit))
+    end
+    if guarantee_positive
+        solver_kwargs = (; solver_kwargs..., isoutofdomain=(u, _, _) -> minimum(u) < -eps())
     end
 
     # setup ks for linstab analysis
@@ -365,7 +369,8 @@ function run4(N, num_repeats=100, kmax=100, Nks=1000;
     Dr=1.0,   # setting L
     # options for saving certain params
     return_int=(2,),
-    int_sys_save_dir=(@sprintf "intsys_%s" timestamp())
+    int_sys_save_dir=(@sprintf "intsys_%s" timestamp()),
+    kwargs...
 )
     jld2_lock = ReentrantLock()
 
@@ -397,6 +402,7 @@ function run4(N, num_repeats=100, kmax=100, Nks=1000;
             # return and save interesting systems
             return_int,
             return_int_sss=true,
+            kwargs...
         )
         if !isempty(int_params)
             fname = joinpath(int_sys_save_dir, (@sprintf "pi_%d.jld2" pi))
@@ -477,7 +483,7 @@ function main_run4_N5_lower_Ds()
         sb=range(0.0, 1.0, 5)[2:end],
         # Change diff and don't save
         Ds=1e-12,
-        return_int=nothing,
+        return_int=(c -> false),
     )
     save_object("./run4_N5_lowerDs.jld2", rslts)
     rslts
@@ -495,5 +501,23 @@ function main_run4_N20()
         int_sys_save_dir="run4_N20_intsys/"
     )
     save_object("./run4_N20.jld2", rslts)
+    rslts
+end
+
+function main_run4_N5_lDs_positive()
+    BLAS.set_num_threads(1)
+    @time rslts = run4(5, 100, 100.0, 1000;
+        m=2 .^ range(-4, 2, 5),
+        c=2 .^ range(-2, 6, 5),
+        l=range(0.0, 1.0, 4)[1:end],
+        si=range(0.0, 1.0, 5)[2:end],
+        sr=range(0.0, 1.0, 5)[2:end],
+        sb=range(0.0, 1.0, 5)[2:end],
+        # Change diff and don't save
+        Ds=1e-12,
+        return_int=(c -> false),
+        guarantee_positive=true,
+    )
+    save_object("./run4_N5_lDs_positive.jld2", rslts)
     rslts
 end
