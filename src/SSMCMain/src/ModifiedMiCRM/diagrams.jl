@@ -45,7 +45,7 @@ function diagram_sfss_v3(p::AbstractMMiCRMParams, ss=nothing;
             push!(strain_E_vals, val)
             # include resource that this strain uses
             for a in 1:Nr
-                if C[a, i] > edge_threshold
+                if !iszero(C[a, i]) && (C[a, i] > edge_threshold)
                     if !(a in resources_to_include)
                         push!(resources_to_include, a)
                     end
@@ -78,7 +78,7 @@ function diagram_sfss_v3(p::AbstractMMiCRMParams, ss=nothing;
     for i in strains_to_include
         for a in resources_to_include
             res_to_strain = C[a, i]
-            if res_to_strain > edge_threshold
+            if !iszero(res_to_strain) && (res_to_strain > edge_threshold)
                 push!(edges, (
                     node_names[Ns+a], node_names[i], res_to_strain
                 ))
@@ -87,7 +87,7 @@ function diagram_sfss_v3(p::AbstractMMiCRMParams, ss=nothing;
             for b in 1:Nr
                 strain_to_res += p.D[i, a, b] * p.l[i, b] * ss[i] * p.c[i, b] * ss[Ns+b] * p.w[b]
             end
-            if strain_to_res > edge_threshold
+            if !iszero(strain_to_res) && (strain_to_res > edge_threshold)
                 push!(edges, (
                     node_names[i], node_names[Ns+a], strain_to_res
                 ))
@@ -97,7 +97,7 @@ function diagram_sfss_v3(p::AbstractMMiCRMParams, ss=nothing;
     # add chemostat edges
     for a in resources_to_include
         val = p.K[a] * p.w[a]
-        if val > edge_threshold
+        if !iszero(val) && (val > edge_threshold)
             push!(edges, (
                 "chemostat", node_names[Ns+a], val
             ))
