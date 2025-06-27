@@ -53,3 +53,21 @@ function resample_cartesian_u(u, space::CartesianSpace, Ns...)
     ru, new_space
 end
 export resample_cartesian_u
+
+function clamp_ss!(ss, val=eps())
+    for i in eachindex(ss)
+        x = ss[i]
+        if x < 0.0
+            ss[i] = val
+            if x < -100 * eps()
+                @warn (@sprintf "clamping %g to 0 which is more than %g" x 100 * eps())
+            end
+        end
+    end
+    ss
+end
+function clamp_ss(ss, args...)
+    ss = copy(ss)
+    clamp_ss!(ss, args...)
+end
+export clamp_ss!, clamp_ss

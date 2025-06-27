@@ -234,6 +234,8 @@ include("plotting.jl")
 include("physics.jl")
 include("dimensional_analysis.jl")
 
+include("GraphAnalysis.jl")
+
 include("util.jl")
 include("diagrams.jl")
 
