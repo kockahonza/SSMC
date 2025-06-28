@@ -28,7 +28,7 @@ export FGNodeType, GNodeType, Source, Sink, R, S, M
 
 function make_eflowgraph_simple(ps, ss;
     clamp_zero=false,
-    default_weight=Inf
+    default_weight=0
 )
     Ns, Nr = get_Ns(ps)
 
