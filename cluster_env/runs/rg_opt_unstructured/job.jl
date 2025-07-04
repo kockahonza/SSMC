@@ -319,7 +319,8 @@ function main_fu0_N10(num_opts=10)
     sols = []
     trajectories = []
 
-    tempname = "temp_" * randname()
+    tempdirname = "temp_" * randname()
+    mkdir(tempdirname)
 
     for i in 1:num_opts
         u0 = u0_1
@@ -334,7 +335,7 @@ function main_fu0_N10(num_opts=10)
         push!(sols, s)
         push!(trajectories, t)
 
-        tempfname = tempname * "_$(i).jld2"
+        tempfname = tempdirname * "/$i.jld2"
         jldsave(tempfname; u0=u0, s=s, t=t)
     end
 
