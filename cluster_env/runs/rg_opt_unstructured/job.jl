@@ -4,6 +4,7 @@ using LinearAlgebra
 using Random
 using Base.Iterators
 using Base.Threads
+using Logging
 
 using OhMyThreads
 using Distributions
