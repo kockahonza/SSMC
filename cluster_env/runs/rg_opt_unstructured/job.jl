@@ -299,6 +299,7 @@ function do_opt(u0;
         false
     end
 
+    GC.gc()
     @time s = solve(oop, solver;
         maxtime,
         callback=cb
