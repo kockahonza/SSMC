@@ -2,7 +2,7 @@
 
 julia_version = "1.10.9"
 manifest_format = "2.0"
-project_hash = "60ea9a28d3f5b5ed7416e0a974956b436d00f586"
+project_hash = "d74589f0a61c2c99254fd3f9f185da02515a30dd"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -242,6 +242,16 @@ git-tree-sha1 = "f21cfd4950cb9f0587d5067e69405ad2acd27b87"
 uuid = "62783981-4cbd-42fc-bca8-16325de8dc4b"
 version = "0.1.6"
 
+[[deps.BlackBoxOptim]]
+deps = ["CPUTime", "Compat", "Distributed", "Distributions", "JSON", "LinearAlgebra", "Printf", "Random", "Requires", "SpatialIndexing", "StatsBase"]
+git-tree-sha1 = "9c203a2515b5eeab8f2987614d2b1db83ef03542"
+uuid = "a134a8b2-14d6-55f6-9291-3336d3ab0209"
+version = "0.6.3"
+weakdeps = ["HTTP", "Sockets"]
+
+    [deps.BlackBoxOptim.extensions]
+    BlackBoxOptimRealtimePlotServerExt = ["HTTP", "Sockets"]
+
 [[deps.Bonito]]
 deps = ["Base64", "CodecZlib", "Colors", "Dates", "Deno_jll", "HTTP", "Hyperscript", "LinearAlgebra", "Markdown", "MsgPack", "Observables", "RelocatableFolders", "SHA", "Sockets", "Tables", "ThreadPools", "URIs", "UUIDs", "WidgetsBase"]
 git-tree-sha1 = "548dd16e479145c8ba8f8545b854ccc898a43ff6"
@@ -323,6 +333,11 @@ deps = ["CpuId", "IfElse", "PrecompileTools", "Static"]
 git-tree-sha1 = "5a97e67919535d6841172016c9530fd69494e5ec"
 uuid = "2a0fbf3d-bb9c-48f3-b0a9-814d99fd7ab9"
 version = "0.2.6"
+
+[[deps.CPUTime]]
+git-tree-sha1 = "2dcc50ea6a0a1ef6440d6eecd0fe3813e5671f45"
+uuid = "a9c8d775-2e2e-55fc-8582-045d282d599e"
+version = "1.0.0"
 
 [[deps.CRC32c]]
 uuid = "8bf52ea8-c179-5cab-976a-9e18b702a9bc"
@@ -1944,6 +1959,18 @@ git-tree-sha1 = "019f12e9a1a7880459d0173c182e6a99365d7ac1"
 uuid = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
 version = "4.5.1"
 
+[[deps.NOMAD]]
+deps = ["NOMAD_jll", "Test"]
+git-tree-sha1 = "19d993076e9877d3943606feb8fd376b74919ac1"
+uuid = "02130f1c-4665-5b79-af82-ff1385104aa0"
+version = "2.0.0"
+
+[[deps.NOMAD_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "57457dc9480330148a9390880e6741d553c58064"
+uuid = "2fc7fd02-576c-576e-a36a-6afce71715da"
+version = "4.3.1+0"
+
 [[deps.NaNMath]]
 deps = ["OpenLibm_jll"]
 git-tree-sha1 = "9b8215b1ee9e78a293f99797cd31375471b2bcae"
@@ -2155,6 +2182,12 @@ git-tree-sha1 = "89002c7a2f776c47b693d95acbf8f5c098f4ff8a"
 uuid = "7f7a1694-90dd-40f0-9382-eb1efda571ba"
 version = "4.3.0"
 
+[[deps.OptimizationBBO]]
+deps = ["BlackBoxOptim", "Optimization", "Reexport"]
+git-tree-sha1 = "4bf2807645a2ad0964e058f9ff971471136f09cd"
+uuid = "3e6eede4-6085-4f62-9a71-46d9bc1eb92b"
+version = "0.4.1"
+
 [[deps.OptimizationBase]]
 deps = ["ADTypes", "ArrayInterface", "DifferentiationInterface", "DocStringExtensions", "FastClosures", "LinearAlgebra", "PDMats", "Reexport", "Requires", "SciMLBase", "SparseArrays", "SparseConnectivityTracer", "SparseMatrixColorings"]
 git-tree-sha1 = "d42ca664e1fd78cdbe4186d4773d4fa51e1a0e78"
@@ -2183,11 +2216,23 @@ version = "2.8.0"
     SymbolicAnalysis = "4297ee4d-0239-47d8-ba5d-195ecdf594fe"
     Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
+[[deps.OptimizationNOMAD]]
+deps = ["NOMAD", "Optimization", "Reexport"]
+git-tree-sha1 = "9f46b656e3627c497803a487136e9b97099bf8cb"
+uuid = "2cab0595-8222-4775-b714-9828e6a9e01b"
+version = "0.3.0"
+
 [[deps.OptimizationOptimJL]]
 deps = ["Optim", "Optimization", "PrecompileTools", "Reexport", "SparseArrays"]
 git-tree-sha1 = "6f228118b81ce4e849091ee0d00805f2ecb18f54"
 uuid = "36348300-93cb-4f02-beb5-3c3902f8871e"
 version = "0.4.3"
+
+[[deps.OptimizationPRIMA]]
+deps = ["Optimization", "PRIMA", "Reexport"]
+git-tree-sha1 = "f11194dfd6c09d6af41bc06e40c2d972774c7050"
+uuid = "72f8369c-a2ea-4298-9126-56167ce9cbc2"
+version = "0.3.0"
 
 [[deps.Opus_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -2406,6 +2451,26 @@ deps = ["Base64", "CEnum", "ImageCore", "IndirectArrays", "OffsetArrays", "libpn
 git-tree-sha1 = "cf181f0b1e6a18dfeb0ee8acc4a9d1672499626c"
 uuid = "f57f5aa1-a3ce-4bc8-8ab9-96f992907883"
 version = "0.4.4"
+
+[[deps.PRIMA]]
+deps = ["LinearAlgebra", "PRIMA_jll", "Requires", "TypeUtils"]
+git-tree-sha1 = "03d4f105d61b0c73eeeb1ebc5a5b8faf56c794e2"
+uuid = "0a7d04aa-8ac2-47b3-b7a7-9dbd6ad661ed"
+version = "0.2.3"
+
+    [deps.PRIMA.extensions]
+    PRIMACUTEstExt = "CUTEst"
+    PRIMANLPModelsExt = "NLPModels"
+
+    [deps.PRIMA.weakdeps]
+    CUTEst = "1b53aba6-35b6-5f92-a507-53c67d53f819"
+    NLPModels = "a4795742-8479-5a88-8948-cc11e1c8c1a6"
+
+[[deps.PRIMA_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "f7bbf8d5dda12f3f417b350baf82ebf0d190a623"
+uuid = "eead6e0c-2d5b-5641-a95c-b722de96d551"
+version = "0.7.1+0"
 
 [[deps.PackageExtensionCompat]]
 git-tree-sha1 = "fb28e33b8a95c4cee25ce296c817d89cc2e53518"
@@ -2990,6 +3055,11 @@ version = "0.4.20"
     CliqueTrees = "60701a23-6482-424a-84db-faee86b9b1f8"
     Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
 
+[[deps.SpatialIndexing]]
+git-tree-sha1 = "84efe17c77e1f2156a7a0d8a7c163c1e1c7bdaed"
+uuid = "d4ead438-fe20-5cc5-a293-4fd39a41b74c"
+version = "0.1.6"
+
 [[deps.SpecialFunctions]]
 deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
 git-tree-sha1 = "41852b8679f78c8d8961eeadc8f62cef861a52e3"
@@ -3291,6 +3361,17 @@ deps = ["InteractiveUtils", "MacroTools", "Preferences"]
 git-tree-sha1 = "ea3e54c2bdde39062abf5a9758a23735558705e1"
 uuid = "781d530d-4396-4725-bb49-402e4bee1e77"
 version = "1.4.0"
+
+[[deps.TypeUtils]]
+deps = ["LinearAlgebra", "Requires"]
+git-tree-sha1 = "edf03d96a735fd0e7a69221b7843f07947420d18"
+uuid = "c3b1956e-8857-4d84-9b79-890df85b1e67"
+version = "1.9.0"
+weakdeps = ["OffsetArrays", "Unitful"]
+
+    [deps.TypeUtils.extensions]
+    TypeUtilsOffsetArraysExt = "OffsetArrays"
+    TypeUtilsUnitfulExt = "Unitful"
 
 [[deps.TypedSyntax]]
 deps = ["CodeTracking", "JuliaSyntax"]
