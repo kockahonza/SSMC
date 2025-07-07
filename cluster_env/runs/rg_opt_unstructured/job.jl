@@ -228,8 +228,17 @@ function do_run1(lm, lc, ll, lsi, lsr, lsb;
     disable_log=true,
     min_good_data_ratio=0.9,
     bad_data_val=-1.0,
+    warn_invalid_params=true,
     kwargs...
 )
+    if any(p -> !isfinite(p) || (p < 0.0), (lm, lc, ll, lsi, lsr, lsb)) ||
+       any(p -> p > 1.0, (ll, lsi, lsr, lsb))
+        if warn_invalid_params
+            @warn "getting invalid params - $((lm, lc, ll, lsi, lsr, lsb))"
+        end
+        return bad_data_val
+    end
+
     total_influx = 1.0 * N # setting E (or E/V)
     Kmean = total_influx / (lsi * N)
     K = (Kmean, Kmean * sigma_to_mu_ratio1())
@@ -265,8 +274,8 @@ function do_run1(lm, lc, ll, lsi, lsr, lsb;
 
     num2s = get(cm, 2, 0)
     good_runs = num2s + get(cm, 1, 0) + get(cm, 101, 0)
-
     good_ratio = good_runs / length(raw_results)
+
     if good_ratio < min_good_data_ratio
         @warn "Getting less than $(min_good_data_ratio*100)% good runs!! cm is $cm"
         bad_data_val
@@ -280,10 +289,11 @@ function do_opt(u0;
     maxtime=300,
     kwargs...
 )
+    maxreal = 100
     opf = OptimizationFunction((u, p) -> -do_run1(u...; kwargs...))
     oop = OptimizationProblem(opf, u0;
         lb=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        ub=[Inf, Inf, 1.0, 1.0, 1.0, 1.0],
+        ub=[maxreal, maxreal, 1.0, 1.0, 1.0, 1.0],
     )
 
     traj_u = []
@@ -307,6 +317,23 @@ function do_opt(u0;
     )
 
     s, (traj_u, traj_o)
+end
+
+function do_opt_multistep(nsteps, u0; kwargs...)
+    u0 = u0
+
+    ss = []
+    traj_u = []
+    traj_o = []
+    for i in 1:nsteps
+        s, t = do_opt(u0; kwargs...)
+        push!(ss, s)
+        append!(traj_u, t[1])
+        append!(traj_o, t[2])
+        u0 = s.u
+    end
+
+    ss, (traj_u, traj_o)
 end
 
 ################################################################################
@@ -341,4 +368,46 @@ function main_fu0_N10(num_opts=10)
     end
 
     jldsave("./fu0_N10.jld2"; sols, trajectories)
+end
+
+function main_ms_N10(num_starts=5, num_steps=5)
+    BLAS.set_num_threads(1)
+
+    starts = []
+    final_os = []
+    final_us = []
+    sols = []
+    trajectories = []
+
+    tempdirname = "temp_" * randname()
+    mkdir(tempdirname)
+
+    for i in 1:num_starts
+        u0 = [
+            10 * rand(),
+            10 * rand(),
+            rand(),
+            rand(),
+            rand(),
+            rand(),
+        ]
+        push!(starts, u0)
+        @printf "Starting run %d\n" i
+        flush(stdout)
+        ss, t = do_opt_multistep(num_steps, u0;
+            solver=OptimizationBBO.BBO_separable_nes(),
+            maxtime=60 * 60,
+            timelimit=60,
+            num_repeats=1000,
+        )
+        push!(sols, ss)
+        push!(trajectories, t)
+        push!(final_os, ss[end].objective)
+        push!(final_us, ss[end].u)
+
+        tempfname = tempdirname * "/$i.jld2"
+        jldsave(tempfname; u0=u0, ss=ss, t=t)
+    end
+
+    jldsave("./ms_N10.jld2"; starts, final_os, final_us, sols, trajectories)
 end
