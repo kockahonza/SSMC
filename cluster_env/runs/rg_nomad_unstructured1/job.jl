@@ -354,3 +354,43 @@ function main_N10_comprehensive1(;
 
     jldsave("./N10_c1.jld2"; sols, trajectories)
 end
+
+function main_N20_comprehensive1(;
+    num_starts=10,
+    N=20,
+    maxtime=60 * 60 * 4,
+    num_repeats=1000,
+    timelimit=5,
+)
+    BLAS.set_num_threads(1)
+
+    u0s = []
+    sols = []
+    trajectories = []
+
+    tempdirname = "temp_" * randname()
+    mkdir(tempdirname)
+
+    maxval = 10.0
+    for i in 1:num_starts
+        u0 = [maxval * rand(), maxval * rand(), rand(), rand(), rand(), rand()]
+
+        @printf "Starting run %d\n" i
+        flush(stdout)
+        s, t = do_opt(u0;
+            maxtime,
+            num_repeats,
+            timelimit,
+        )
+
+        tempfname = tempdirname * "/$i.jld2"
+        jldsave(tempfname; u0=u0, s=s, t=t)
+        push!(u0s, u0)
+        push!(sols, s)
+        push!(trajectories, t)
+
+        @printf "Finished run %d %s -> %s\n" i string(u0) string(s.x_best_feas)
+    end
+
+    jldsave("./N10_c1.jld2"; sols, trajectories)
+end
