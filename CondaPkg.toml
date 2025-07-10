@@ -1,3 +1,6 @@
 [deps]
 numpy = ""
 scikit-optimize = ""
+
+[pip.deps]
+noisyopt = ""

@@ -287,14 +287,22 @@ end
 function do_opt(u0;
     solver=OptimizationBBO.BBO_generating_set_search(),
     maxtime=300,
+    opt_bounds=true,
     kwargs...
 )
-    maxreal = 100
-    opf = OptimizationFunction((u, p) -> -do_run1(u...; kwargs...))
-    oop = OptimizationProblem(opf, u0;
-        lb=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        ub=[maxreal, maxreal, 1.0, 1.0, 1.0, 1.0],
-    )
+    pkwargs = (;)
+    rkwargs = (; warn_invalid_params=false)
+    if opt_bounds
+        maxreal = 100
+        pkwargs = (;
+            lb=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            ub=[maxreal, maxreal, 1.0, 1.0, 1.0, 1.0],
+        )
+        rkwargs = (; warn_invalid_params=true)
+    end
+
+    opf = OptimizationFunction((u, p) -> -do_run1(u...; rkwargs..., kwargs...))
+    oop = OptimizationProblem(opf, u0; pkwargs...)
 
     traj_u = []
     traj_o = []
@@ -326,6 +334,7 @@ function do_opt_multistep(nsteps, u0; kwargs...)
     traj_u = []
     traj_o = []
     for i in 1:nsteps
+        @show u0
         s, t = do_opt(u0; kwargs...)
         push!(ss, s)
         append!(traj_u, t[1])
