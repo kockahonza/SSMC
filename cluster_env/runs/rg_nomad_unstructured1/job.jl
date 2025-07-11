@@ -278,7 +278,7 @@ function do_opt(u0;
     bad_data_val=nothing,
     kwargs... # notably N, num_repeats and timelimit
 )
-    traj = Tuple{Vector{Float64},Float64}[]
+    traj = []
     tl = ReentrantLock()
 
     function nomad_func(u)
