@@ -226,6 +226,7 @@ function do_run1(lm, lc, ll, lsi, lsr, lsb;
     timelimit=10.0,
     disable_log=true,
     min_good_data_ratio=0.9,
+    bad_data_val=-1.0,
     kwargs...
 )
     total_influx = 1.0 * N # setting E (or E/V)
@@ -267,39 +268,35 @@ function do_run1(lm, lc, ll, lsi, lsr, lsb;
 
     if good_ratio < min_good_data_ratio
         @warn "Getting less than $(min_good_data_ratio*100)% good runs!! cm is $cm"
-        nothing
+        bad_data_val, cm
     else
-        num2s / good_runs
+        num2s / good_runs, cm
     end
 end
 
 function do_opt(u0;
     maxtime=300, # in seconds
-    bad_data_val=nothing,
+    granularity=0.0,
     kwargs... # notably N, num_repeats and timelimit
 )
     traj = []
     tl = ReentrantLock()
 
     function nomad_func(u)
-        rslt = do_run1(u...; kwargs...)
+        rslt, cm = do_run1(u...; kwargs...)
 
         lock(tl) do
-            push!(traj, (copy(u), rslt))
+            push!(traj, (copy(u), rslt, cm))
         end
 
-        valid = !isnothing(rslt)
-        if isnothing(bad_data_val)
-            (valid, valid, -rslt) # - as we want to maximize not minimize
-        else
-            (true, true, -bad_data_val) # pretend things went well
-        end
+        (true, true, -rslt) # - as we want to maximize not minimize
     end
 
     maxval = Inf
     np = NOMAD.NomadProblem(6, 1, ["OBJ"], nomad_func;
         lower_bound=fill(0.0, 6),
         upper_bound=[maxval, maxval, 1.0, 1.0, 1.0, 1.0],
+        granularity=fill(granularity, 6)
     )
     np.options.max_time = maxtime
     np.options.display_all_eval = true
@@ -393,4 +390,141 @@ function main_N20_comprehensive1(;
     end
 
     jldsave("./N10_c1.jld2"; sols, trajectories)
+end
+
+################################################################################
+# Plotting
+################################################################################
+function plot_trajectory(traj;
+    pnames=nothing,
+    add_colorbar=true,
+    vs_coloring=:time,
+    kwargs...
+)
+    prep = prep_traj_plot(length(traj[1][1]), pnames)
+    faa = plot_trajectory!(prep, traj; vs_coloring, kwargs...)
+
+    if add_colorbar
+        Colorbar(faa.figure[:, prep.num_ps+1], faa.obj.vs_plots[2, 1];
+            label="vs plots - " * string(vs_coloring)
+        )
+    end
+
+    faa
+end
+
+function plot_all_trajectories_obj(ts;
+    kwargs...
+)
+    fake_t = reduce(vcat, ts)
+    plot_trajectory(fake_t; vs_coloring=:obj, kwargs...)
+end
+
+function plot_trajectory!(prep, traj;
+    vs_coloring=:time,
+    vs_kwargs=(;),
+    single_y=:obj,
+    single_coloring=nothing,
+    single_kwargs=(;),
+)
+    vs_plots = Dict{Tuple{Int,Int},Any}()
+    for i in 1:prep.num_ps
+        for j in 1:(i-1)
+            ax = prep.vs_axs[(i, j)]
+
+            xs = []
+            ys = []
+
+            for (u, o) in traj
+                push!(xs, u[j])
+                push!(ys, u[i])
+            end
+
+            cs = if vs_coloring == :time
+                1:length(traj)
+            elseif vs_coloring == :obj
+                getindex.(traj, 2)
+            end
+
+            sc = scatter!(ax, xs, ys; color=cs, vs_kwargs...)
+            vs_plots[(i, j)] = sc
+        end
+    end
+
+    single_plots = []
+    for i in 1:prep.num_ps
+        ax = prep.single_axs[i]
+
+        xs = getindex.(getindex.(traj, 1), i)
+        if single_y == :time
+            ys = 1:length(traj)
+            ylabel = "time"
+        elseif single_y == :obj
+            ys = getindex.(traj, 2)
+            ylabel = "objective"
+        end
+
+        sc_kwargs = Dict()
+        if single_coloring == :time
+            sc_kwargs[:color] = 1:length(traj)
+            clabel = "time"
+        elseif single_coloring == :obj
+            sc_kwargs[:color] = getindex.(traj, 2)
+            clabel = "objective"
+        elseif isnothing(single_coloring)
+            clabel = nothing
+        end
+
+        sc = scatter!(ax, xs, ys; sc_kwargs...)
+        push!(single_plots, sc)
+
+        ax.ylabel = ylabel
+        if !isnothing(clabel)
+            ax.title = ax.title[] * ", color ~ " * clabel
+        end
+    end
+
+    FigureAxisAnything(prep.fig, (; prep.single_axs, prep.vs_axs), (; vs_plots))
+end
+
+function prep_traj_plot(num_ps, pnames=nothing)
+    if isnothing(pnames)
+        pnames = ["p$i" for i in 1:num_ps]
+    end
+
+    # setup axes
+    fig = Figure(size=(1000, 1000))
+
+    single_axs = []
+    for i in 1:num_ps
+        push!(single_axs, Axis(fig[i, i]; title=pnames[i]))
+    end
+
+    vs_axs = Dict{Tuple{Int,Int},Any}()
+    for i in 1:num_ps
+        for j in 1:(i-1)
+            ax = vs_axs[(i, j)] = Axis(
+                fig[i, j];
+                # title=string((i, j))
+            )
+            linkxaxes!(ax, single_axs[j])
+        end
+    end
+    for i in 1:num_ps
+        for j in 1:(i-1)
+            linkyaxes!(vs_axs[(i, j)], vs_axs[(i, 1)])
+        end
+    end
+
+    # axis labels
+    # single_axs[1].ylabel = pnames[1]
+    # single_axs[end].xlabel = pnames[end]
+    for i in 2:num_ps
+        vs_axs[(i, 1)].ylabel = pnames[i]
+    end
+    for i in 1:(num_ps-1)
+        vs_axs[(num_ps, i)].xlabel = pnames[i]
+    end
+
+    (; fig, single_axs, vs_axs, pnames, num_ps)
 end
