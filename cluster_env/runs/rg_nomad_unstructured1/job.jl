@@ -314,8 +314,10 @@ end
 u0_1 = [0.9, 2.0, 1.0, 0.2, 0.5, 0.2]
 
 function main_N10_comprehensive1(;
+    N=10,
     num_starts=10,
-    maxtime=60 * 60 * 2,
+    prescreen=20,
+    maxtime=60 * 60 * 1,
     num_repeats=1000,
     timelimit=5,
 )
@@ -324,25 +326,45 @@ function main_N10_comprehensive1(;
     u0s = []
     sols = []
     trajectories = []
+    pre_ts = []
 
-    tempdirname = "temp_" * randname()
+    tempdirname = "temp_N$(N)_" * randname()
     @printf "Using tempdir %s\n" string(tempdirname)
     mkdir(tempdirname)
 
     maxval = 10.0
     for i in 1:num_starts
-        u0 = [maxval * rand(), maxval * rand(), rand(), rand(), rand(), rand()]
+        pre_t = []
+        if !isnothing(prescreen)
+            found_u0 = false
+            for _ in 1:10
+                u0 = [maxval * rand(), maxval * rand(), rand(), rand(), rand(), rand()]
+                rslt, cm = do_run1(u0...; N, num_repeats, timelimit)
+                push!(pre_t, (copy(u0), rslt, cm))
+                if rslt > 0.0
+                    found_u0 = true
+                    break
+                end
+            end
+            if !found_u0
+                @warn "Could not find a satisfactory u0 during prescreening"
+            end
+        else
+            u0 = [maxval * rand(), maxval * rand(), rand(), rand(), rand(), rand()]
+        end
+        push!(pre_ts, pre_t)
 
         @printf "Starting run %d\n" i
         flush(stdout)
         s, t = do_opt(u0;
+            N,
             maxtime,
             num_repeats,
             timelimit,
         )
 
         tempfname = tempdirname * "/$i.jld2"
-        jldsave(tempfname; u0=u0, s=s, t=t)
+        jldsave(tempfname; u0=u0, s=s, t=t, pre_t)
         push!(u0s, u0)
         push!(sols, s)
         push!(trajectories, t)
@@ -350,47 +372,13 @@ function main_N10_comprehensive1(;
         @printf "Finished run %d %s -> %s\n" i string(u0) string(s.x_best_feas)
     end
 
-    jldsave("./N10_c1.jld2"; sols, trajectories)
+    jldsave("./N$(N)_c1.jld2"; u0s, sols, trajectories, pre_ts)
 end
 
 function main_N20_comprehensive1(;
-    num_starts=10,
-    N=20,
-    maxtime=60 * 60 * 4,
-    num_repeats=1000,
-    timelimit=5,
+    kwargs...
 )
-    BLAS.set_num_threads(1)
-
-    u0s = []
-    sols = []
-    trajectories = []
-
-    tempdirname = "temp_" * randname()
-    mkdir(tempdirname)
-
-    maxval = 10.0
-    for i in 1:num_starts
-        u0 = [maxval * rand(), maxval * rand(), rand(), rand(), rand(), rand()]
-
-        @printf "Starting run %d\n" i
-        flush(stdout)
-        s, t = do_opt(u0;
-            maxtime,
-            num_repeats,
-            timelimit,
-        )
-
-        tempfname = tempdirname * "/$i.jld2"
-        jldsave(tempfname; u0=u0, s=s, t=t)
-        push!(u0s, u0)
-        push!(sols, s)
-        push!(trajectories, t)
-
-        @printf "Finished run %d %s -> %s\n" i string(u0) string(s.x_best_feas)
-    end
-
-    jldsave("./N10_c1.jld2"; sols, trajectories)
+    main_N10_comprehensive1(; N=20, timelimit=10, kwargs...)
 end
 
 ################################################################################
