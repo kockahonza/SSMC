@@ -326,6 +326,7 @@ function main_N10_comprehensive1(;
     trajectories = []
 
     tempdirname = "temp_" * randname()
+    @printf "Using tempdir %s\n" string(tempdirname)
     mkdir(tempdirname)
 
     maxval = 10.0
