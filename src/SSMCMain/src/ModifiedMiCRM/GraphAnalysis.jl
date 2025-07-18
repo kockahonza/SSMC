@@ -28,7 +28,7 @@ export FGNodeType, GNodeType, Source, Sink, R, S, M
 
 function make_eflowgraph_simple(ps, ss;
     clamp_zero=false,
-    default_weight=Inf
+    default_weight=0.
 )
     Ns, Nr = get_Ns(ps)
 
@@ -117,6 +117,100 @@ function make_eflowgraph_simple(ps, ss;
     mg
 end
 export make_eflowgraph_simple
+
+function make_eflowgraph_KS(ps, ss;
+    clamp_zero=false,
+    default_weight=0.
+)
+    Ns, Nr = get_Ns(ps)
+
+    if clamp_zero
+        ss = clamp_ss(ss)
+    end
+
+    mg = MetaGraph(
+        DiGraph();
+        label_type=FGNodeType,
+        vertex_data_type=@NamedTuple{name::String, val::Float64, desc::String},
+        edge_data_type=Float64,
+        graph_data=(;
+            Ns, Nr, ps, ss
+        ),
+        weight_function=identity,
+        default_weight,
+    )
+
+    # first add
+    mg[Source()] = (; name="Source", val=1.0, desc="source")
+    mg[Sink()] = (; name="Sink", val=-Inf, desc="sink")
+    for i in 1:Ns
+        mg[S(i)] = (
+            name="N_$i",
+            val=ss[i] / ps.g[i],
+            desc="strain $i"
+        )
+    end
+    for a in 1:Nr
+        mg[R(a)] = (
+            name="R_$a",
+            val=ss[Ns+a] * ps.w[a],
+            desc="resource $a"
+        )
+    end
+
+    # add edges to/from the Sink/Source
+    for a in 1:Nr
+        K = ps.K[a] * ps.w[a]
+        if !iszero(K)
+            # Note that the source value is set to 1
+            mg[Source(), R(a)] = K
+        end
+        mg[R(a), Sink()] = ps.r[a] * mg[R(a)].val
+    end
+
+    for i in 1:Ns
+        mg[S(i), Sink()] = ps.m[i] * ss[i]
+    end
+
+    # add the metabolic edges, the complex bit
+    for i in 1:Ns
+        for a in 1:Nr
+            c = ps.c[i, a]
+            
+            C = ss[i] * ps.c[i, a] * ss[Ns+a] * ps.w[a]
+            mg[R(a), S(i)] = C
+        
+            
+            l = ps.l[i, a]
+            if !iszero(l)
+                sum_of_Ds = 0.0
+                for b in 1:Nr
+                    D = ps.D[i, a, b]
+                    if !iszero(D)
+                        sum_of_Ds += D
+
+                        kk = l * D * C
+                        s = S(i)
+                        d = R(b)
+                        if haskey(mg, s, d)
+                            mg[s, d] = kk + mg[s, d]
+                        else
+                            mg[s, d] = kk
+                        end
+                    end
+                end
+                if sum_of_Ds < 1.0
+                    mg[S(i), Sink()] += l * (1 - sum_of_Ds) * C
+                end
+            end
+        end
+    end
+
+    mg
+end
+export make_eflowgraph_KS
+
+
 
 function remove_env(mg)
     nmg = copy(mg)
