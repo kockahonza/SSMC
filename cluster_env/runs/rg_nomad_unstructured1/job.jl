@@ -414,14 +414,20 @@ function plot_all_trajectories_obj2(ts;
     tfilter=nothing,
     kwargs...
 )
+    newts = []
     if !isnothing(tfilter)
         for i in 1:length(ts)
-            ts[i] = filter(tfilter, ts[i])
+            xx = filter(tfilter, ts[i])
+            if !isempty(xx)
+                push!(newts, xx)
+            end
         end
     end
+    ts = newts
+
     omin = Inf
     omax = -Inf
-    for t in ts
+    for t in newts
         for x in t
             v = x[2]
             if v > omax
