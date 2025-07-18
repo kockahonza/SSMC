@@ -1,4 +1,5 @@
 [dependencies]
+cvxpy = "*"
 openssl = ">=3, <3.6, >=3, <3.6"
 libstdcxx-ng = ">=3.4,<=15.1"
 xarray = "*"
