@@ -388,8 +388,13 @@ function plot_trajectory(traj;
     pnames=nothing,
     add_colorbar=true,
     vs_coloring=:time,
+    tfilter=nothing,
     kwargs...
 )
+    if !isnothing(tfilter)
+        traj = filter(tfilter, traj)
+    end
+
     prep = prep_traj_plot(length(traj[1][1]), pnames)
     faa = plot_trajectory!(prep, traj; vs_coloring, kwargs...)
 
@@ -401,6 +406,49 @@ function plot_trajectory(traj;
 
     faa
 end
+
+function plot_all_trajectories_obj2(ts;
+    pnames=nothing,
+    add_colorbar=true,
+    vs_coloring=:time,
+    tfilter=nothing,
+    kwargs...
+)
+    if !isnothing(tfilter)
+        for i in 1:length(ts)
+            ts[i] = filter(tfilter, ts[i])
+        end
+    end
+    omin = Inf
+    omax = -Inf
+    for t in ts
+        for x in t
+            v = x[2]
+            if v > omax
+                omax = v
+            end
+            if v < omin
+                omin = v
+            end
+        end
+    end
+
+    prep = prep_traj_plot(length(ts[1][1][1]), pnames)
+
+    faas = []
+    for t in ts
+        push!(faas, plot_trajectory!(prep, t; vs_coloring, kwargs...))
+    end
+
+    if add_colorbar
+        Colorbar(faas[1].figure[:, prep.num_ps+1], faas[1].obj.vs_plots[2, 1];
+            label="vs plots - " * string(vs_coloring)
+        )
+    end
+
+    faas[1]
+end
+
 
 function plot_all_trajectories_obj(ts;
     kwargs...
@@ -430,7 +478,7 @@ function plot_trajectory!(prep, traj;
             end
 
             cs = if vs_coloring == :time
-                1:length(traj)
+                (1:length(traj)) ./ length(traj)
             elseif vs_coloring == :obj
                 getindex.(traj, 2)
             end
@@ -446,7 +494,7 @@ function plot_trajectory!(prep, traj;
 
         xs = getindex.(getindex.(traj, 1), i)
         if single_y == :time
-            ys = 1:length(traj)
+            ys = (1:length(traj)) ./ length(traj)
             ylabel = "time"
         elseif single_y == :obj
             ys = getindex.(traj, 2)
@@ -455,7 +503,7 @@ function plot_trajectory!(prep, traj;
 
         sc_kwargs = Dict()
         if single_coloring == :time
-            sc_kwargs[:color] = 1:length(traj)
+            sc_kwargs[:color] = (1:length(traj)) ./ length(traj)
             clabel = "time"
         elseif single_coloring == :obj
             sc_kwargs[:color] = getindex.(traj, 2)
@@ -464,11 +512,11 @@ function plot_trajectory!(prep, traj;
             clabel = nothing
         end
 
-        sc = scatter!(ax, xs, ys; sc_kwargs...)
+        sc = scatter!(ax, xs, ys; sc_kwargs..., single_kwargs...)
         push!(single_plots, sc)
 
         ax.ylabel = ylabel
-        if !isnothing(clabel)
+        if !isnothing(clabel) && !occursin("color ~ ", ax.title[])
             ax.title = ax.title[] * ", color ~ " * clabel
         end
     end
@@ -482,7 +530,7 @@ function prep_traj_plot(num_ps, pnames=nothing)
     end
 
     # setup axes
-    fig = Figure(size=(1000, 1000))
+    fig = Figure(size=(2000, 2000 / 1.618))
 
     single_axs = []
     for i in 1:num_ps
