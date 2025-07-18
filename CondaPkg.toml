@@ -1,4 +1,5 @@
 [deps]
+cvxpy = ""
 numpy = ""
 scikit-optimize = ""
 
