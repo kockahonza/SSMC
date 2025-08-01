@@ -170,7 +170,6 @@ struct RSGJans2{Dm,Dr,DDs,DDr,DK,Dci,Dli,Dcb,Dlb}
     c_in::Dci
     l_in::Dli
 
-
     num_used_bp_resources::Int
     num_bp_byproducts::Int
     c_bp::Dcb
