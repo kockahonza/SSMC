@@ -17,7 +17,7 @@ struct RSGStevens1
     r
     K
     usenthreads::Union{Nothing,Int}
-    function RSGStevens1(Ns, Nr, c_richness, c_mu, l_richness, r = nothing, K=nothing, usenthreads=nothing)
+    function RSGStevens1(Ns, Nr, c_richness, c_mu, l_richness, r=nothing, K=nothing, usenthreads=nothing)
         new(Ns, Nr, c_richness, c_mu, l_richness, r, K, usenthreads)
     end
 end
@@ -140,13 +140,13 @@ function (rsg::RSGStevens1)()
     l = clamp.(l, 0.0, 1.0)
 
     # updated 200525 to use a Dirichlet distribution and one richness and one mu parameter
-    c = fill(0.,(rsg.Ns, rsg.Nr))
+    c = fill(0.0, (rsg.Ns, rsg.Nr))
 
     for i in rsg.Ns
         row = rand(Dirichlet(fill(rsg.c_richness, rsg.Nr)))
-        c[i, :] = row.* rsg.c_mu
+        c[i, :] = row .* rsg.c_mu
     end
-    
+
 
     # finally, the most complicated distribution
     D = fill(0.0, (rsg.Ns, rsg.Nr, rsg.Nr))
