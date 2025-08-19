@@ -34,3 +34,6 @@ Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 SSMCMain = "a75ad852-21c5-4a12-a12f-b1392bb0ea4b"
 SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+
+[compat]
+NOMAD = "2.4.2"
