@@ -73,7 +73,7 @@ end
 
 function main1(;
     N=10,
-    num_starts=10,
+    num_starts=5,
     num_prescreens=50,
     num_repeats=1000,
     max_nomad_time=60 * 60 * 2,
