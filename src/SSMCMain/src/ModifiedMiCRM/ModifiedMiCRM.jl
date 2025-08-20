@@ -78,7 +78,9 @@ function smmicrmfunc!(du, u, sp::AbstractSMMiCRMParams, t=0)
 end
 export AbstractSMMiCRMParams, get_Ds, get_space, smmicrmfunc!
 
-function check_mmicrmparams(p::AbstractMMiCRMParams)
+function check_mmicrmparams(p::AbstractMMiCRMParams;
+    threshold=10 * eps()
+)
     Ns, Nr = get_Ns(p)
     # check all the array sizes
     if size(p.g) != (Ns,)
@@ -113,11 +115,11 @@ function check_mmicrmparams(p::AbstractMMiCRMParams)
             for b in 1:Nr
                 total_out += p.D[i, b, a]
             end
-            if total_out > 1.0
-                @error (@sprintf "strain %d leaks more than it energetically can through consuming %d" i a)
+            if (total_out - 1.0) > threshold
+                @error (@sprintf "strain %d leaks more than it energetically can through consuming %d (total_out is %g)" i a total_out)
             end
-            if (total_out < 1.0) && (p.l[i, a] != 0)
-                @info (@sprintf "strain %d leaks less than it energetically can through consuming %d" i a)
+            if ((1.0 - total_out) > threshold) && (p.l[i, a] != 0)
+                @info (@sprintf "strain %d leaks less than it energetically can through consuming %d (total_out is %g)" i a total_out)
             end
         end
     end

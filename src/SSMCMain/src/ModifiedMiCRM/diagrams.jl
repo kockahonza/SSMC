@@ -7,7 +7,7 @@ energies and their rates.
 """
 function diagram_sfss_v3(p::AbstractMMiCRMParams, ss=nothing;
     strain_threshold=-Inf,
-    colorscale=log10,
+    colorscale=identity,
     node_colormap=colorschemes[:viridis],
     node_colorrange=nothing,
     node_colorscale=colorscale,
@@ -15,7 +15,8 @@ function diagram_sfss_v3(p::AbstractMMiCRMParams, ss=nothing;
     edge_colormap=colorschemes[:viridis],
     edge_colorrange=nothing,
     edge_colorscale=colorscale,
-    cluster=false
+    cluster=false,
+    maxedges=100,
 )
     Ns, Nr = get_Ns(p)
     if isnothing(ss)
@@ -102,6 +103,12 @@ function diagram_sfss_v3(p::AbstractMMiCRMParams, ss=nothing;
                 "chemostat", node_names[Ns+a], val
             ))
         end
+    end
+
+    if length(edges) > maxedges
+        @error "Too many edges to draw, only drawing the first $maxedges"
+        edges = edges[1:maxedges]
+        return
     end
 
     edge_cvals = [edge_colorscale(v) for (_, _, v) in edges]
