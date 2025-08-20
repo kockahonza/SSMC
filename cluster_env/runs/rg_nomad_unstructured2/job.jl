@@ -74,10 +74,11 @@ end
 function main1(;
     N=10,
     num_starts=10,
-    num_prescreens=20,
+    num_prescreens=50,
     num_repeats=1000,
     max_nomad_time=60 * 60 * 2,
     max_single_solver_time=5,
+    granularity=1e-3,
 )
     BLAS.set_num_threads(1)
 
@@ -152,7 +153,7 @@ function main1(;
                 max1, Inf,
                 1.0, 1.0
             ],
-            # granularity=fill(granularity, 6)
+            granularity=fill(granularity, 6)
         )
         np.options.max_time = max_nomad_time
         np.options.display_all_eval = true
@@ -164,5 +165,6 @@ function main1(;
         push!(trajectories, traj)
     end
 
+    save_object("N$(N)_unic_" * randname() * ".jld2", trajectories)
     trajectories
 end
