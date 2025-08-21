@@ -91,10 +91,10 @@ function main1(;
 
     function gen_u0()
         [
-            rand(Uniform(-10.0, 10.0)), 0.0, # m
+            rand(Uniform(-2.0, 2.0)), 0.0, # m
             -12.0, 0.0, 0.0, 0.0, # diffs 
-            10 * rand(), 10 * rand(), # l
-            rand(Uniform(-10.0, 10.0)), 0.0, # c
+            1.5 * rand(), 1.5 * rand(), # l
+            rand(Uniform(-1.0, 2.0)), 0.0, # c
             rand(), rand(), # sparsities
         ]
     end
