@@ -172,3 +172,112 @@ function main1(;
     save_object("N$(N)_unic_" * randname() * ".jld2", trajectories)
     trajectories
 end
+
+"""
+Same as main1 but fixed diffusions and m and c have no variance
+"""
+function main2_simpler(;
+    N=10,
+    num_starts=5,
+    num_prescreens=50,
+    num_repeats=1000,
+    max_nomad_time=60 * 60 * 1,
+    max_single_solver_time=20,
+    # granularity=1e-3,
+)
+    BLAS.set_num_threads(1)
+
+    function do_run(u0)
+        me, la, lb, ce, sr, sb = u0
+        do_run_unimodal_c(N,
+            me, 0.0,
+            -12.0, 0.0, 0.0, 0.0,
+            la, lb,
+            ce, 0.0,
+            sr, sb,
+            num_repeats,
+            timelimit=max_single_solver_time,
+        )
+    end
+
+    function gen_u0()
+        [
+            rand(Uniform(-2.0, 2.0)), # m
+            1.5 * rand(), 1.5 * rand(), # l
+            rand(Uniform(-1.0, 2.0)), # c
+            rand(), rand(), # sparsities
+        ]
+    end
+
+    trajectories = []
+
+    for i in 1:num_starts
+        traj = []
+
+        # Prescreening
+        @info "Prescreening $i"
+        flush(stdout)
+        if !isnothing(num_prescreens)
+            found_u0 = false
+            for _ in 1:num_prescreens
+                u0 = gen_u0()
+                score, cm = do_run(u0)
+                if score > 0.0
+                    found_u0 = true
+                    break
+                end
+                push!(traj, (copy(u0), score, cm))
+            end
+            if !found_u0
+                @warn "Could not find a satisfactory u0 during prescreening"
+            end
+        else
+            u0 = gen_u0()
+        end
+
+        # NOMAD run6
+        @info "Starting NOMAD run $i"
+        flush(stdout)
+        function nomad_func(u)
+            score, cm = do_run(u0)
+
+            push!(traj, (copy(u), score, cm))
+
+            (true, true, -score) # - as we want to maximize not minimize
+        end
+
+        numparams = length(u0)
+
+        max1 = 10.0
+        max3 = 100.0
+
+        np = NOMAD.NomadProblem(numparams, 1, ["OBJ"], nomad_func;
+            lower_bound=[
+                -max1,
+                0.0, 0.0,
+                -max1,
+                0.0, 0.0
+            ],
+            upper_bound=[
+                max1,
+                max3, max3,
+                max1,
+                1.0, 1.0
+            ],
+            # granularity=fill(granularity, numparams)
+        )
+        np.options.max_time = max_nomad_time
+        np.options.display_all_eval = true
+        np.options.display_stats = ["OBJ", "SOL", "BBE", "BBO"]
+
+        GC.gc()
+        @time s = NOMAD.solve(np, u0)
+
+        push!(trajectories, traj)
+        @info "Finished run $i"
+        flush(stdout)
+    end
+
+    save_object("N$(N)_unic_" * randname() * ".jld2", trajectories)
+    trajectories
+end
