@@ -78,7 +78,7 @@ function main1(;
     num_repeats=1000,
     max_nomad_time=60 * 60 * 1,
     max_single_solver_time=5,
-    granularity=1e-3,
+    # granularity=1e-3,
 )
     BLAS.set_num_threads(1)
 
@@ -155,7 +155,7 @@ function main1(;
                 max1, Inf,
                 1.0, 1.0
             ],
-            granularity=fill(granularity, 12)
+            # granularity=fill(granularity, 12)
         )
         np.options.max_time = max_nomad_time
         np.options.display_all_eval = true
