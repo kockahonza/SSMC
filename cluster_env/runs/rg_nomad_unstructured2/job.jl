@@ -77,7 +77,7 @@ function main1(;
     num_prescreens=50,
     num_repeats=1000,
     max_nomad_time=60 * 60 * 1,
-    max_single_solver_time=5,
+    max_single_solver_time=20,
     # granularity=1e-3,
 )
     BLAS.set_num_threads(1)
