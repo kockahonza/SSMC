@@ -153,7 +153,7 @@ function main1(;
                 max1, Inf,
                 1.0, 1.0
             ],
-            granularity=fill(granularity, 6)
+            granularity=fill(granularity, 12)
         )
         np.options.max_time = max_nomad_time
         np.options.display_all_eval = true
