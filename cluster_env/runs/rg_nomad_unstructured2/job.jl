@@ -101,10 +101,11 @@ function main1(;
 
     trajectories = []
 
-    for _ in 1:num_starts
+    for i in 1:num_starts
         traj = []
 
         # Prescreening
+        @info "Prescreening $i"
         if !isnothing(num_prescreens)
             found_u0 = false
             for _ in 1:num_prescreens
@@ -124,7 +125,7 @@ function main1(;
         end
 
         # NOMAD run6
-        @info "Starting NOMAD run"
+        @info "Starting NOMAD run $i"
         flush(stdout)
         function nomad_func(u)
             score, cm = do_run(u0)
@@ -163,6 +164,7 @@ function main1(;
         @time s = NOMAD.solve(np, u0)
 
         push!(trajectories, traj)
+        @info "Starting run $i"
     end
 
     save_object("N$(N)_unic_" * randname() * ".jld2", trajectories)
