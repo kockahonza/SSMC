@@ -106,6 +106,7 @@ function main1(;
 
         # Prescreening
         @info "Prescreening $i"
+        flush(stdout)
         if !isnothing(num_prescreens)
             found_u0 = false
             for _ in 1:num_prescreens
@@ -164,7 +165,8 @@ function main1(;
         @time s = NOMAD.solve(np, u0)
 
         push!(trajectories, traj)
-        @info "Starting run $i"
+        @info "Finished run $i"
+        flush(stdout)
     end
 
     save_object("N$(N)_unic_" * randname() * ".jld2", trajectories)
