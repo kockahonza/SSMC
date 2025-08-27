@@ -194,6 +194,7 @@ function main2_simpler(;
             la, lb,
             ce, 0.0,
             sr, sb,
+            1.0;
             num_repeats,
             timelimit=max_single_solver_time,
         )
@@ -300,6 +301,7 @@ function main3(;
             la, lb,
             ce, 0.0,
             sr, sb,
+            1.0;
             num_repeats,
             timelimit=max_single_solver_time,
         )
@@ -428,6 +430,8 @@ function plot_all_trajectories_obj2(ts;
                 push!(newts, xx)
             end
         end
+    else
+        newts = ts
     end
     ts = newts
 
@@ -600,12 +604,13 @@ function find_best_sols(ts;
 
     df = DataFrame(;
         obj=Float64[],
-        [Symbol(pn) => Float64[] for pn in pnames]...
+        [Symbol(pn) => Float64[] for pn in pnames]...,
+        cm=Any[],
     )
     for t in ts
         _, i = findmax(x -> x[2], t)
         xx = t[i]
-        push!(df, (xx[2], xx[1]...))
+        push!(df, (xx[2], xx[1]..., xx[3]))
     end
 
     df
