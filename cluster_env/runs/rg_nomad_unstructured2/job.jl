@@ -128,7 +128,7 @@ function main1(;
         @info "Starting NOMAD run $i"
         flush(stdout)
         function nomad_func(u)
-            score, cm = do_run(u0)
+            score, cm = do_run(u)
 
             push!(traj, (copy(u), score, cm))
 
@@ -239,7 +239,7 @@ function main2_simpler(;
         @info "Starting NOMAD run $i"
         flush(stdout)
         function nomad_func(u)
-            score, cm = do_run(u0)
+            score, cm = do_run(u)
 
             push!(traj, (copy(u), score, cm))
 
@@ -346,7 +346,7 @@ function main3(;
         @info "Starting NOMAD run $i"
         flush(stdout)
         function nomad_func(u)
-            score, cm = do_run(u0)
+            score, cm = do_run(u)
 
             push!(traj, (copy(u), score, cm))
 
