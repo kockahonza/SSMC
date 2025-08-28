@@ -254,7 +254,7 @@ function main2_simpler(;
         np = NOMAD.NomadProblem(numparams, 1, ["OBJ"], nomad_func;
             lower_bound=[
                 -max1,
-                0.0, 0.0,
+                eps(), eps(),
                 -max1,
                 0.0, 0.0
             ],
@@ -289,7 +289,7 @@ function main3(;
     num_repeats=1000,
     max_nomad_time=60 * 60 * 0.1,
     max_single_solver_time=20,
-    granularity=1e-3,
+    numdigits=3,
 )
     BLAS.set_num_threads(1)
 
@@ -317,6 +317,10 @@ function main3(;
     end
 
     trajectories = []
+
+    if num_prescreens == 0
+        num_prescreens = nothing
+    end
 
     for i in 1:num_starts
         traj = []
@@ -355,13 +359,20 @@ function main3(;
 
         numparams = length(u0)
 
+        # fix up u0 to match with granularity
+        u0[1] = round(u0[1], digits=numdigits)
+        u0[4] = round(u0[4], digits=numdigits)
+        u0[5] = round(u0[5], digits=numdigits)
+        u0[6] = round(u0[6], digits=numdigits)
+        granval = 10.0^(-numdigits)
+
         max1 = 10.0
         max3 = 100.0
 
         np = NOMAD.NomadProblem(numparams, 1, ["OBJ"], nomad_func;
             lower_bound=[
                 -max1,
-                0.0, 0.0,
+                eps(), eps(),
                 -max1,
                 0.0, 0.0
             ],
@@ -371,7 +382,7 @@ function main3(;
                 max1,
                 1.0, 1.0
             ],
-            granularity=fill(granularity, numparams)
+            granularity=[granval, 0.0, 0.0, granval, granval, granval]
         )
         np.options.max_time = max_nomad_time
         np.options.display_all_eval = true
