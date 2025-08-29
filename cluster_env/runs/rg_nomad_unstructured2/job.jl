@@ -254,7 +254,7 @@ function main2_simpler(;
         np = NOMAD.NomadProblem(numparams, 1, ["OBJ"], nomad_func;
             lower_bound=[
                 -max1,
-                eps(), eps(),
+                1e-10, 1e-10,
                 -max1,
                 0.0, 0.0
             ],
@@ -372,7 +372,7 @@ function main3(;
         np = NOMAD.NomadProblem(numparams, 1, ["OBJ"], nomad_func;
             lower_bound=[
                 -max1,
-                eps(), eps(),
+                1e-10, 1e-10,
                 -max1,
                 0.0, 0.0
             ],
