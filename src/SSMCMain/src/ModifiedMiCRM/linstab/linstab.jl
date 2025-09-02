@@ -138,13 +138,13 @@ end
 function LinstabScanTester(ks, p::AbstractMMiCRMParams, threshold=2 * eps())
     LinstabScanTester(ks, sum(get_Ns(p)), threshold)
 end
-function (lt::LinstabScanTester)(sp::AbstractSMMiCRMParams, ss)
-    make_M1!(lt.M1, sp, ss)
-    for k in lt.ks
-        lt.M .= lt.M1
-        M1_to_M!(lt.M, get_Ds(sp), k)
-        evals = eigvals!(lt.M)
-        if any(l -> real(l) > lt.threshold, evals)
+function (lst::LinstabScanTester)(sp::AbstractSMMiCRMParams, ss)
+    make_M1!(lst.M1, sp, ss)
+    for k in lst.ks
+        lst.M .= lst.M1
+        M1_to_M!(lst.M, get_Ds(sp), k)
+        evals = eigvals!(lst.M)
+        if any(l -> real(l) > lst.threshold, evals)
             return true
         end
     end
@@ -154,6 +154,86 @@ function copy(lst::LinstabScanTester)
     LinstabScanTester(lst.ks, size(lst.M)[1], lst.threshold)
 end
 export LinstabScanTester
+
+struct LinstabScanTester2{F}
+    zerothr::F
+    peakthr::F
+    ks::Vector{F}
+    M1::Matrix{F}
+    M::Matrix{F}
+    mrls::Vector{F}
+    function LinstabScanTester2(kmax, Nks, N;
+        zerothr=1000 * eps(),      # values +- this are considered 0 in linstab analysis
+        peakthr=zerothr,         # values above this can be considered a peak
+    )
+        ks = range(0, kmax; length=Nks)[2:end]
+        new{typeof(kmax)}(zerothr, peakthr,
+            ks,
+            Matrix{typeof(kmax)}(undef, N, N), Matrix{typeof(kmax)}(undef, N, N), Vector{typeof(kmax)}(undef, length(ks))
+        )
+    end
+end
+function LinstabScanTester2(ps::AbstractMMiCRMParams, args...; kwargs...)
+    LinstabScanTester2(args..., sum(get_Ns(ps)); kwargs...)
+end
+function (lst::LinstabScanTester2)(sp::AbstractSMMiCRMParams, ss)
+    # handle the k=0 case
+    make_M1!(lst.M1, sp, ss)
+    k0mrl = maximum(real, eigvals!(lst.M1))
+
+    # calculate mrls
+    make_M1!(lst.M1, sp, ss)
+    for (ki, k) in enumerate(lst.ks)
+        lst.M .= lst.M1
+        M1_to_M!(lst.M, get_Ds(sp), k)
+        evals = eigvals!(lst.M)
+        lst.mrls[ki] = maximum(real, evals)
+    end
+
+    # evaluate the mrl results
+    maxmrl, maxi = findmax(lst.mrls)
+
+    maxmrl_positive = maxmrl > lst.peakthr
+
+    is_separated = false
+    for intermediate_mrl in lst.mrls[1:maxi]
+        if intermediate_mrl < -lst.zerothr
+            is_separated = true
+            break
+        end
+    end
+
+    if k0mrl < -lst.zerothr # this is the ideal case
+        if !maxmrl_positive
+            code = 1
+        else
+            code = 2
+        end
+    elseif k0mrl < lst.zerothr # this can happen when there are interchangeable species, or when close to numerical issues
+        if !maxmrl_positive
+            code = 11
+        else
+            if is_separated # k0 is sketchy but we have a separated positive peak
+                code = 12
+            else # the largest peak is connected to a positive k0 - clearly messy
+                code = 13
+            end
+        end
+    else # something is definitely off here, however still do the same analysis for extra info
+        if !maxmrl_positive
+            code = 21
+        else
+            if is_separated
+                code = 22
+            else
+                code = 23
+            end
+        end
+    end
+
+    code, k0mrl, maxmrl, maxmrl_positive && is_separated
+end
+export LinstabScanTester2
 
 ################################################################################
 # The K polynomial functions, aka finding modes by solving for 0 evals

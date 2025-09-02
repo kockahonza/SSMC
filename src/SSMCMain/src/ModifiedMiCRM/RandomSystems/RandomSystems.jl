@@ -212,7 +212,7 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
         maxmrl, maxi = findmax(mrls)
 
         if k0mrl < -lszerothr # this is the ideal case
-            if maxmrl < -lspeakthr
+            if maxmrl < lspeakthr
                 result = 1
                 @goto handle_result
             else
@@ -220,7 +220,7 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
                 @goto handle_result
             end
         elseif k0mrl < lszerothr # this can happen when there are interchangeable species, or when close to numerical issues
-            if maxmrl < -lspeakthr
+            if maxmrl < lspeakthr
                 result = 11
                 @goto handle_result
             else

@@ -7,7 +7,7 @@ one which has a non-zero K and hence is being added to the system
 or not an "influx" resource which are exclusively added through being
 byproducts of consumption processes.
 """
-struct RSGJans1{Dm,Dr,DDs,DDr,Di,DK,Ds1,Ds2,Dc,Dl}
+struct RSGJans1{Dm,Dr,DDs,DDr,Di,DK,Ds1,Ds2,Dc,Dl,Dc2,Dl2}
     Ns::Int # number of strains
     Nr::Int # number of resources
 
@@ -25,6 +25,9 @@ struct RSGJans1{Dm,Dr,DDs,DDr,Di,DK,Ds1,Ds2,Dc,Dl}
     c::Dc # distribution for those consumption rates which are not zero
     l::Dl # leakage distribution
 
+    cinflux::Dc2
+    linflux::Dl2
+
     usenthreads::Union{Nothing,Int}
     function RSGJans1(Ns, Nr;
         m=1.0, r=1.0, Ds=1.0, Dr=1.0,
@@ -32,6 +35,7 @@ struct RSGJans1{Dm,Dr,DDs,DDr,Di,DK,Ds1,Ds2,Dc,Dl}
         num_used_resources=nothing, sparsity_resources=nothing,
         num_byproducts=nothing, sparsity_byproducts=nothing,
         c=1.0, l=0.5,
+        cinflux=c, linflux=l,
         usenthreads=nothing
     )
         if isa(m, Number)
@@ -69,6 +73,20 @@ struct RSGJans1{Dm,Dr,DDs,DDr,Di,DK,Ds1,Ds2,Dc,Dl}
         elseif isa(l, Tuple) && length(l) == 2
             l = Normal(l[1], l[2])
         end
+        if isnothing(cinflux)
+            cinflux = c
+        elseif isa(cinflux, Number)
+            cinflux = Dirac(cinflux)
+        elseif isa(cinflux, Tuple) && length(cinflux) == 2
+            cinflux = Normal(cinflux[1], cinflux[2])
+        end
+        if isnothing(linflux)
+            linflux = l
+        elseif isa(linflux, Number)
+            linflux = Dirac(linflux)
+        elseif isa(linflux, Tuple) && length(linflux) == 2
+            linflux = Normal(linflux[1], linflux[2])
+        end
 
         if isnothing(num_influx_resources) && isnothing(Kp) && isnothing(sparsity_influx)
             num_influx_resources = Dirac(Nr)
@@ -102,8 +120,8 @@ struct RSGJans1{Dm,Dr,DDs,DDr,Di,DK,Ds1,Ds2,Dc,Dl}
 
         new{
             typeof(m),typeof(r),typeof(Ds),typeof(Dr),typeof(num_influx_resources),typeof(K),
-            typeof(num_used_resources),typeof(num_byproducts),typeof(c),typeof(l)
-        }(Ns, Nr, m, r, Ds, Dr, num_influx_resources, K, num_used_resources, num_byproducts, c, l, usenthreads)
+            typeof(num_used_resources),typeof(num_byproducts),typeof(c),typeof(l),typeof(cinflux),typeof(linflux)
+        }(Ns, Nr, m, r, Ds, Dr, num_influx_resources, K, num_used_resources, num_byproducts, c, l, cinflux, linflux, usenthreads)
     end
 end
 function (rsg::RSGJans1)()
@@ -128,8 +146,10 @@ function (rsg::RSGJans1)()
         num_used_resources = rand(rsg.num_used_resources)
         used_resources = sample(1:rsg.Nr, num_used_resources; replace=false)
         for cr in used_resources
-            c[i, cr] = clamp(rand(rsg.c), 0.0, Inf)
-            l[i, cr] = clamp(rand(rsg.l), 0.0, 1.0)
+            csampler = iszero(K[cr]) ? rsg.c : rsg.cinflux
+            lsampler = iszero(K[cr]) ? rsg.l : rsg.linflux
+            c[i, cr] = clamp(rand(csampler), 0.0, Inf)
+            l[i, cr] = clamp(rand(lsampler), 0.0, 1.0)
 
             num_byproducts = rand(rsg.num_byproducts)
             byproducts = sample(1:rsg.Nr, num_byproducts; replace=false)
@@ -149,153 +169,6 @@ function (rsg::RSGJans1)()
     BSMMiCRMParams(mmicrm_params, Ds)
 end
 export RSGJans1
-
-"""
-Here we distinguish between the influx and not-influx resources even more
-"""
-struct RSGJans2{Dm,Dr,DDs,DDr,DK,Dci,Dli,Dcb,Dlb}
-    Ns::Int
-    Nr::Int
-
-    m::Dm
-    r::Dr
-    Ds::DDs
-    Dr::DDr
-
-    Kp::Float64 # FIX: adapt to copy the behaviour of RSGJans1
-    K::DK
-
-    num_used_in_resources::Int
-    num_in_byproducts::Int
-    c_in::Dci
-    l_in::Dli
-
-    num_used_bp_resources::Int
-    num_bp_byproducts::Int
-    c_bp::Dcb
-    l_bp::Dlb
-
-    usenthreads::Union{Nothing,Int}
-    function RSGJans2(Ns, Nr;
-        m=1.0, r=1.0, Ds=1.0, Dr=1.0,
-        Kp=1.0, K=1.0,
-        sparsity_in_resources=1.0, sparsity_in_byproducts=1.0,
-        c_in=1.0, l_in=0.5,
-        sparsity_bp_resources=1.0, sparsity_bp_byproducts=1.0,
-        c_bp=0.0, l_bp=0.0,
-        usenthreads=nothing
-    )
-        if isa(m, Number)
-            m = Dirac(m)
-        elseif isa(m, Tuple) && length(m) == 2
-            m = Normal(m[1], m[2])
-        end
-        if isa(r, Number)
-            r = Dirac(r)
-        elseif isa(r, Tuple) && length(r) == 2
-            r = Normal(r[1], r[2])
-        end
-        if isa(Ds, Number)
-            Ds = Dirac(Ds)
-        elseif isa(Ds, Tuple) && length(Ds) == 2
-            Ds = Normal(Ds[1], Ds[2])
-        end
-        if isa(Dr, Number)
-            Dr = Dirac(Dr)
-        elseif isa(Dr, Tuple) && length(Dr) == 2
-            Dr = Normal(Dr[1], Dr[2])
-        end
-        if isa(K, Number)
-            K = Dirac(K)
-        elseif isa(K, Tuple) && length(K) == 2
-            K = Normal(K[1], K[2])
-        end
-
-        num_used_in_resources = round(Int, sparsity_in_resources * Nr)
-        num_in_byproducts = round(Int, sparsity_in_byproducts * Nr)
-        if isa(c_in, Number)
-            c_in = Dirac(c_in)
-        elseif isa(c_in, Tuple) && length(c_in) == 2
-            c_in = Normal(c_in[1], c_in[2])
-        end
-        if isa(l_in, Number)
-            l_in = Dirac(l_in)
-        elseif isa(l_in, Tuple) && length(l_in) == 2
-            l_in = Normal(l_in[1], l_in[2])
-        end
-
-        num_used_bp_resources = round(Int, sparsity_bp_resources * Nr)
-        num_bp_byproducts = round(Int, sparsity_bp_byproducts * Nr)
-        if isa(c_bp, Number)
-            c_bp = Dirac(c_bp)
-        elseif isa(c_bp, Tuple) && length(c_bp) == 2
-            c_bp = Normal(c_bp[1], c_bp[2])
-        end
-        if isa(l_bp, Number)
-            l_bp = Dirac(l_bp)
-        elseif isa(l_bp, Tuple) && length(l_bp) == 2
-            l_bp = Normal(l_bp[1], l_bp[2])
-        end
-
-        new{
-            typeof(m),typeof(r),typeof(Ds),typeof(Dr),typeof(K),
-            typeof(c_in),typeof(l_in),typeof(c_bp),typeof(l_bp)
-        }(Ns, Nr, m, r, Ds, Dr, Kp, K,
-            num_used_in_resources, num_in_byproducts, c_in, l_in,
-            num_used_bp_resources, num_bp_byproducts, c_bp, l_bp,
-            usenthreads
-        )
-    end
-end
-function (rsg::RSGJans2)()
-    # as usual
-    g = fill(1.0, rsg.Ns)
-    w = fill(1.0, rsg.Nr)
-
-    m = rand(rsg.m, rsg.Ns)
-    r = rand(rsg.r, rsg.Nr)
-
-    K = fill(0.0, rsg.Nr)
-    for a in 1:rsg.Nr
-        if rand() < rsg.Kp
-            K[a] = rand(rsg.K)
-        end
-    end
-
-    l = fill(0.0, (rsg.Ns, rsg.Nr))
-    c = fill(0.0, (rsg.Ns, rsg.Nr))
-    D = fill(0.0, (rsg.Ns, rsg.Nr, rsg.Nr))
-    for i in 1:rsg.Ns
-        num_resources = rand(rsg.num_used_resources)
-        consumed_resources = sample(1:rsg.Nr, num_resources; replace=false)
-        for cr in consumed_resources
-            c[i, cr] = abs(rand(rsg.c))
-            l[i, cr] = rand(rsg.l)
-
-            num_byproducts = rand(rsg.num_byproducts)
-            byproducts = sample(1:rsg.Nr, num_byproducts; replace=false)
-            bp_Ds = rand(length(byproducts))
-            bp_Ds ./= sum(bp_Ds)
-            for (bp, bp_D) in zip(byproducts, bp_Ds)
-                D[i, bp, cr] = bp_D
-            end
-        end
-    end
-
-    Ds = rand(rsg.Ds, rsg.Ns)
-    Dr = rand(rsg.Dr, rsg.Nr)
-    # Dr = fill(0.0, rsg.Nr)
-    # for a in 1:rsg.Nr
-    #     if K[a] != 0.0
-    #         Dr[a] = rand(rsg.Dr)
-    #     end
-    # end
-    Ds = vcat(Ds, Dr)
-
-    mmicrm_params = BMMiCRMParams(g, w, m, K, r, l, c, D, rsg.usenthreads)
-    BSMMiCRMParams(mmicrm_params, Ds)
-end
-export RSGJans2
 
 """
 Modified version of steven's Marsland sampler
@@ -466,3 +339,175 @@ function (ms::Marsland2)()
     BSMMiCRMParams(p, Ds)
 end
 export Marsland2
+
+################################################################################
+# New stuff
+################################################################################
+function get_random_metabolic_process(prob_eating, cdist, ldist, num_byproducts, Nr)
+    if rand() < prob_eating
+        c = clamp(rand(cdist), 0.0, Inf)
+        l = clamp(rand(ldist), 0.0, 1.0)
+        byproducts = sample(1:Nr, num_byproducts; replace=false)
+        bp_Ds = rand(length(byproducts))
+        bp_Ds ./= sum(bp_Ds)
+        D = fill(0.0, Nr)
+        for (bp, bp_D) in zip(byproducts, bp_Ds)
+            D[bp] = bp_D
+        end
+
+        c, l, D
+    else
+        0.0, 0.0, fill(0.0, Nr)
+    end
+end
+
+struct JansSampler3
+    Ns::Int # number of strains
+    Nr::Int # number of resources
+
+    m::Distribution
+    r::Distribution
+
+    num_influx_resources::Distribution
+    K::Distribution
+
+    prob_eating::Float64
+    prob_eating_influx::Float64
+    num_byproducts::Distribution
+
+    c::Distribution
+    l::Distribution
+    cinflux::Distribution
+    linflux::Distribution
+
+    Ds::Distribution
+    Dr::Distribution
+    Drinflux::Distribution
+
+    usenthreads::Union{Nothing,Int}
+    function JansSampler3(Ns, Nr;
+        m=1.0, r=1.0,
+        num_influx_resources=1, K=1.0,
+        prob_eating=1.0, prob_eating_influx=1.0, num_byproducts=0,
+        c=1.0, l=0.5, cinflux=c, linflux=l,
+        Ds=1e-12, Dr=1.0, Drinflux=Dr,
+        usenthreads=nothing
+    )
+        if isa(m, Number)
+            m = Dirac(m)
+        elseif isa(m, Tuple) && length(m) == 2
+            m = Normal(m[1], m[2])
+        end
+        if isa(r, Number)
+            r = Dirac(r)
+        elseif isa(r, Tuple) && length(r) == 2
+            r = Normal(r[1], r[2])
+        end
+        if isa(num_influx_resources, Integer)
+            num_influx_resources = Dirac(num_influx_resources)
+        end
+        if isa(K, Number)
+            K = Dirac(K)
+        elseif isa(K, Tuple) && length(K) == 2
+            K = Normal(K[1], K[2])
+        end
+        if isa(num_byproducts, Integer)
+            num_byproducts = Dirac(num_byproducts)
+        end
+        if isa(c, Number)
+            c = Dirac(c)
+        elseif isa(c, Tuple) && length(c) == 2
+            c = Normal(c[1], c[2])
+        end
+        if isa(l, Number)
+            l = Dirac(l)
+        elseif isa(l, Tuple) && length(l) == 2
+            l = Normal(l[1], l[2])
+        end
+        if isnothing(cinflux)
+            cinflux = c
+        elseif isa(cinflux, Number)
+            cinflux = Dirac(cinflux)
+        elseif isa(cinflux, Tuple) && length(cinflux) == 2
+            cinflux = Normal(cinflux[1], cinflux[2])
+        end
+        if isnothing(linflux)
+            linflux = l
+        elseif isa(linflux, Number)
+            linflux = Dirac(linflux)
+        elseif isa(linflux, Tuple) && length(linflux) == 2
+            linflux = Normal(linflux[1], linflux[2])
+        end
+        if isa(Ds, Number)
+            Ds = Dirac(Ds)
+        elseif isa(Ds, Tuple) && length(Ds) == 2
+            Ds = Normal(Ds[1], Ds[2])
+        end
+        if isa(Dr, Number)
+            Dr = Dirac(Dr)
+        elseif isa(Dr, Tuple) && length(Dr) == 2
+            Dr = Normal(Dr[1], Dr[2])
+        end
+        if isnothing(Drinflux)
+            Drinflux = Dr
+        elseif isa(Drinflux, Number)
+            Drinflux = Dirac(Drinflux)
+        elseif isa(Drinflux, Tuple) && length(Drinflux) == 2
+            Drinflux = Normal(Drinflux[1], Drinflux[2])
+        end
+
+        new(Ns, Nr, m, r, num_influx_resources, K, prob_eating, prob_eating_influx, num_byproducts, c, l, cinflux, linflux, Ds, Dr, Drinflux, usenthreads)
+    end
+end
+function (rsg::JansSampler3)()
+    # as usual
+    g = fill(1.0, rsg.Ns)
+    w = fill(1.0, rsg.Nr)
+
+    m = clamp.(rand(rsg.m, rsg.Ns), 0.0, Inf)
+    r = clamp.(rand(rsg.r, rsg.Nr), 0.0, Inf)
+
+    K = fill(0.0, rsg.Nr)
+    num_influx_resources = rand(rsg.num_influx_resources)
+    influx_resources = sample(1:rsg.Nr, num_influx_resources; replace=false)
+    for a in influx_resources
+        K[a] = clamp(rand(rsg.K), 0.0, Inf)
+    end
+
+    l = fill(0.0, (rsg.Ns, rsg.Nr))
+    c = fill(0.0, (rsg.Ns, rsg.Nr))
+    D = fill(0.0, (rsg.Ns, rsg.Nr, rsg.Nr))
+    for a in 1:rsg.Nr
+        isinflux = !iszero(K[a])
+        for i in 1:rsg.Ns
+            metabolic_process = if !isinflux
+                get_random_metabolic_process(rsg.prob_eating, rsg.c, rsg.l, rand(rsg.num_byproducts), rsg.Nr)
+            else
+                get_random_metabolic_process(rsg.prob_eating_influx, rsg.cinflux, rsg.linflux, rand(rsg.num_byproducts), rsg.Nr)
+            end
+            c[i, a] = metabolic_process[1]
+            l[i, a] = metabolic_process[2]
+            D[i, :, a] .= metabolic_process[3]
+        end
+    end
+
+    Ds = clamp.(rand(rsg.Ds, rsg.Ns), 0.0, Inf)
+    Dr = clamp.(rand(rsg.Dr, rsg.Nr), 0.0, Inf)
+    for a in influx_resources
+        Dr[a] = clamp(rand(rsg.Drinflux), 0.0, Inf)
+    end
+    Ds = vcat(Ds, Dr)
+
+    mmicrm_params = BMMiCRMParams(g, w, m, K, r, l, c, D, rsg.usenthreads)
+    BSMMiCRMParams(mmicrm_params, Ds)
+end
+export JansSampler3
+
+function single_influx_resource_sampler(Ns, Nr;
+    kwargs...
+)
+    rsg = RSGJans1(Ns, Nr; kwargs...)
+    function ()
+        ps = rsg()
+    end
+end

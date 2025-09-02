@@ -62,9 +62,9 @@ function (mms::MarslandMatrixSampler)()
     # make the original Dab (not Diab!)
     D_noi = fill(0.0, mms.M, mms.M)
     for b in 1:mms.M
+        fb = Mtypes[b]
         ds = Float64[]
         for g in 1:mms.M
-            fb = Mtypes[b]
             fg = Mtypes[g]
 
             d = if (fb != -1) && (fg == -1)
@@ -381,73 +381,3 @@ function (ms::AdaptedMarsland1)()
     BSMMiCRMParams(mmicrm_params, Ds)
 end
 export AdaptedMarsland1
-
-################################################################################
-# Others - mainly unstructured
-################################################################################
-function kaka(Ns, Nr;
-    # the basic vars which are just all independent
-    rdist=base10_lognormal(0.0, 0.0),
-    mdist=base10_lognormal(0.0, 0.0),
-    Dsdist=base10_lognormal(-12.0, 0.0),
-    Drdist=base10_lognormal(0.0, 0.0),
-
-    # for c, l and D
-    sr=1.0,
-    cdist=base10_lognormal(0.0, 0.0),
-    ldist=Dirac(0.0),
-    sb=1.0,
-
-    # influx resource vars
-    si=1.0,
-    Kdist=Dirac(1.0)
-)
-    num_used_resources = clamp(round(Int, sr * Nr), 0, Nr)
-    num_byproducts = clamp(round(Int, sb * Nr), 0, Nr)
-    num_influx_resources = clamp(round(Int, si * Nr), 0, Nr)
-
-    function ()
-        g = fill(1.0, Ns)
-        w = fill(1.0, Nr)
-
-        # do the simple vars
-        r = rand(rdist, Nr)
-        m = rand(mdist, Ns)
-        Ds = rand(Dsdist, Ns)
-        Dr = rand(Drdist, Nr)
-
-        # do c, l and D
-        c = fill(0.0, Ns, Nr)
-        l = fill(0.0, Ns, Nr)
-        D = fill(0.0, Ns, Nr, Nr)
-        for i in 1:Ns
-            used_resources = sample(1:Nr, num_used_resources; replace=false)
-            for a in used_resources
-                c[i, a] = rand(cdist)
-                l[i, a] = rand(ldist)
-
-                byproducts = sample(1:Nr, num_byproducts; replace=false)
-                bp_Ds = rand(length(byproducts))
-                bp_Ds ./= sum(bp_Ds)
-                for (b, byproduct_D) in zip(byproducts, bp_Ds)
-                    D[i, b, a] = byproduct_D
-                end
-            end
-        end
-
-        # finally, influx resources
-
-        mmicrm_params = BMMiCRMParams(g, w, m, K, r, l, c, D, rsg.usenthreads)
-        BSMMiCRMParams(mmicrm_params, Ds)
-    end
-end
-
-
-struct RSGJans3
-    function RSGJans3(Ns, Nr;
-    )
-    end
-end
-function (rsg::RSGJans3)()
-end
-export RSGJans3
