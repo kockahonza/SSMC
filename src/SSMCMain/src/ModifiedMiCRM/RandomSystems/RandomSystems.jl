@@ -290,29 +290,101 @@ function example_do_rg_run2(rg, num_repeats, kmax, Nks;
 end
 export example_do_rg_run2
 
-################################################################################
-# Other util bits
-################################################################################
-function instability_stats(cm;
-    unstable_codes=[2],
-    other_good_codes=[101, 1],
-    return_confint_only=true
+"""
+Same as above but is more flexible on what it does after finding a steady state
+"""
+function example_do_rg_run3(rg, num_repeats, lsfunc=nothing;
+    maxresidthr=1e-7,            # will warn if ss residues are larger than this
+    errmaxresidthr=1e6 * maxresidthr, # if above this will return error code
+    extinctthr=maxresidthr / 10, # species below this value are considered extinct
+    ode_solver=TRBDF2(),
+    tol=maxresidthr / 1000,
+    timelimit=nothing, # time limit for one solver run in seconds
+    abstol=tol,
+    reltol=tol,
+    maxiters=100000,
+    doextinctls=false,
+    lsnocode=nothing,
+    # passed to make_mmicrm_ss_problem
+    kwargs...
 )
-    unstable_runs = sum(c -> get(cm, c, 0), unstable_codes)
-    other_good_runs = sum(c -> get(cm, c, 0), other_good_codes)
+    sample_params = rg()
+    Ns, Nr = get_Ns(sample_params)
 
-    bt = BinomialTest(unstable_runs, unstable_runs + other_good_runs)
-
-    if return_confint_only
-        (bt.x / bt.n), confint(bt; method=:wilson)
-    else
-        bt
+    solver_kwargs = (; maxiters, abstol, reltol)
+    if !isnothing(timelimit)
+        solver_kwargs = (; solver_kwargs..., callback=make_timer_callback(timelimit))
     end
+
+    # setup the returned data containers
+    params = Vector{typeof(sample_params)}(undef, num_repeats)
+    steadystates = Vector{Vector{Float64}}(undef, num_repeats)
+    sscodes = Vector{Int}(undef, num_repeats)
+
+    # prep possible linstab
+    lscodes = if !isnothing(lsfunc)
+        lscodetest = lsfunc(sample_params, zeros(Ns + Nr))
+        Vector{Union{typeof(lscodetest),typeof(lsnocode)}}(undef, num_repeats)
+    else
+        nothing
+    end
+
+    # the core of the function
+    @localize solver_kwargs @tasks for i in 1:num_repeats
+        @local local_lsfunc = (!isnothing(lsfunc) && !isa(lsfunc, Function)) ? copy(lsfunc) : lsfunc
+
+        # Setup one random system
+        ps = rg()
+        u0 = ModifiedMiCRM.make_u0_onlyN(ps)
+        ssp = make_mmicrm_ss_problem(ps, u0; kwargs...)
+
+        # numerically solve for the steady state
+        ssps = solve(ssp, DynamicSS(ode_solver); solver_kwargs...)
+
+        # Check for a full extinction
+        if !all(x -> abs(x) < extinctthr, ssps.u[1:Ns])
+            sscode = 1 # at least one strain lives
+        else
+            sscode = 2 # extinct
+        end
+
+        # Check the steady state solver validity
+        if !SciMLBase.successful_retcode(ssps.retcode)
+            sscode = -1000 # solver failed return code
+            sscode -= Int(ssps.original.retcode)
+            if ssps.original.retcode == ReturnCode.MaxTime
+                @warn "Solver quit due to time limit being reached"
+                flush(stderr)
+            end
+        end
+        # Check that the steady state is steady enough
+        maxresid = maximum(abs, ssps.resid)
+        if maxresid > errmaxresidthr
+            @warn (@sprintf "maxresid reached is %g which is above the error threshold of %g" maxresid maxresidthr)
+            sscode = -2000 # maxresid is way beyond any reasonable values
+        elseif maxresid > maxresidthr
+            @warn (@sprintf "maxresid reached is %g > %g" maxresid maxresidthr)
+            sscode = -sscode # make it negative to indicate warning
+        end
+
+        params[i] = ps
+        steadystates[i] = ssps.u
+        sscodes[i] = sscode
+
+        # Optional linear stability
+        if !isnothing(lscodes)
+            if (sscode == 1) || (doextinctls && (sscode == 2))
+                lscodes[i] = local_lsfunc(ps, ssps.u)
+            else
+                lscodes[i] = lsnocode
+            end
+        end
+    end
+
+    params, steadystates, sscodes, lscodes
 end
-function instability_stats(rslt_codes::Vector; kwargs...)
-    instability_stats(countmap(rslt_codes); kwargs...)
-end
-export instability_stats
+export example_do_rg_run3
+
 
 ################################################################################
 # Debugging variants
@@ -320,6 +392,7 @@ export instability_stats
 """
 Similar to example_do_rg_run2 but instead plots the dispersion relations
 """
+# FIX: Outdated, do not use without fixing it up first!!!
 function rg_run_plot_dispersions(rg, num_repeats, kmax, Nks;
     extinctthr=1e-8,
     abstol=1e-8,
@@ -501,6 +574,8 @@ function rg_run_plot_dispersions(rg, num_repeats, kmax, Nks;
     end
 end
 export rg_run_plot_dispersions
+
+include("util.jl")
 
 ################################################################################
 # Sampling generators

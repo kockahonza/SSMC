@@ -162,19 +162,27 @@ struct LinstabScanTester2{F}
     M1::Matrix{F}
     M::Matrix{F}
     mrls::Vector{F}
-    function LinstabScanTester2(kmax, Nks, N;
+    function LinstabScanTester2(N, ks;
         zerothr=1000 * eps(),      # values +- this are considered 0 in linstab analysis
         peakthr=zerothr,         # values above this can be considered a peak
     )
-        ks = range(0, kmax; length=Nks)[2:end]
-        new{typeof(kmax)}(zerothr, peakthr,
+        @assert (issorted(ks) && (0.0 < ks[1]))
+        ftype = eltype(ks)
+
+        new{ftype}(zerothr, peakthr,
             ks,
-            Matrix{typeof(kmax)}(undef, N, N), Matrix{typeof(kmax)}(undef, N, N), Vector{typeof(kmax)}(undef, length(ks))
+            Matrix{ftype}(undef, N, N), Matrix{ftype}(undef, N, N), Vector{ftype}(undef, length(ks))
         )
     end
 end
+function LinstabScanTester2(N, kmax, Nks; kwargs...)
+    LinstabScanTester2(N, range(0, kmax; length=(Nks + 1))[2:end]; kwargs...)
+end
 function LinstabScanTester2(ps::AbstractMMiCRMParams, args...; kwargs...)
-    LinstabScanTester2(args..., sum(get_Ns(ps)); kwargs...)
+    LinstabScanTester2(sum(get_Ns(ps)), args...; kwargs...)
+end
+function copy(lst::LinstabScanTester2)
+    LinstabScanTester2(size(lst.M)[1], lst.ks; zerothr=lst.zerothr, peakthr=lst.peakthr)
 end
 function (lst::LinstabScanTester2)(sp::AbstractSMMiCRMParams, ss)
     # handle the k=0 case
