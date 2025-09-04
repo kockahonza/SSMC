@@ -305,6 +305,7 @@ function example_do_rg_run3(rg, num_repeats, lsfunc=nothing;
     maxiters=100000,
     doextinctls=false,
     lsnocode=nothing,
+    useKcfilter=false,
     # passed to make_mmicrm_ss_problem
     kwargs...
 )
@@ -335,6 +336,42 @@ function example_do_rg_run3(rg, num_repeats, lsfunc=nothing;
 
         # Setup one random system
         ps = rg()
+
+        if useKcfilter
+            will_go_extinct = true
+            for a in 1:Nr
+                if !will_go_extinct
+                    break
+                end
+                if ps.Kc[a] > 0.0
+                    for i in 1:Ns
+                        if ps.c[i, a] > 0.0
+                            will_go_extinct = false
+                            break
+                        end
+                    end
+                end
+            end
+            if will_go_extinct
+                ss = fill(0.0, Ns + Nr)
+                for a in 1:Nr
+                    ss[Ns+a] = ps.K[a] / ps.r[a]
+                end
+                params[i] = ps
+                steadystates[i] = ss
+                sscodes[i] = 2
+
+                # Optional linear stability
+                if !isnothing(lscodes)
+                    if doextinctls
+                        lscodes[i] = local_lsfunc(ps, ss)
+                    else
+                        lscodes[i] = lsnocode
+                    end
+                end
+            end
+        end
+
         u0 = ModifiedMiCRM.make_u0_onlyN(ps)
         ssp = make_mmicrm_ss_problem(ps, u0; kwargs...)
 
@@ -360,7 +397,7 @@ function example_do_rg_run3(rg, num_repeats, lsfunc=nothing;
         # Check that the steady state is steady enough
         maxresid = maximum(abs, ssps.resid)
         if maxresid > errmaxresidthr
-            @warn (@sprintf "maxresid reached is %g which is above the error threshold of %g" maxresid maxresidthr)
+            @error (@sprintf "maxresid reached is %g which is above the error threshold of %g" maxresid maxresidthr)
             sscode = -2000 # maxresid is way beyond any reasonable values
         elseif maxresid > maxresidthr
             @warn (@sprintf "maxresid reached is %g > %g" maxresid maxresidthr)
