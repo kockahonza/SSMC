@@ -32,6 +32,11 @@ function splitkwargs(kwargs, args...)
 end
 export splitkwargs
 
+function paramstring(sep="_", kvsep=""; kwargs...)
+    join([(@sprintf "%s%s%.3g" string(n) kvsep v) for (n, v) in kwargs], sep)
+end
+export paramstring
+
 ################################################################################
 # Parameter scanning
 ################################################################################
