@@ -246,6 +246,7 @@ include("diagrams.jl")
 ################################################################################
 # Minimal model specific bits
 include("MinimalModelSemisymbolic/MinimalModelSemisymbolic.jl")
+include("MinimalModelSemisymbolic/MinimalModelV2.jl")
 include("RandomSystems/RandomSystems.jl")
 
 end
