@@ -110,7 +110,7 @@ end
 function main1()
     logKs = range(-0.5, 3, 100)
     lis = range(0.0, 1.0, 50)
-    @time xx = run_explike_Kl_nospace(logKs, lis, 10000000;
+    @time xx = run_explike_Kl_space(logKs, lis, 1000000;
         save_sols=true
     )
 
