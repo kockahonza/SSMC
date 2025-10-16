@@ -10,10 +10,10 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       154,          7]
-NotebookDataLength[    221484,       4179]
-NotebookOptionsPosition[    217070,       4098]
-NotebookOutlinePosition[    217458,       4114]
-CellTagsIndexPosition[    217415,       4111]
+NotebookDataLength[    221492,       4180]
+NotebookOptionsPosition[    217078,       4099]
+NotebookOutlinePosition[    217466,       4115]
+CellTagsIndexPosition[    217423,       4112]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
@@ -4009,7 +4009,7 @@ Cell[BoxData[
       Hold[K$$], 0, 10, ControlType -> Manipulator}, {
       Hold[$CellContext`nss$$], 0, 10, ControlType -> Manipulator}, {
       Hold[$CellContext`f$$], 0, 10, ControlType -> Manipulator}}, 
-    Typeset`size$$ = {360., {106.37933798634742`, 112.00433798634742`}}, 
+    Typeset`size$$ = {360., {106.3457226367092, 111.9707226367092}}, 
     Typeset`update$$ = 0, Typeset`initDone$$, Typeset`skipInitDone$$ = True, 
     Typeset`keyframeActionsQ$$ = False, Typeset`keyframeList$$ = {}}, 
     DynamicBox[Manipulate`ManipulateBoxes[
@@ -4023,15 +4023,16 @@ Cell[BoxData[
          Typeset`skipInitDone$$, Typeset`keyframeActionsQ$$, 
         Typeset`keyframeList$$}, "Body" :> 
       Plot[-$CellContext`m$$ + 
-        K$$ $CellContext`nss$$ (1 + $CellContext`f$$ $CellContext`w^2) (2 + 
-          2 $CellContext`nss$$ + $CellContext`f$$ $CellContext`w^2)/((
-           1 + $CellContext`nss$$)^2 (
-           1 + $CellContext`nss$$ + $CellContext`f$$ $CellContext`w^2)^2), \
+        K$$ $CellContext`nss$$ (
+          1 + $CellContext`f$$ $CellContext`w^2) ((2 + 
+           2 $CellContext`nss$$ + $CellContext`f$$ $CellContext`w^2)/((
+            1 + $CellContext`nss$$)^2 (
+            1 + $CellContext`nss$$ + $CellContext`f$$ $CellContext`w^2)^2)), \
 {$CellContext`w, 0, 10}], 
       "Specifications" :> {{$CellContext`m$$, 0, 10}, {
         K$$, 0, 10}, {$CellContext`nss$$, 0, 10}, {$CellContext`f$$, 0, 10}}, 
       "Options" :> {}, "DefaultOptions" :> {}],
-     ImageSizeCache->{405.1, {183.69496298634743`, 189.31996298634743`}},
+     ImageSizeCache->{405.1, {183.6613476367092, 189.2863476367092}},
      SingleEvaluation->True],
     Deinitialization:>None,
     DynamicModuleValues:>{},
@@ -4175,11 +4176,11 @@ Cell[210077, 3928, 763, 24, 59, "Output",ExpressionUUID->"973dff9f-e59d-4235-bc6
 }, Open  ]],
 Cell[CellGroupData[{
 Cell[210877, 3957, 1424, 40, 56, "Input",ExpressionUUID->"5b1f4218-e885-4dcf-815b-c65169df1481"],
-Cell[212304, 3999, 2566, 47, 409, "Output",ExpressionUUID->"7587aac1-bdac-4104-94e9-6f6e87702fb2"]
+Cell[212304, 3999, 2574, 48, 389, "Output",ExpressionUUID->"7587aac1-bdac-4104-94e9-6f6e87702fb2"]
 }, Open  ]],
 Cell[CellGroupData[{
-Cell[214907, 4051, 364, 8, 29, "Input",ExpressionUUID->"af39bfe0-ad91-4826-9b66-fd6c92c22f21"],
-Cell[215274, 4061, 1780, 34, 118, "Output",ExpressionUUID->"7346d88c-391a-4b7a-9f9d-7a0023716a77"]
+Cell[214915, 4052, 364, 8, 29, "Input",ExpressionUUID->"af39bfe0-ad91-4826-9b66-fd6c92c22f21"],
+Cell[215282, 4062, 1780, 34, 118, "Output",ExpressionUUID->"7346d88c-391a-4b7a-9f9d-7a0023716a77"]
 }, Open  ]]
 }
 ]
