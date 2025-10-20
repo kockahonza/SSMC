@@ -19,7 +19,7 @@ function run_explike_Kl_nospace(logKs, ls, T;
     retcodes = Matrix{ReturnCode.T}(undef, length(logKs), length(ls))
     maxresids = Matrix{Float64}(undef, length(logKs), length(ls))
     final_states = Matrix{Vector{Float64}}(undef, length(logKs), length(ls))
-    @tasks for i in 1:length(logKs)
+    for i in 1:length(logKs)
         logK = logKs[i]
         for (j, l) in enumerate(ls)
             mmp = MMParams(;
@@ -40,7 +40,8 @@ function run_explike_Kl_nospace(logKs, ls, T;
                 sols[i, j] = s
             end
             retcodes[i, j] = s.retcode
-            maxresids[i, j] = maximum(abs, uninplace(mmicrmfunc!)(s.u[end], mmicrm_params))
+            # maxresids[i, j] = maximum(abs, uninplace(mmicrmfunc!)(s.u[end], mmicrm_params))
+            maxresids[i, j] = mmicrmmaxresid(s.u[end], mmicrm_params)
             final_states[i, j] = s.u[end]
         end
         @sprintf "Finished %d out of %d logK runs\n" i length(logKs)
@@ -102,6 +103,7 @@ function run_explike_Kl_space(logKs, ls, T;
                 # sum(s.u[end]; dims=2)
                 final_abundances[i, j] = sum(s.u[end]; dims=2)[:, 1]
             end
+            GC.gc()
         end
     end
     (; retcodes, final_abundances, sols=(save_sols ? sols : nothing))

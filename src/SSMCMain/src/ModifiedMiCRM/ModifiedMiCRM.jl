@@ -213,6 +213,16 @@ function make_smmicrm_problem(p::AbstractSMMiCRMParams, u0, T;
 end
 export make_smmicrm_problem
 
+function mmicrmresid(u, p::AbstractMMiCRMParams)
+    du = zeros(eltype(u), size(u))
+    mmicrmfunc!(du, u, p)
+    du
+end
+function mmicrmmaxresid(args...)
+    maximum(abs, mmicrmresid(args...))
+end
+export mmicrmresid, mmicrmmaxresid
+
 ################################################################################
 # Imports
 ################################################################################
