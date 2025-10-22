@@ -134,7 +134,9 @@ function main2()
     params = Matrix{Any}(undef, length(logKs), length(ls))
     retcodes = Matrix{ReturnCode.T}(undef, length(logKs), length(ls))
     final_states = Matrix{Matrix{Float64}}(undef, length(logKs), length(ls))
-    prog = Progress(length(logKs))
+    prog = Progress(length(logKs) * length(ls))
+
+    GC.enable_logging(true)
     @tasks for i in 1:length(logKs)
         logK = logKs[i]
         for (j, l) in enumerate(ls)
@@ -153,23 +155,25 @@ function main2()
                 make_cartesianspace_smart(1; dx),
                 # nthreads()
             )
-            sp = make_smmicrm_problem(sps, copy(u0), 1e8)
+            sp = make_smmicrm_problem(sps, copy(u0), 1e6)
 
             tol = 100 * eps()
             s = solve(sp, QNDF();
                 abstol=tol,
                 reltol=tol,
-                callback=make_timer_callback(30 * 60)
+                callback=make_timer_callback(10 * 60)
             )
 
             params[i, j] = sps
             retcodes[i, j] = s.retcode
             final_states[i, j] = s.u[end]
+
+            GC.gc()
+
+            next!(prog)
+            flush(stdout)
         end
-        @time GC.gc()
         # @printf "Finished %d out of %d logK runs\n" i length(logKs)
-        # flush(stdout)
-        next!(prog)
     end
     finish!(prog)
 
