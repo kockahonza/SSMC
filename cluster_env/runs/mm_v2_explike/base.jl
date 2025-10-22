@@ -104,7 +104,7 @@ function run_explike_Kl_space(logKs, ls, T;
                 # sum(s.u[end]; dims=2)
                 final_abundances[i, j] = sum(s.u[end]; dims=2)[:, 1]
             end
-            GC.gc()
+            # GC.gc()
         end
     end
     (; retcodes, final_abundances, sols=(save_sols ? sols : nothing))
