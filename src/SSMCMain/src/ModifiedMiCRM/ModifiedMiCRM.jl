@@ -218,6 +218,9 @@ function mmicrmresid(u, p::AbstractMMiCRMParams)
     mmicrmfunc!(du, u, p)
     du
 end
+function mmicrmresid(s::ODESolution)
+    mmicrmresid(s.u[end], s.prob.p)
+end
 function mmicrmmaxresid(args...)
     maximum(abs, mmicrmresid(args...))
 end
