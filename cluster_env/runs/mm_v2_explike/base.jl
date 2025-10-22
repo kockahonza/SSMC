@@ -166,6 +166,7 @@ function main2()
             retcodes[i, j] = s.retcode
             final_states[i, j] = s.u[end]
         end
+        @time GC.gc()
         # @printf "Finished %d out of %d logK runs\n" i length(logKs)
         # flush(stdout)
         next!(prog)
