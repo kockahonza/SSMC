@@ -3,6 +3,7 @@ using SSMCMain, SSMCMain.ModifiedMiCRM.MinimalModelV2
 using Base.Threads
 using OhMyThreads
 
+using ProgressMeter
 using JLD2
 
 function run_explike_Kl_nospace(logKs, ls, T;
@@ -109,6 +110,15 @@ function run_explike_Kl_space(logKs, ls, T;
     (; retcodes, final_abundances, sols=(save_sols ? sols : nothing))
 end
 
+function main1()
+    logKs = range(-0.5, 3, 100)
+    lis = range(0.0, 1.0, 50)
+    @time xx = run_explike_Kl_space(logKs, lis, 1000000;
+        save_sols=true
+    )
+
+    @time jldsave("faf.jld2"; logKs, lis, xx)
+end
 
 function main2()
     logKs = range(-0.5, 3, 100)
@@ -124,6 +134,7 @@ function main2()
     params = Matrix{Any}(undef, length(logKs), length(ls))
     retcodes = Matrix{ReturnCode.T}(undef, length(logKs), length(ls))
     final_states = Matrix{Matrix{Float64}}(undef, length(logKs), length(ls))
+    prog = Progress(length(logKs))
     @tasks for i in 1:length(logKs)
         logK = logKs[i]
         for (j, l) in enumerate(ls)
@@ -148,28 +159,67 @@ function main2()
             s = solve(sp, QNDF();
                 abstol=tol,
                 reltol=tol,
-                callback=make_timer_callback(2)
+                callback=make_timer_callback(30 * 60)
             )
 
             params[i, j] = sps
             retcodes[i, j] = s.retcode
             final_states[i, j] = s.u[end]
         end
-        @printf "Finished %d out of %d logK runs\n" i length(logKs)
-        flush(stdout)
+        # @printf "Finished %d out of %d logK runs\n" i length(logKs)
+        # flush(stdout)
+        next!(prog)
     end
+    finish!(prog)
 
     jldsave("main2_results.jld2"; logKs, ls, params, retcodes, final_states, L, sN, epsilon)
 
     (; params, retcodes, final_states)
 end
 
-function main1()
+function main3()
     logKs = range(-0.5, 3, 100)
-    lis = range(0.0, 1.0, 50)
-    @time xx = run_explike_Kl_space(logKs, lis, 1000000;
-        save_sols=true
-    )
+    ls = range(0.0, 1.0, 50)
 
-    @time jldsave("faf.jld2"; logKs, lis, xx)
+    u0 = [1.0, 0.0, 0.0]
+
+    params = Matrix{Any}(undef, length(logKs), length(ls))
+    retcodes = Matrix{ReturnCode.T}(undef, length(logKs), length(ls))
+    final_states = Matrix{Vector{Float64}}(undef, length(logKs), length(ls))
+    prog = Progress(length(logKs))
+    @tasks for i in 1:length(logKs)
+        logK = logKs[i]
+        for (j, l) in enumerate(ls)
+            l = ls[j]
+            mmp = MMParams(;
+                K=10^logK,
+                m=1.0,
+                l=l,
+                k=0.0,
+                c=1.0,
+                d=1.0,
+            )
+            ps = mmp_to_mmicrm(mmp)
+            p = make_mmicrm_problem(ps, copy(u0), 1e8)
+
+            tol = 100 * eps()
+            s = solve(p, QNDF();
+                abstol=tol,
+                reltol=tol,
+                callback=make_timer_callback(2)
+            )
+
+            params[i, j] = ps
+            retcodes[i, j] = s.retcode
+            final_states[i, j] = s.u[end]
+        end
+        # @printf "Finished %d out of %d logK runs\n" i length(logKs)
+        # flush(stdout)
+        next!(prog)
+    end
+    finish!(prog)
+
+    jldsave("main3_results.jld2"; logKs, ls, params, retcodes, final_states)
+
+    (; params, retcodes, final_states)
 end
