@@ -254,6 +254,14 @@ include("GraphAnalysis.jl")
 include("util.jl")
 include("diagrams.jl")
 
+module LeakageScale
+e(x) = 1 / (1 + exp(x))
+l(x) = 1 - e(x)
+ltox(l) = log(l / (1 - l))
+etox(e) = -log(e / (1 - e))
+end
+export LeakageScale
+
 ################################################################################
 # Sub/optional bits that come in submodules
 ################################################################################
