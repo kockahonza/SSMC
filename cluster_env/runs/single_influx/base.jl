@@ -8,7 +8,7 @@ function gendata2()
     B = 3
 
     xx = LeakageScale.ltox(0.999)
-    xxs = range(-xx, xx, 25)
+    xxs = range(0.0, xx, 25)
     lis = LeakageScale.l.(xxs)
 
     Ks = 10 .^ range(-0.5, 4.0, 25)
