@@ -115,6 +115,45 @@ function do_df_run2(Ks, N, B; M=N, kwargs...)
     )
 end
 
+function gendata1()
+    fname = joinpath("./gd1_" * timestamp() * ".jld2")
+
+    N = 10
+    M = N
+    B = 3
+
+    # lis = 1.0:-0.02:0.8
+    # lis = [1., 0.99, 0.9, 0.8]
+    lis = [1.0, 0.9]
+    Ks = 10 .^ range(-0.5, 4.0, 10)
+
+    raw_dfs = []
+    counts_dfs = []
+    for li in lis
+        @show li
+        flush(stdout)
+        df, cms = do_df_run(Ks, N;
+            M, pei=1.0,
+            linflux=li,
+            cinflux=1.0, pe=(B / M),
+            l=0.0,
+            c=1.0, num_byproducts=B, num_repeats=50,
+            lsks=10 .^ range(-5, 3, 2000),
+        )
+        push!(raw_dfs, df)
+        push!(counts_dfs, make_counts_df(df))
+    end
+
+    jldsave(fname;
+        N, M, B, lis, Ks, raw_dfs, counts_dfs
+    )
+
+    fname
+end
+
+################################################################################
+# Processing data
+################################################################################
 function make_counts_df(df)
     probsdf = DataFrame(;
         K=Float64[],
@@ -162,40 +201,62 @@ function make_counts_df(df)
     probsdf
 end
 
-function gendata1()
-    fname = joinpath("./gd1_" * timestamp() * ".jld2")
+function make_Kli_matrix(f)
+    Ks = f["Ks"]
+    lis = f["lis"]
+    rdfs = f["raw_dfs"]
 
-    N = 10
-    M = N
-    B = 3
+    rslt = Matrix{@NamedTuple{extinct::Int64, nonext_stable::Int64, nonext_unstable::Int64, bad_ss::Int64, good_ss_bad_ls::Int64, num_runs::Int64}}(undef, length(Ks), length(lis))
+    pb = Progress(length(rslt))
+    for j in 1:length(lis)
+        li = lis[j]
+        df = rdfs[j]
 
-    # lis = 1.0:-0.02:0.8
-    # lis = [1., 0.99, 0.9, 0.8]
-    lis = [1.0, 0.9]
-    Ks = 10 .^ range(-0.5, 4.0, 10)
+        for sdf in groupby(df, :K)
+            K = sdf.K[1]
+            i = findfirst(==(K), Ks)
+            if isnothing(i)
+                @show Ks
+                throw(ErrorException())
+            end
 
-    raw_dfs = []
-    counts_dfs = []
-    for li in lis
-        @show li
-        flush(stdout)
-        df, cms = do_df_run(Ks, N;
-            M, pei=1.0,
-            linflux=li,
-            cinflux=1.0, pe=(B / M),
-            l=0.0,
-            c=1.0, num_byproducts=B, num_repeats=50,
-            lsks=10 .^ range(-5, 3, 2000),
-        )
-        push!(raw_dfs, df)
-        push!(counts_dfs, make_counts_df(df))
+            num_runs = nrow(sdf)
+
+            bad_ss = 0
+            extinct = 0
+            good_ss_bad_ls = 0
+            nonext_stable = 0
+            nonext_unstable = 0
+            for r in eachrow(sdf)
+                if r.sscode == 1
+                    if r.lscode == 1
+                        nonext_stable += 1
+                    elseif r.lscode == 2
+                        nonext_unstable += 1
+                    else
+                        good_ss_bad_ls += 1
+                    end
+                elseif r.sscode == 2
+                    extinct += 1
+                else
+                    bad_ss += 1
+                end
+            end
+            rslt[i, j] = (;
+                extinct,
+                nonext_stable,
+                nonext_unstable,
+                bad_ss,
+                good_ss_bad_ls,
+                num_runs,
+            )
+
+            next!(pb)
+        end
     end
+    finish!(pb)
 
-    jldsave(fname;
-        N, M, B, lis, Ks, raw_dfs, counts_dfs
-    )
-
-    fname
+    Ks, lis, rslt
 end
 
 ################################################################################
