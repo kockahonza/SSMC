@@ -255,10 +255,20 @@ include("util.jl")
 include("diagrams.jl")
 
 module LeakageScale
+using Printf
+
 e(x) = 1 / (1 + exp(x))
 l(x) = 1 - e(x)
 ltox(l) = log(l / (1 - l))
 etox(e) = -log(e / (1 - e))
+
+exticks(es) = (etox.(es), [@sprintf("%.2f", e) for e in es])
+lxticks(ls) = (ltox.(ls), [@sprintf("%.2f", l) for l in ls])
+
+function lxrange(lmin, lmax, n)
+    l.(range(ltox(lmin), ltox(lmax), n))
+end
+
 end
 export LeakageScale
 
