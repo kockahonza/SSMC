@@ -9,13 +9,18 @@ using JLD2
 function run_Kl_nospace(;
     logKs=range(-0.5, 3, 100),
     ls=range(0.0, 1.0, 50),
-    u0=[1.0, 0.0, 0.0],
-    T=1e8,
-    tol=100 * eps(),
+    m=1.0,
+    c=1.0,
+    N0=100.0,
+    u0=[N0, 0.0, 0.0],
+    T=1e6,
+    tol=1000 * eps(),
+    maxtime=2,
 )
     params = Matrix{Any}(undef, length(logKs), length(ls))
     retcodes = Matrix{ReturnCode.T}(undef, length(logKs), length(ls))
     final_states = Matrix{Vector{Float64}}(undef, length(logKs), length(ls))
+    final_Ts = Matrix{Float64}(undef, length(logKs), length(ls))
     prog = Progress(length(logKs))
     @tasks for i in 1:length(logKs)
         logK = logKs[i]
@@ -23,10 +28,10 @@ function run_Kl_nospace(;
             l = ls[j]
             mmp = MMParams(;
                 K=10^logK,
-                m=1.0,
                 l=l,
+                m,
+                c,
                 k=0.0,
-                c=1.0,
                 d=1.0,
             )
             ps = mmp_to_mmicrm(mmp)
@@ -35,22 +40,30 @@ function run_Kl_nospace(;
             s = solve(p, QNDF();
                 abstol=tol,
                 reltol=tol,
-                callback=make_timer_callback(2)
+                callback=make_timer_callback(maxtime)
             )
 
             params[i, j] = ps
             retcodes[i, j] = s.retcode
             final_states[i, j] = s.u[end]
+            final_Ts[i, j] = s.t[end]
         end
-        # @printf "Finished %d out of %d logK runs\n" i length(logKs)
-        # flush(stdout)
         next!(prog)
     end
     finish!(prog)
 
-    jldsave("nospace_results.jld2"; logKs, ls, params, retcodes, final_states)
-
-    (; params, retcodes, final_states)
+    (; params, retcodes, final_states, final_Ts)
+end
+function run_Kl_nospace(f::JLD2.JLDFile; kwargs...)
+    run_Kl_nospace(;
+        logKs=f["logKs"],
+        ls=f["ls"],
+        m=f["m"],
+        c=f["c"],
+        N0=f["N0"],
+        T=f["T"],
+        kwargs...
+    )
 end
 
 ################################################################################
@@ -209,6 +222,9 @@ function v2main_highN0_base()
     DI = 1.0
     DR = 1.0
 
+    m = 1.0
+    c = 1.0
+
     T = 1e6
 
     L = 5 # system size in non-dim units
@@ -232,10 +248,10 @@ function v2main_highN0_base()
             l = ls[j]
             mmp = MMParams(;
                 K=10^logK,
-                m=1.0,
+                m,
+                c,
                 l=l,
                 k=0.0,
-                c=1.0,
                 d=1.0,
             )
             sps = SASMMiCRMParams(
@@ -268,7 +284,7 @@ function v2main_highN0_base()
     finish!(prog)
 
     jldsave("v2main_highN0_base.jld2";
-        logKs, ls, N0, DN, DI, DR, T, L, sN, epsilon,
+        logKs, ls, N0, DN, DI, DR, m, c, T, L, sN, epsilon,
         params, retcodes, final_states, final_T,
     )
 
