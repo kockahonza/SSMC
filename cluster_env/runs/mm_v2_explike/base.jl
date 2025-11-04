@@ -53,6 +53,9 @@ function run_Kl_nospace(;
     (; params, retcodes, final_states)
 end
 
+################################################################################
+# PDEs version 1 - DN=1e-12, generally low N0
+################################################################################
 function main1()
     logKs = range(-0.5, 3, 100)
     lis = range(0.0, 1.0, 50)
@@ -194,16 +197,27 @@ function main4()
     (; params, retcodes, final_states)
 end
 
-function main_highN0_base()
+################################################################################
+# PDEs version 1 - high N0, higher DN
+################################################################################
+function v2main_highN0_base()
     logKs = range(-0.1, 4, 100)
-    ls = range(0.1, 1.0, 20)
+    ls = range(0.0, 1.0, 20)
+
+    N0 = 10.0
+    DN = 1e-12
+    DI = 1.0
+    DR = 1.0
+
+    T = 1e6
+
     # Spatial setup
     L = 2 # system size in non-dim units
     sN = 10000 # number of spatial points
     epsilon = 1e-5 # initial condition noise amplitude
 
     dx = L / (sN + 1)
-    u0 = clamp.(reduce(hcat, [[10.0, 0.0, 0.0] .+ epsilon .* randn(3) for _ in 1:sN]), 0.0, Inf)
+    u0 = clamp.(reduce(hcat, [[N0, 0.0, 0.0] .+ epsilon .* randn(3) for _ in 1:sN]), 0.0, Inf)
 
     params = Matrix{Any}(undef, length(logKs), length(ls))
     retcodes = Matrix{ReturnCode.T}(undef, length(logKs), length(ls))
@@ -226,11 +240,11 @@ function main_highN0_base()
             )
             sps = SASMMiCRMParams(
                 mmp_to_mmicrm(mmp),
-                SA[1e-12, 1.0, 1.0],
+                SA[DN, DI, DR],
                 make_cartesianspace_smart(1; dx),
                 # nthreads()
             )
-            sp = make_smmicrm_problem(sps, copy(u0), 1e8)
+            sp = make_smmicrm_problem(sps, copy(u0), T)
 
             tol = 10000 * eps()
             s = solve(sp, QNDF();
@@ -238,7 +252,7 @@ function main_highN0_base()
                 save_everystep=false,
                 abstol=tol,
                 reltol=tol,
-                callback=make_timer_callback(60 * 60)
+                callback=make_timer_callback(15 * 60)
             )
 
             params[i, j] = sps

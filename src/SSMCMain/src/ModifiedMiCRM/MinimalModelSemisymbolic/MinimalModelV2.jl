@@ -16,13 +16,24 @@ Base.@kwdef struct MMParams{F}
 end
 export MMParams
 
-function mmp_to_mmicrm(mmp::MMParams{F}) where {F}
-    SAMMiCRMParams(
-        SA[1.0], SA[1.0, 1.0],
-        SA[mmp.m],
-        SA[mmp.K, 0.0], SA[mmp.r, mmp.r],
-        SA[mmp.l mmp.k], SA[mmp.c mmp.d], SArray{Tuple{1,2,2}}(0.0, 1.0, 0.0, 0.0),
-    )
+function mmp_to_mmicrm(mmp::MMParams{F}; static=true) where {F}
+    if static
+        SAMMiCRMParams(
+            SA[1.0], SA[1.0, 1.0],
+            SA[mmp.m],
+            SA[mmp.K, 0.0], SA[mmp.r, mmp.r],
+            SA[mmp.l mmp.k], SA[mmp.c mmp.d], SArray{Tuple{1,2,2}}(0.0, 1.0, 0.0, 0.0),
+        )
+    else
+        D = fill(0.0, 1, 2, 2)
+        D[1, 2, 1] = 1
+        BMMiCRMParams(
+            [1.0], [1.0, 1.0],
+            [mmp.m],
+            [mmp.K, 0.0], [mmp.r, mmp.r],
+            [mmp.l mmp.k], [mmp.c mmp.d], D,
+        )
+    end
 end
 export mmp_to_mmicrm
 function mmp_to_smmicrm(mmps::MMParams{F};
