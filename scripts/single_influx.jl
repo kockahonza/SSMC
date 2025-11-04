@@ -9,6 +9,8 @@ using DataFrames
 using DataFramesMeta
 using HypothesisTests
 
+include("./figures_util.jl")
+
 ################################################################################
 # Running single influx scenarios
 ################################################################################
@@ -265,6 +267,7 @@ end
 function plot_binom_sample!(ax, xs, ns, num_repeats;
     label="",
     proportions=false,
+    kwargs...
 )
     if isa(num_repeats, Number)
         num_repeats = fill(num_repeats, length(ns))
@@ -275,7 +278,10 @@ function plot_binom_sample!(ax, xs, ns, num_repeats;
     else
         ns
     end
-    sl = scatterlines!(ax, xs, xx; label)
+    sl = scatterlines!(ax, xs, xx;
+        label,
+        kwargs...
+    )
 
     mins = Float64[]
     maxs = Float64[]
@@ -292,8 +298,9 @@ function plot_binom_sample!(ax, xs, ns, num_repeats;
         end
     end
 
-    b = band!(xs, mins, maxs;
-        alpha=0.5
+    b = band!(ax, xs, mins, maxs;
+        alpha=0.5,
+        kwargs...
     )
 
     (sl, b)
@@ -303,20 +310,24 @@ function plot_cdf1!(ax, cdf; include_bad=true, proportions=false)
     goodruns = cdf.num_runs .- cdf.bad_ss .- cdf.good_ss_bad_ls
     p1 = plot_binom_sample!(ax, cdf.K, cdf.extinct, goodruns;
         label="extinct",
+        color=PaperColors.extinct1(),
         proportions
     )
     # lsruns = cdf.num_runs .- cdf.bad_ss .- cdf.extinct
     p2 = plot_binom_sample!(ax, cdf.K, cdf.nonext_unstable, goodruns;
         label="unstable",
+        color=PaperColors.unstable1(),
         proportions
     )
     p3 = plot_binom_sample!(ax, cdf.K, cdf.nonext_stable, goodruns;
         label="stable",
+        color=PaperColors.stable1(),
         proportions
     )
     if include_bad
         p3 = plot_binom_sample!(ax, cdf.K, cdf.bad_ss .+ cdf.good_ss_bad_ls, cdf.num_runs;
             label="bad data",
+            color=PaperColors.other(),
             proportions
         )
     end
