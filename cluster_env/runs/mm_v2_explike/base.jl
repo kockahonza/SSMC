@@ -201,20 +201,21 @@ end
 # PDEs version 1 - high N0, higher DN
 ################################################################################
 function v2main_highN0_base()
-    logKs = range(-0.1, 4, 100)
-    ls = range(0.0, 1.0, 20)
+    logKs = range(-0.1, 4, 80)
+    ls = range(0.0, 1.0, 30)
 
-    N0 = 10.0
-    DN = 1e-12
+    N0 = 100.0
+    DN = 1e-6
     DI = 1.0
     DR = 1.0
 
     T = 1e6
 
-    # Spatial setup
-    L = 2 # system size in non-dim units
-    sN = 10000 # number of spatial points
+    L = 5 # system size in non-dim units
+    sN = 5000 # number of spatial points
     epsilon = 1e-5 # initial condition noise amplitude
+
+    ##########
 
     dx = L / (sN + 1)
     u0 = clamp.(reduce(hcat, [[N0, 0.0, 0.0] .+ epsilon .* randn(3) for _ in 1:sN]), 0.0, Inf)
@@ -225,7 +226,6 @@ function v2main_highN0_base()
     final_T = Matrix{Float64}(undef, length(logKs), length(ls))
     prog = Progress(length(logKs) * length(ls))
 
-    GC.enable_logging(true)
     @tasks for i in 1:length(logKs)
         logK = logKs[i]
         for (j, l) in enumerate(ls)
@@ -260,8 +260,6 @@ function v2main_highN0_base()
             final_states[i, j] = s.u[end]
             final_T[i, j] = s.t[end]
 
-            GC.gc()
-
             next!(prog)
             flush(stdout)
         end
@@ -269,7 +267,11 @@ function v2main_highN0_base()
     end
     finish!(prog)
 
-    jldsave("main4_results.jld2"; logKs, ls, params, retcodes, final_states, final_T, L, sN, epsilon)
+    jldsave("v2main_highN0_base.jld2";
+        logKs, ls, N0, DN, DI, DR, T, L, sN, epsilon,
+        params, retcodes, final_states, final_T,
+    )
 
-    (; params, retcodes, final_states)
+
+    (; params, retcodes, final_states, final_T)
 end
