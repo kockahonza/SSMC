@@ -15,7 +15,9 @@ function run_Kl_nospace(;
     u0=[N0, 0.0, 0.0],
     T=1e6,
     tol=1000 * eps(),
+    solver=TRBDF2(),
     maxtime=2,
+    kwargs...
 )
     params = Matrix{Any}(undef, length(logKs), length(ls))
     retcodes = Matrix{ReturnCode.T}(undef, length(logKs), length(ls))
@@ -37,10 +39,11 @@ function run_Kl_nospace(;
             ps = mmp_to_mmicrm(mmp)
             p = make_mmicrm_problem(ps, copy(u0), T)
 
-            s = solve(p, QNDF();
+            s = solve(p, solver;
                 abstol=tol,
                 reltol=tol,
-                callback=make_timer_callback(maxtime)
+                callback=make_timer_callback(maxtime),
+                kwargs...
             )
 
             params[i, j] = ps
@@ -263,7 +266,7 @@ function v2main_highN0_base()
             sp = make_smmicrm_problem(sps, copy(u0), T)
 
             tol = 10000 * eps()
-            s = solve(sp, QNDF();
+            s = solve(sp, TRBDF2();
                 dense=false,
                 save_everystep=false,
                 abstol=tol,
@@ -283,7 +286,7 @@ function v2main_highN0_base()
     end
     finish!(prog)
 
-    jldsave("v2main_highN0_base.jld2";
+    jldsave("v2main_highN0_base2.jld2";
         logKs, ls, N0, DN, DI, DR, m, c, T, L, sN, epsilon,
         params, retcodes, final_states, final_T,
     )
@@ -342,12 +345,12 @@ function v2main_highN0_largem_lowDR()
             sp = make_smmicrm_problem(sps, copy(u0), T)
 
             tol = 10000 * eps()
-            s = solve(sp, QNDF();
+            s = solve(sp, TRBDF2();
                 dense=false,
                 save_everystep=false,
                 abstol=tol,
                 reltol=tol,
-                callback=make_timer_callback(60 * 60)
+                callback=make_timer_callback(30 * 60)
             )
 
             params[i, j] = sps
@@ -362,7 +365,7 @@ function v2main_highN0_largem_lowDR()
     end
     finish!(prog)
 
-    jldsave("v2main_highN0_largem_lowDR2.jld2";
+    jldsave("v2main_highN0_largem_lowDR3.jld2";
         logKs, ls, N0, DN, DI, DR, m, c, T, L, sN, epsilon,
         params, retcodes, final_states, final_T,
     )
