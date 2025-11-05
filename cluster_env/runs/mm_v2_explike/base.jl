@@ -292,7 +292,7 @@ function v2main_highN0_base()
     (; params, retcodes, final_states, final_T)
 end
 
-function v2main_highN0_diffs()
+function v2main_highN0_largem_lowDR()
     logKs = range(-0.1, 4, 80)
     ls = LeakageScale.lxrange(0.01, 0.99, 30)
 
@@ -347,7 +347,7 @@ function v2main_highN0_diffs()
                 save_everystep=false,
                 abstol=tol,
                 reltol=tol,
-                callback=make_timer_callback(15 * 60)
+                callback=make_timer_callback(60 * 60)
             )
 
             params[i, j] = sps
@@ -362,7 +362,7 @@ function v2main_highN0_diffs()
     end
     finish!(prog)
 
-    jldsave("v2main_highN0_diffs.jld2";
+    jldsave("v2main_highN0_largem_lowDR2.jld2";
         logKs, ls, N0, DN, DI, DR, m, c, T, L, sN, epsilon,
         params, retcodes, final_states, final_T,
     )
