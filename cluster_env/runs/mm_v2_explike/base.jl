@@ -214,7 +214,7 @@ function main4()
 end
 
 ################################################################################
-# PDEs version 1 - high N0, higher DN
+# PDEs version 2 - high N0, higher DN
 ################################################################################
 function v2main_highN0_base()
     logKs = range(-0.1, 4, 80)
@@ -266,7 +266,7 @@ function v2main_highN0_base()
             sp = make_smmicrm_problem(sps, copy(u0), T)
 
             tol = 10000 * eps()
-            s = solve(sp, TRBDF2();
+            s = solve(sp, QNDF();
                 dense=false,
                 save_everystep=false,
                 abstol=tol,
@@ -286,7 +286,7 @@ function v2main_highN0_base()
     end
     finish!(prog)
 
-    jldsave("v2main_highN0_base2.jld2";
+    jldsave("v2main_highN0_base4.jld2";
         logKs, ls, N0, DN, DI, DR, m, c, T, L, sN, epsilon,
         params, retcodes, final_states, final_T,
     )
@@ -345,7 +345,7 @@ function v2main_highN0_largem_lowDR()
             sp = make_smmicrm_problem(sps, copy(u0), T)
 
             tol = 10000 * eps()
-            s = solve(sp, TRBDF2();
+            s = solve(sp, QNDF();
                 dense=false,
                 save_everystep=false,
                 abstol=tol,
@@ -365,7 +365,7 @@ function v2main_highN0_largem_lowDR()
     end
     finish!(prog)
 
-    jldsave("v2main_highN0_largem_lowDR3.jld2";
+    jldsave("v2main_highN0_largem_lowDR4.jld2";
         logKs, ls, N0, DN, DI, DR, m, c, T, L, sN, epsilon,
         params, retcodes, final_states, final_T,
     )
