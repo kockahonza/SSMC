@@ -77,6 +77,7 @@ function perturb_u0_uniform_prop(Ns, Nr, u0, e_s=nothing, e_r=nothing)
     end
 
     rand_pm_one = (2 .* rand(size(u0)...) .- 1)
+    # rand_pm_one = randn(size(u0)...)
 
     u0 .* (1.0 .+ rand_pm_one .* epsilon)
 end

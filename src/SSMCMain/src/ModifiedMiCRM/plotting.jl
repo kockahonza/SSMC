@@ -60,14 +60,20 @@ function plot_mmicrm_sol(sol;
 end
 export plot_mmicrm_sol
 
-function plot_linstab_lambdas(ks, lambdas; imthreshold=1e-8)
-    fig = Figure()
-    ax = Axis(fig[1, 1])
+function plot_linstab_lambdas(ks, lambdas;
+    figure=(;),
+    axis=(;),
+    legend=true,
+    imthreshold=1e-8,
+)
+    fig = Figure(; figure...)
+    ax = Axis(fig[1, 1]; axis...)
 
     num_lambdas = length(lambdas[1])
 
     for li in 1:num_lambdas
-        ls = [lambdas[i][li] for i in 1:length(lambdas)]
+        # ls = [lambdas[i][li] for i in 1:length(lambdas)]
+        ls = getindex.(lambdas, li)
 
         lines!(ax, ks, real(ls);
             color=Cycled(li),
@@ -85,7 +91,9 @@ function plot_linstab_lambdas(ks, lambdas; imthreshold=1e-8)
             )
         end
     end
-    axislegend(ax)
+    if legend
+        axislegend(ax)
+    end
 
     mrl = maximum(ls -> maximum(real, ls), lambdas)
     if mrl > 1000 * eps()

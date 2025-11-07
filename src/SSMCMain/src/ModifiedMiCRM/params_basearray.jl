@@ -149,13 +149,9 @@ function smmicrmfunc!(du, u, p::BSMMiCRMParams, t=0)
             mmicrmfunc!((@view du[:, r]), (@view u[:, r]), p.mmicrm_params, t)
         end
     else
-        rchunks = chunks(CartesianIndices(axes(u)[2:end]); n=p.usenthreads)
-        @sync for rs in rchunks
-            @spawn begin
-                @inbounds for r in rs
-                    mmicrmfunc!((@view du[:, r]), (@view u[:, r]), p.mmicrm_params, t)
-                end
-            end
+        @tasks for r in CartesianIndices(axes(u)[2:end])
+            @set ntasks = p.usenthreads
+                mmicrmfunc!((@view du[:, r]), (@view u[:, r]), p.mmicrm_params, t)
         end
     end
     add_diffusion!(du, u, p.Ds, p.space, p.usenthreads)

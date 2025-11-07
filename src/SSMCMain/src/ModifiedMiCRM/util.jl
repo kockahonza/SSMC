@@ -72,7 +72,7 @@ function clamp_ss(ss, args...)
 end
 export clamp_ss!, clamp_ss
 
-function base10_lognormal(b10m, b10s)
-    LogNormal(b10m * log(10), b10s * log(10))
+function base10_lognormal(b10m, b10std)
+    LogNormal(b10m * log(10), b10std * log(10))
 end
 export base10_lognormal

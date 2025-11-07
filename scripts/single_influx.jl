@@ -14,6 +14,7 @@ using HypothesisTests
 ################################################################################
 function do_df_run(Ks, N;
     M=N,
+    m=1.0,
     pei=1.0,
     linflux=1.0,
     cinflux=1.0,
@@ -24,6 +25,7 @@ function do_df_run(Ks, N;
     num_repeats=20,
     lsks=10 .^ range(-5, 3, 2000),
     Ds=1e-12, Dr=1.0, Drinflux=Dr,
+    print_quality=true,
 )
     cms = []
     df = DataFrame(;
@@ -38,13 +40,28 @@ function do_df_run(Ks, N;
         params=Any[],
         steadystates=Vector{Float64}[],
     )
+    metadata!(df, "N", N; style=:note)
+    metadata!(df, "M", M; style=:note)
+    metadata!(df, "m", m; style=:note)
+    metadata!(df, "pei", pei; style=:note)
+    metadata!(df, "linflux", linflux; style=:note)
+    metadata!(df, "cinflux", cinflux; style=:note)
+    metadata!(df, "pe", pe; style=:note)
+    metadata!(df, "l", l; style=:note)
+    metadata!(df, "c", c; style=:note)
+    metadata!(df, "num_byproducts", num_byproducts; style=:note)
+    metadata!(df, "num_repeats", num_repeats; style=:note)
+    metadata!(df, "lsks", lsks; style=:note)
+    metadata!(df, "Ds", Ds; style=:note)
+    metadata!(df, "Dr", Dr; style=:note)
+    metadata!(df, "Drinflux", Drinflux; style=:note)
 
     @showprogress for K in Ks
         rsg = JansSampler3(N, M;
             K,
             num_influx_resources=1,
             # should be a valid non-dim?
-            m=1.0,
+            m,
             # first network layer
             prob_eating_influx=pei,
             linflux, cinflux,
@@ -97,20 +114,26 @@ function do_df_run(Ks, N;
         cm = countmap(codes)
         push!(cms, cm)
     end
-
-    @show countmap(df.sscode) countmap(df.lscode) count(df.good_ss .&& df.good_ls) / nrow(df)
-    prop_good_ss_and_ls = count(df.good_ss .&& df.good_ls) / nrow(df)
-    @show prop_good_ss_and_ls
+    if print_quality
+        @show countmap(df.sscode) countmap(df.lscode) count(df.good_ss .&& df.good_ls) / nrow(df)
+        prop_good_ss_and_ls = count(df.good_ss .&& df.good_ls) / nrow(df)
+        @show prop_good_ss_and_ls
+    end
 
     df, cms
 end
-function do_df_run2(Ks, N, B; M=N, kwargs...)
+function do_df_run2(Ks, N, B;
+    M=N,
+    fixed_num_byproducts=false,
+    kwargs...
+)
     pe = B / M
+    num_byproducts = fixed_num_byproducts ? B : Binomial(M, pe)
     do_df_run(Ks, N;
         M,
         pei=pe,
         pe,
-        num_byproducts=B,
+        num_byproducts,
         kwargs...
     )
 end

@@ -422,7 +422,6 @@ function example_do_rg_run3(rg, num_repeats, lsfunc=nothing;
 end
 export example_do_rg_run3
 
-
 ################################################################################
 # Debugging variants
 ################################################################################
