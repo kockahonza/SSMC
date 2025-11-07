@@ -27,6 +27,13 @@ function run_1d_pdes_from_df(fname;
     N = md(df, "N")
     M = md(df, "M")
 
+    metadata!(df, "T", T; style=:note)
+    metadata!(df, "L", L; style=:note)
+    metadata!(df, "sN", sN; style=:note)
+    metadata!(df, "dx", dx; style=:note)
+    metadata!(df, "epsilon", epsilon; style=:note)
+    metadata!(df, "tol", tol; style=:note)
+
     num_runs = nrow(df)
 
     retcodes = Vector{ReturnCode.T}(undef, num_runs)
@@ -74,4 +81,13 @@ function run_1d_pdes_from_df(fname;
     df.final_Ts = final_Ts
 
     df
+end
+
+function main1()
+    df = run_1d_pdes_from_df("single_influx_1d_base.jld2";
+        run_threads=4,
+        solver_threads=32,
+        maxtime=10 * 60 * 60,
+    )
+    jldsave("./rslt_df1.jld2", df)
 end

@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -p BIOP
 #SBATCH --time 72:00:00
-#SBATCH --cpus-per-task=102
+#SBATCH --cpus-per-task=128
 
-time julia -t $SLURM_CPUS_PER_TASK --project -L base.jl -e 'gendata4()'
+time julia -t $SLURM_CPUS_PER_TASK --project -L base.jl -e 'main1()'
