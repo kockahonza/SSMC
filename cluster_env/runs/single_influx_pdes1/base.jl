@@ -84,10 +84,10 @@ function run_1d_pdes_from_df(fname;
 end
 
 function main1()
-    df = run_1d_pdes_from_df("./sel_systems1.jld2";
+    df = run_1d_pdes_from_df("./sel_systems2.jld2";
         run_threads=4,
         solver_threads=32,
-        maxtime=10 * 60 * 60,
+        maxtime=3 * 60 * 60,
     )
-    jldsave("./rslt_df1.jld2"; df)
+    jldsave("./rslt_df2.jld2"; df)
 end
