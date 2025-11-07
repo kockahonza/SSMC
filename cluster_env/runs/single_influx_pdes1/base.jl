@@ -89,5 +89,5 @@ function main1()
         solver_threads=32,
         maxtime=10 * 60 * 60,
     )
-    jldsave("./rslt_df1.jld2", df)
+    jldsave("./rslt_df1.jld2"; df)
 end
