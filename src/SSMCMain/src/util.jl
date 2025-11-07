@@ -171,6 +171,39 @@ function make_timer_callback(limit)
 end
 export make_timer_callback
 
+mutable struct ProgressCallback
+    prog::Union{Nothing,Progress}
+    dt::Float64
+    next_t::Float64
+    function ProgressCallback(T; t0=0.0)
+        dt = (T - t0) / 1000
+        new(nothing, dt, t0)
+    end
+end
+function init_progress!(pc)
+    pc.prog = Progress(1000)
+end
+function update_progress!(pc, t)
+    if t > pc.next_t
+        next!(pc.prog)
+        pc.next_t += pc.dt
+    end
+    false
+end
+function finish_progress!(pc)
+    finish!(pc.prog)
+end
+function make_progress_callback(T; t0=0.0)
+    pc = ProgressCallback(T; t0)
+    DiscreteCallback(
+        (u, t, i) -> update_progress!(pc, t),
+        i -> nothing;
+        initialize=(c, u, t, i) -> init_progress!(pc),
+        finalize=(c, u, t, i) -> finish_progress!(pc)
+    )
+end
+export make_progress_callback
+
 timestamp() = Dates.format(Dates.now(), "yymmdd_HMS")
 export timestamp
 
