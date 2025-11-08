@@ -70,6 +70,8 @@ function run_1d_pdes_from_df(fname;
         final_states[i] = s.u[end]
         final_Ts[i] = s.t[end]
 
+        GC.gc()
+
         next!(prog)
         flush(stdout)
     end
@@ -85,8 +87,8 @@ end
 
 function main1()
     df = run_1d_pdes_from_df("./sel_systems3.jld2";
-        run_threads=4,
-        solver_threads=32,
+        run_threads=2,
+        solver_threads=64,
         maxtime=5 * 60 * 60,
     )
     jldsave("./rslt_df3.jld2"; df)
