@@ -27,7 +27,7 @@ function v1_base()
     ##########
 
     dx = L / (sN + 1)
-    u0 = clamp.(reduce(hcat, [[N0, N0, 0.0, 0.0, 0.0] .+ epsilon .* randn(3) for _ in 1:sN]), 0.0, Inf)
+    u0 = clamp.(reduce(hcat, [[N0, N0, 0.0, 0.0, 0.0] .+ epsilon .* randn(5) for _ in 1:sN]), 0.0, Inf)
 
     params = Matrix{Any}(undef, length(logKs), length(ls))
     retcodes = Matrix{ReturnCode.T}(undef, length(logKs), length(ls))
