@@ -61,6 +61,7 @@ function run_1d_pdes_from_df(fname;
         s = solve(sp, solver();
             dense=false,
             save_everystep=false,
+            calck=false,
             abstol=tol,
             reltol=tol,
             callback=make_timer_callback(maxtime)
@@ -70,6 +71,8 @@ function run_1d_pdes_from_df(fname;
         final_states[i] = s.u[end]
         final_Ts[i] = s.t[end]
 
+        s = nothing
+        sp = nothing
         GC.gc()
 
         next!(prog)
