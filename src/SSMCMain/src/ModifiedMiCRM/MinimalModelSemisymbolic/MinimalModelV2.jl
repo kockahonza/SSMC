@@ -16,7 +16,7 @@ Base.@kwdef struct MMParams{F}
 end
 export MMParams
 
-function mmp_to_mmicrm(mmp::MMParams{F}; static=true) where {F}
+function mmp_to_mmicrm(mmp::MMParams{F}, args...; static=true, kwargs...) where {F}
     if static
         SAMMiCRMParams(
             SA[1.0], SA[1.0, 1.0],
@@ -32,6 +32,7 @@ function mmp_to_mmicrm(mmp::MMParams{F}; static=true) where {F}
             [mmp.m],
             [mmp.K, 0.0], [mmp.r, mmp.r],
             [mmp.l mmp.k], [mmp.c mmp.d], D,
+            args...; kwargs...
         )
     end
 end

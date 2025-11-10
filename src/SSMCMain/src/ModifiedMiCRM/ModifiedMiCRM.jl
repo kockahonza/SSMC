@@ -278,6 +278,7 @@ export LeakageScale
 # Minimal model specific bits
 include("MinimalModelSemisymbolic/MinimalModelSemisymbolic.jl")
 include("MinimalModelSemisymbolic/MinimalModelV2.jl")
+include("SymCosmo/SymCosmo.jl")
 include("RandomSystems/RandomSystems.jl")
 
 end

@@ -56,7 +56,8 @@ function plot_mmicrm_sol(sol;
             end
         end
     end
-    fig
+
+    FigureAxisAnything(fig, [strainax, resax], nothing)
 end
 export plot_mmicrm_sol
 
