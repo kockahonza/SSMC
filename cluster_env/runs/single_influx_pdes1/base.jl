@@ -162,6 +162,9 @@ function add_highN0_run(fname, outfname=nothing;
     final_states = Vector{Matrix{Float64}}(undef, num_runs)
     final_Ts = Vector{Float64}(undef, num_runs)
 
+    @printf "Starting a run on %s which contains %d rows\n" fname num_runs
+    flush(stdout)
+
     prog = Progress(num_runs)
     @tasks for i in 1:num_runs
         @set ntasks = run_threads
@@ -202,9 +205,10 @@ end
 Adds a high N0 run to the same file as would be outputted by main1
 """
 function main2()
-    add_highN0_run("./rslt_df1.jld2", "./rslt2_df1.jld2";
+    df = add_highN0_run("./rslt_df1.jld2", "./rslt2_df1.jld2";
         run_threads=4,
         solver_threads=32,
         maxtime=5 * 60 * 60,
     )
+    jldsave("./forsafety.jld2"; df)
 end
