@@ -205,7 +205,7 @@ end
 Adds a high N0 run to the same file as would be outputted by main1
 """
 function main2()
-    df = add_highN0_run("./rslt_df1.jld2", "./rslt2_df1.jld2";
+    df = add_highN0_run("./rslt_df2.jld2", "./rslt2_df2.jld2";
         run_threads=4,
         solver_threads=32,
         maxtime=5 * 60 * 60,

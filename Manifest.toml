@@ -2,7 +2,7 @@
 
 julia_version = "1.10.10"
 manifest_format = "2.0"
-project_hash = "67cb1ce04047bdc94b2430ba5f19a54e3626dd2b"
+project_hash = "4dc1d53ad2fde632394faf8b760536c6b43318d3"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "27cecae79e5cc9935255f90c53bb831cc3c870d7"
@@ -1274,6 +1274,11 @@ git-tree-sha1 = "0d27753bf95dc7c5e3952189a1bec78b5ac7b784"
 uuid = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 version = "0.13.6"
 
+[[deps.GMP_jll]]
+deps = ["Artifacts", "Libdl"]
+uuid = "781609d7-10c4-51f6-84f2-b8444358ff6d"
+version = "6.2.1+6"
+
 [[deps.GPUArraysCore]]
 deps = ["Adapt"]
 git-tree-sha1 = "83cf05ab16a73219e5f6bd1bdfa9848fa24ac627"
@@ -2228,6 +2233,12 @@ version = "0.10.5"
 git-tree-sha1 = "eda490d06b9f7c00752ee81cfa451efe55521e21"
 uuid = "c020b1a1-e9b0-503a-9c33-f039bfc54a85"
 version = "1.0.0"
+
+[[deps.NautyGraphs]]
+deps = ["Graphs", "LinearAlgebra", "SHA", "nauty_jll"]
+git-tree-sha1 = "db754679c279a882e31451813cdd1225f481f5aa"
+uuid = "7509a0a4-015a-4167-b44b-0799a1a2605e"
+version = "0.6.3"
 
 [[deps.NearestNeighbors]]
 deps = ["Distances", "StaticArrays"]
@@ -3966,6 +3977,12 @@ deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl"]
 git-tree-sha1 = "2ca2ac0b23a8e6b76752453e08428b3b4de28095"
 uuid = "f8abcde7-e9b7-5caa-b8af-a437887ae8e4"
 version = "1.5.12+0"
+
+[[deps.nauty_jll]]
+deps = ["Artifacts", "GMP_jll", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "c31f5c1b1d8ce050690a70b78ddb6e56bd0f6eda"
+uuid = "55c6dc9b-343a-50ca-8ff2-b71adb3733d5"
+version = "2.8.10+1"
 
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
