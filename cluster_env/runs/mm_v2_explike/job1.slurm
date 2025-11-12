@@ -2,6 +2,6 @@
 #SBATCH -p BIOP
 #SBATCH --time 72:00:00
 #SBATCH --cpus-per-task=128
-#SBATCH --mem=150G
+#SBATCH --mem=300G
 
-time julia -t $SLURM_CPUS_PER_TASK --project -L base.jl -e 'v2main_highN0_base()'
+time julia -t $SLURM_CPUS_PER_TASK --project -L base.jl -e 'v2main_highN0_lowDR()'
