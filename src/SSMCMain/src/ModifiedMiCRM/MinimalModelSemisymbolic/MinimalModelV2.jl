@@ -160,4 +160,6 @@ function analyse_mmp(mmp::MMParams{F};
 end
 export analyse_mmp
 
+include("./v2_plotting_utils.jl")
+
 end

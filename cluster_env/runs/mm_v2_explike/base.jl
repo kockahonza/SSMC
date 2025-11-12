@@ -1,4 +1,5 @@
 using SSMCMain, SSMCMain.ModifiedMiCRM.MinimalModelV2
+import SSMCMain.ModifiedMiCRM.MinimalModelV2
 
 using Base.Threads
 using OhMyThreads
