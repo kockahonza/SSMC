@@ -79,7 +79,7 @@ function add_v3_nospace_run!(fname;
     maxtime=5 * 60,
     kwargs...
 )
-    f = open(fname, "r+")
+    f = jldopen(fname, "r+")
 
     T = f["T"]
     N0 = f["N0"]
