@@ -136,6 +136,10 @@ function analyse_mmp(mmp::MMParams{F};
             continue
         end
 
+        # for k in (10 .^ range(-6, 3, 100))
+        #     make_M(mmicrm_params, Ds, ss, k)
+        # end
+
         Kp = MinimalModelSemisymbolic.make_K_polynomial_mm(M1, Ds)
         kroots = find_ks_that_have_nullspace(Kp; threshold)
         k_samples = sample_ks_from_nullspace_ks(kroots)
