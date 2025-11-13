@@ -16,8 +16,8 @@ function run_Kl_nospace(;
     u0=[N0, 0.0, 0.0],
     T=1e6,
     tol=1000 * eps(),
-    solver=TRBDF2(),
-    maxtime=2,
+    solver=QNDF,
+    maxtime=5,
     kwargs...
 )
     params = Matrix{Any}(undef, length(logKs), length(ls))
@@ -40,7 +40,7 @@ function run_Kl_nospace(;
             ps = mmp_to_mmicrm(mmp)
             p = make_mmicrm_problem(ps, copy(u0), T)
 
-            s = solve(p, solver;
+            s = solve(p, solver();
                 abstol=tol,
                 reltol=tol,
                 callback=make_timer_callback(maxtime),
@@ -68,6 +68,15 @@ function run_Kl_nospace(f::JLD2.JLDFile; kwargs...)
         T=f["T"],
         kwargs...
     )
+end
+
+function add_nospace_Kl_run(fname; kwargs...)
+    f = jldopen(fname, "r+")
+    nospace_results = run_Kl_nospace(f; kwargs...)
+    f["ns_retcodes"] = nospace_results.retcodes
+    f["ns_final_states"] = nospace_results.final_states
+    f["ns_final_T"] = nospace_results.final_Ts
+    close(f)
 end
 
 ################################################################################
