@@ -126,8 +126,8 @@ end
 function v3main_base()
     outfname = "v3_base1.jld2"
     pde_results = do_v3_pde_run(
-        range(-0.1, 3, 10),
-        LeakageScale.lxrange(0.01, 0.99, 10),
+        range(-0.1, 3, 100),
+        LeakageScale.lxrange(0.01, 0.99, 30),
         1e6,
         1.0, 1.0,
         1e-6, 1.0, 1.0,
@@ -143,7 +143,7 @@ end
 function v3main_lowDR()
     outfname = "v3_lowDR1.jld2"
     pde_results = do_v3_pde_run(
-        range(-0.1, 3, 80),
+        range(-0.1, 3, 100),
         LeakageScale.lxrange(0.01, 0.99, 30),
         1e6,
         1.0, 1.0,
@@ -160,7 +160,7 @@ end
 function v3main_lowm_lowDR()
     outfname = "v3_lowm_lowDR1.jld2"
     pde_results = do_v3_pde_run(
-        range(-2.1, 0.5, 80),
+        range(-2.1, 0.5, 100),
         LeakageScale.lxrange(0.01, 0.99, 30),
         1e6,
         0.01, 1.0,
@@ -174,7 +174,7 @@ function v3main_lowm_lowDR()
     @show countmap(nospace_results.retcodes)
 end
 
-function v3main()
+function v3main1()
     v3main_base()
     v3main_lowDR()
     v3main_lowm_lowDR()
