@@ -85,9 +85,7 @@ function add_v3_nospace_run!(fname;
     N0 = f["N0"]
     u0 = [N0, 0.0, 0.0]
 
-    if isnothing(tol)
-        tol = f["tol"]
-    end
+    tol_ = something(tol, f["tol"])
 
     params = f["params"]
 
@@ -101,8 +99,8 @@ function add_v3_nospace_run!(fname;
         p = make_mmicrm_problem(ps, copy(u0), T)
 
         s = solve(p, solver();
-            abstol=tol,
-            reltol=tol,
+            abstol=tol_,
+            reltol=tol_,
             callback=make_timer_callback(maxtime),
             kwargs...
         )
