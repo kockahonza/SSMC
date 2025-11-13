@@ -115,9 +115,9 @@ function add_v3_nospace_run!(fname;
     f["ns_final_states"] = final_states
     f["ns_final_Ts"] = final_Ts
 
-    (; retcodes, final_states, final_Ts)
-
     close(f)
+
+    (; retcodes, final_states, final_Ts)
 end
 
 ################################################################################
