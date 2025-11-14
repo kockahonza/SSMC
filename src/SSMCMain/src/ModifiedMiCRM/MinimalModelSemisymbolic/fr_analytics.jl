@@ -26,32 +26,3 @@ function fr_cor1_instab_line_K(l, m, c, p, r=1.0)
         missing
     end
 end
-
-function draw_fr_ext_line!(ax, ls, m, c;
-    Ktransform=identity,
-    kwargs...
-)
-    line_Ks = fr_ext_line_K.(ls, m, c)
-
-    lines!(ax, Ktransform.(line_Ks), LeakageScale.ltox.(ls);
-        kwargs...
-    )
-
-    ax
-end
-function draw_fr_instab_line!(ax, ls, m, c;
-    Ktransform=identity,
-    kwargs...
-)
-    line_Ks = fr_instab_line_K.(ls, m, c)
-
-    lines!(ax, Ktransform.(line_Ks), LeakageScale.ltox.(ls);
-        kwargs...
-    )
-
-    ax
-end
-function draw_fr_lines!(args...; kwargs...)
-    draw_fr_ext_line!(args...; kwargs...)
-    draw_fr_instab_line!(args...; kwargs...)
-end

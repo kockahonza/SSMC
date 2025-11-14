@@ -270,7 +270,7 @@ Plot a single snapshot of a 1D SMMiCRM solution
 """
 function plot_1dsmmicrm_sol_snap(params::AbstractSMMiCRMParams, snap_u, t=nothing; singleax=false, plote=false)
     len = size(snap_u)[2]
-    xs = get_space(params).dx[1] .* (0:(len-1))
+    xs = get_space(params).dx[1] .* ((1:len) .- 0.5)
 
     # Setup the figure
     fig, strain_lines, resource_lines, _ = setup_1dsmmicrm_figure(
@@ -310,7 +310,7 @@ function plot_1dsmmicrm_sol_interactive(sol; singleax=false, plote=false)
     end
 
     len = size(sol.u[1])[2]
-    xs = get_space(params).dx[1] .* (0:(len-1))
+    xs = get_space(params).dx[1] .* ((1:len) .- 0.5)
     Ns = get_Ns(params.mmicrm_params)[1]
 
     # Setup the figure

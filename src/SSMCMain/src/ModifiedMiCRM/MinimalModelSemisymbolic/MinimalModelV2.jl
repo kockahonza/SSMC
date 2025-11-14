@@ -165,5 +165,6 @@ end
 export analyse_mmp
 
 include("./fr_analytics.jl")
+include("./plotting_util.jl")
 
 end

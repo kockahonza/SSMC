@@ -82,3 +82,21 @@ function perturb_u0_uniform_prop(Ns, Nr, u0, e_s=nothing, e_r=nothing)
     u0 .* (1.0 .+ rand_pm_one .* epsilon)
 end
 export perturb_u0_uniform, perturb_u0_uniform_prop
+
+function add_1d_many_sines!(u, numewaves, maxamp, dx;
+    nmax=10
+)
+    sN = length(u)
+    L = sN * dx
+    xs = ((1:sN) .- 0.5) .* dx
+
+    for _ in 1:numewaves
+        amp = rand() * maxamp
+        origin = rand() * L
+        n = rand(1:nmax)
+        lambda = L / n
+        xx = (2 * pi) / lambda
+        u .+= amp .* sin.(xx .* (xs .- origin))
+    end
+end
+export add_1d_many_sines!

@@ -212,3 +212,21 @@ function main2()
     )
     jldsave("./forsafety.jld2"; df)
 end
+
+################################################################################
+# Do both in the same cluster run
+################################################################################
+function main3()
+    df = run_1d_pdes_from_df("./sel_systems4.jld2";
+        run_threads=4,
+        solver_threads=32,
+        maxtime=5 * 60 * 60,
+    )
+    jldsave("./rslt_df4.jld2"; df)
+    df = add_highN0_run("./rslt_df4.jld2", "./rslt2_df4.jld2";
+        run_threads=4,
+        solver_threads=32,
+        maxtime=5 * 60 * 60,
+    )
+    jldsave("./forsafety.jld2"; df)
+end

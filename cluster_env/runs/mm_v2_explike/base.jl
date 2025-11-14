@@ -12,7 +12,7 @@ function run_Kl_nospace(;
     ls=range(0.0, 1.0, 50),
     m=1.0,
     c=1.0,
-    N0=100.0,
+    N0=100.,
     u0=[N0, 0.0, 0.0],
     T=1e6,
     tol=1000 * eps(),

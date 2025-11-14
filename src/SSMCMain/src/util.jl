@@ -207,6 +207,15 @@ export make_progress_callback
 timestamp() = Dates.format(Dates.now(), "yymmdd_HMS")
 export timestamp
 
+function clamp_for_log(xx)
+    mm = minimum(xx)
+    if mm < (-10000 * eps())
+        @warn (@sprintf "Clamping data for a logscale but lowest value is %.3g < -10000 * eps()" mm)
+    end
+    clamp.(xx, max(mm, eps()), Inf)
+end
+export clamp_for_log
+
 ################################################################################
 # Plotting
 ################################################################################
@@ -352,7 +361,6 @@ function plot_dimdata_scatterlines_int(data, xvar;
     FigureAxisAnything(fig, ax, marginalized_data)
 end
 export plot_dimdata_scatterlines_int
-
 
 ################################################################################
 # Plotting NamedArrays with labels etc plus DataFrames helpers
