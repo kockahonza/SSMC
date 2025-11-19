@@ -1,0 +1,7 @@
+#!/bin/bash
+#SBATCH -p BIOP
+#SBATCH --time 72:00:00
+#SBATCH --cpus-per-task=128
+#SBATCH --mem=500G
+
+time julia -t $SLURM_CPUS_PER_TASK --project -L base.jl -e 'main3_v2_fname("pei1")'
