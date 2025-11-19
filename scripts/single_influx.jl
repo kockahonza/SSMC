@@ -22,9 +22,9 @@ function do_df_run(Ks, N;
     l=0.0,
     c=1.0,
     num_byproducts=M,
+    Ds=1e-12, Dr=1.0, Drinflux=Dr,
     num_repeats=20,
     lsks=10 .^ range(-5, 3, 2000),
-    Ds=1e-12, Dr=1.0, Drinflux=Dr,
     print_quality=true,
 )
     cms = []

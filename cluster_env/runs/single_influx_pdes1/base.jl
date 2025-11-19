@@ -85,6 +85,9 @@ function run_1d_pdes_from_df(fname;
     final_states = Vector{Matrix{Float64}}(undef, num_runs)
     final_Ts = Vector{Float64}(undef, num_runs)
 
+    @printf "Starting a base run on %s which contains %d rows\n" fname num_runs
+    flush(stdout)
+
     prog = Progress(num_runs)
     @tasks for i in 1:num_runs
         @set ntasks = run_threads
@@ -162,7 +165,7 @@ function add_highN0_run(fname, outfname=nothing;
     final_states = Vector{Matrix{Float64}}(undef, num_runs)
     final_Ts = Vector{Float64}(undef, num_runs)
 
-    @printf "Starting a run on %s which contains %d rows\n" fname num_runs
+    @printf "Starting a high N0 run on %s which contains %d rows\n" fname num_runs
     flush(stdout)
 
     prog = Progress(num_runs)
@@ -229,4 +232,97 @@ function main3()
         maxtime=5 * 60 * 60,
     )
     jldsave("./forsafety.jld2"; df)
+end
+
+function main3_v2_fname(runname)
+    input_fname = "./selsystems_v2_$(runname).jld2"
+    out1_fname = "./rslt1_$(runname).jld2"
+    out2_fname = "./rslt2_$(runname).jld2"
+    df = run_1d_pdes_from_df(input_fname;
+        run_threads=4,
+        solver_threads=32,
+        maxtime=5 * 60 * 60,
+    )
+    jldsave(out1_fname; df)
+    df = add_highN0_run(out1_fname, out2_fname;
+        run_threads=4,
+        solver_threads=32,
+        maxtime=5 * 60 * 60,
+    )
+end
+
+################################################################################
+# Plotting bits
+################################################################################
+using Makie
+
+function plot_spatial_fs!(gl, u, Ns, sN, dx;
+    axis=(;),
+)
+    Nr = size(u)[1] - Ns
+    xs = ((1:sN) .- 0.5) .* dx
+
+    axs = Axis(gl[1, 1]; axis...)
+    axr = Axis(gl[2, 1]; axis...)
+    linkxaxes!(axs, axr)
+    hidexdecorations!(axs)
+    rowgap!(gl, 4.0)
+
+    for i in 1:Ns
+        lines!(axs, xs, u[i, :])
+    end
+    for a in 1:Nr
+        lines!(axr, xs, u[Ns+a, :])
+    end
+
+    axs, axr
+end
+function plot_spatial_fs(args...;
+    figure=(;),
+    kwargs...
+)
+    fig = Figure(; figure...)
+    plot_spatial_fs!(fig, args...; kwargs...)
+
+    fig
+end
+
+function make_spatial_report(df)
+    N = md(df, "N")
+    M = md(df, "M")
+    T = md(df, "T")
+    L = md(df, "L")
+    sN = md(df, "sN")
+    dx = md(df, "dx", L / sN)
+
+    N0 = md(df, "N0")
+
+    num_runs = nrow(df)
+    fig = Figure(;
+        size=(1000, 200 * num_runs)
+    )
+
+    for i in 1:num_runs
+        sr = df[i, :]
+
+        bgl = GridLayout(fig[i, 1])
+        baxs, baxr = plot_spatial_fs!(bgl, sr.final_states, N, sN, dx)
+
+        hN0gl = GridLayout(fig[i, 2])
+        hN0axs, hN0axr = plot_spatial_fs!(hN0gl, sr.highN0_final_states, N, sN, dx)
+
+        # baxr.xlabel = "space"
+        # hN0axr.xlabel = "space"
+
+        Label(fig[i, 0], "Params $i";
+            tellheight=false,
+            rotation=pi / 2,
+        )
+    end
+    Label(fig[0, 1], "Starting from near homogeneous steady state"; tellwidth=false)
+    Label(fig[0, 2], "Starting from high N0=$(N0)"; tellwidth=false)
+
+    rowgap!(fig.layout, 5.0)
+
+    fig
 end
