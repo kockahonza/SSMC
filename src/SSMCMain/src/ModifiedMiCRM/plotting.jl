@@ -729,3 +729,65 @@ function plot_2dsmmicrm_sol_animation_heatmap(sol, filename=datadir(randname() *
     fig
 end
 export plot_2dsmmicrm_sol_animation_heatmap
+
+# Simpler version of plotting a 1D spatial solution
+function get_spatial_gridpoints_dx(N::Integer, dx)
+    ((1:N) .- 0.5) .* dx
+end
+function get_spatial_gridpoints_dx(u::AbstractVector, dx)
+    get_spatial_gridpoints_L(length(u), dx)
+end
+function get_spatial_gridpoints_L(N::Integer, L)
+    get_spatial_gridpoints_dx(N, L / N)
+end
+function get_spatial_gridpoints_L(u::AbstractVector, L)
+    get_spatial_gridpoints_L(length(u), L)
+end
+export get_spatial_gridpoints_dx, get_spatial_gridpoints_L
+
+# function plot_spatial_fs!(gl, u, Ns, sN, dx, ss=nothing;
+#     axis=(;),
+# )
+#     Nr = size(u)[1] - Ns
+#     xs = ((1:sN) .- 0.5) .* dx
+#
+#     axs = Axis(gl[1, 1]; axis...)
+#     axr = Axis(gl[2, 1]; axis...)
+#     linkxaxes!(axs, axr)
+#     hidexdecorations!(axs)
+#     rowgap!(gl, 4.0)
+#
+#     for i in 1:Ns
+#         lines!(axs, xs, u[i, :]; color=Cycled(i))
+#     end
+#     for a in 1:Nr
+#         lines!(axr, xs, u[Ns+a, :]; color=Cycled(Ns + a))
+#     end
+#
+#     if !isnothing(ss)
+#         for i in 1:Ns
+#             hlines!(axs, ss[i];
+#                 color=Cycled(i),
+#                 linestyle=:dash
+#             )
+#         end
+#         for a in 1:Nr
+#             hlines!(axr, ss[Ns+a];
+#                 color=Cycled(Ns + a),
+#                 linestyle=:dash
+#             )
+#         end
+#     end
+#
+#     axs, axr
+# end
+# function plot_spatial_fs(args...;
+#     figure=(;),
+#     kwargs...
+# )
+#     fig = Figure(; figure...)
+#     plot_spatial_fs!(fig, args...; kwargs...)
+#
+#     fig
+# end
+# export plot_spatial_fs!, plot_spatial_fs

@@ -10,7 +10,7 @@ Base.@kwdef struct MMParams{F}
     m::F
     c::F
     l::F
-    d::F
+    d::F = c
     k::F = 0.0
     r::F = 1.0
 end
@@ -109,7 +109,7 @@ end
 export nospacesolstabilities_to_code
 
 function analyse_mmp(mmp::MMParams{F};
-    DN=1e-12, DI=1.0, DR=1e-12,
+    DN=1e-12, DI=1.0, DR=1.0,
     threshold=10 * eps(F),
 ) where {F}
     # find no space solutions
@@ -126,7 +126,7 @@ function analyse_mmp(mmp::MMParams{F};
     mmicrm_params = mmp_to_smmicrm(mmp; DN, DI, DR)
     Ds = SA[DN, DI, DR]
 
-    nospace_sol_stability = []
+    nospace_sol_stability = NospaceSolStability.T[]
     for ss in nospace_sols
         M1 = make_M1(mmicrm_params, ss)
 
@@ -163,6 +163,23 @@ function analyse_mmp(mmp::MMParams{F};
     nospace_sol_stability
 end
 export analyse_mmp
+
+function get_simplified_analysis(full_analysis_results::Vector{NospaceSolStability.T})
+    nonext = filter(!=(NospaceSolStability.nospace_unstable), full_analysis_results)
+    if length(nonext) == 0
+        :ext
+    elseif length(nonext) == 1
+        if nonext[1] == NospaceSolStability.stable
+            :stable
+        else
+            :unstable
+        end
+    else
+        :nospace_bistability
+    end
+end
+get_simplified_analysis(args...; kwargs...) = get_simplified_analysis(analyse_mmp(args...; kwargs...))
+export get_simplified_analysis
 
 include("./fr_analytics.jl")
 include("./plotting_util.jl")

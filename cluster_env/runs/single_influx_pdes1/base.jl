@@ -252,77 +252,168 @@ function main3_v2_fname(runname)
 end
 
 ################################################################################
-# Plotting bits
+# Plotting/fast analysis bits
 ################################################################################
-# using Makie
-#
-# function plot_spatial_fs!(gl, u, Ns, sN, dx;
-#     axis=(;),
-# )
-#     Nr = size(u)[1] - Ns
-#     xs = ((1:sN) .- 0.5) .* dx
-#
-#     axs = Axis(gl[1, 1]; axis...)
-#     axr = Axis(gl[2, 1]; axis...)
-#     linkxaxes!(axs, axr)
-#     hidexdecorations!(axs)
-#     rowgap!(gl, 4.0)
-#
-#     for i in 1:Ns
-#         lines!(axs, xs, u[i, :])
-#     end
-#     for a in 1:Nr
-#         lines!(axr, xs, u[Ns+a, :])
-#     end
-#
-#     axs, axr
-# end
-# function plot_spatial_fs(args...;
-#     figure=(;),
-#     kwargs...
-# )
-#     fig = Figure(; figure...)
-#     plot_spatial_fs!(fig, args...; kwargs...)
-#
-#     fig
-# end
-#
-# function make_spatial_report(df)
-#     N = md(df, "N")
-#     M = md(df, "M")
-#     T = md(df, "T")
-#     L = md(df, "L")
-#     sN = md(df, "sN")
-#     dx = md(df, "dx", L / sN)
-#
-#     N0 = md(df, "N0")
-#
-#     num_runs = nrow(df)
-#     fig = Figure(;
-#         size=(1000, 200 * num_runs)
-#     )
-#
-#     for i in 1:num_runs
-#         sr = df[i, :]
-#
-#         bgl = GridLayout(fig[i, 1])
-#         baxs, baxr = plot_spatial_fs!(bgl, sr.final_states, N, sN, dx)
-#
-#         hN0gl = GridLayout(fig[i, 2])
-#         hN0axs, hN0axr = plot_spatial_fs!(hN0gl, sr.highN0_final_states, N, sN, dx)
-#
-#         # baxr.xlabel = "space"
-#         # hN0axr.xlabel = "space"
-#
-#         Label(fig[i, 0], "Params $i";
-#             tellheight=false,
-#             rotation=pi / 2,
-#         )
-#     end
-#     Label(fig[0, 1], "Starting from near homogeneous steady state"; tellwidth=false)
-#     Label(fig[0, 2], "Starting from high N0=$(N0)"; tellwidth=false)
-#
-#     rowgap!(fig.layout, 5.0)
-#
-#     fig
+using Makie
+
+function add_mean_final_states(df)
+    df.mfss = map(df.final_states) do fs
+        mean(fs; dims=2)[:, 1]
+    end
+    df.highN0_mfss = map(df.highN0_final_states) do fs
+        mean(fs; dims=2)[:, 1]
+    end
+end
+
+function add_Ks(df)
+    Ks = map(df.params) do ps
+        iis = findall(!iszero, ps.K)
+        if length(iis) != 1
+            throw(ArgumentError("Encountered a system with multiple influx resources (or none at all)"))
+        end
+        ps.K[iis[1]]
+    end
+    df.Ks = Ks
+end
+
+function plot_spatial_fs!(gl, u, Ns, sN, dx, ss=nothing;
+    axis=(;),
+)
+    Nr = size(u)[1] - Ns
+    xs = ((1:sN) .- 0.5) .* dx
+
+    axs = Axis(gl[1, 1]; axis...)
+    axr = Axis(gl[2, 1]; axis...)
+    linkxaxes!(axs, axr)
+    hidexdecorations!(axs)
+    rowgap!(gl, 4.0)
+
+    for i in 1:Ns
+        lines!(axs, xs, u[i, :]; color=Cycled(i))
+    end
+    for a in 1:Nr
+        lines!(axr, xs, u[Ns+a, :]; color=Cycled(Ns + a))
+    end
+
+    if !isnothing(ss)
+        for i in 1:Ns
+            hlines!(axs, ss[i];
+                color=Cycled(i),
+                linestyle=:dash
+            )
+        end
+        for a in 1:Nr
+            hlines!(axr, ss[Ns+a];
+                color=Cycled(Ns + a),
+                linestyle=:dash
+            )
+        end
+    end
+
+    axs, axr
+end
+function plot_spatial_fs(args...;
+    figure=(;),
+    kwargs...
+)
+    fig = Figure(; figure...)
+    plot_spatial_fs!(fig, args...; kwargs...)
+
+    fig
+end
+
+function make_spatial_report(df;
+    rowsize=200,
+    width=1000,
+)
+    N = md(df, "N")
+    M = md(df, "M")
+    T = md(df, "T")
+    L = md(df, "L")
+    sN = md(df, "sN")
+    dx = md(df, "dx", L / sN)
+
+    N0 = md(df, "N0")
+
+    num_runs = nrow(df)
+    fig = Figure(;
+        size=(width, rowsize * num_runs)
+    )
+
+    for ri in 1:num_runs
+        sr = df[ri, :]
+
+        bgl = GridLayout(fig[ri, 1])
+        baxs, baxr = plot_spatial_fs!(bgl, sr.final_states, N, sN, dx, df.steadystates[ri])
+
+        hN0gl = GridLayout(fig[ri, 2])
+        hN0axs, hN0axr = plot_spatial_fs!(hN0gl, sr.highN0_final_states, N, sN, dx, df.steadystates[ri])
+
+        # baxr.xlabel = "space"
+        # hN0axr.xlabel = "space"
+
+        Label(fig[ri, 0], "Params $ri";
+            tellheight=false,
+            rotation=pi / 2,
+        )
+    end
+    Label(fig[0, 1], "Starting from near homogeneous steady state"; tellwidth=false)
+    Label(fig[0, 2], "Starting from high N0=$(N0)"; tellwidth=false)
+
+    rowgap!(fig.layout, 5.0)
+
+    fig
+end
+
+# Scatterplot thing
+function make_mfss_scatterplot(df)
+    fig = Figure(;
+        size=(400, 400),
+    )
+    ax = Axis(fig[1, 1];
+        xlabel="No-space final state mean abundance",
+        ylabel="With space final state mean abundance",
+        aspect=DataAspect(),
+    )
+
+    mm = max(maximum(maximum, df.mfss), maximum(maximum, df.steadystates))
+    lines!(ax, [0, mm], [0, mm]; color=:black)
+
+    scatter!(ax,
+        reduce(vcat, [x[1:N] for x in df.steadystates]),
+        reduce(vcat, [x[1:N] for x in df.mfss]);
+        label="Strains"
+    )
+    scatter!(ax,
+        reduce(vcat, [x[(N+1):(N+M)] for x in df.steadystates]),
+        reduce(vcat, [x[(N+1):(N+M)] for x in df.mfss]);
+        label="Resources"
+    )
+    axislegend(ax)
+
+    fig
+end
+function make_mfss_scatterplot2(df)
+    fig = Figure(;
+    # size=(800,800),
+    )
+    ax = Axis(fig[1, 1];
+        xlabel="No-space final state mean abundance",
+        ylabel="With space final state mean abundance",
+        # aspect=DataAspect(),
+    )
+    scatter!(ax,
+        reduce(vcat, [x[1:N] for x in df.steadystates]) .- reduce(vcat, [x[1:N] for x in df.mfss]);
+        label="Strains"
+    )
+    scatter!(ax,
+        reduce(vcat, [x[(N+1):(N+M)] for x in df.steadystates]) .- reduce(vcat, [x[(N+1):(N+M)] for x in df.mfss]);
+        label="Resources"
+    )
+    axislegend(ax)
+
+    fig
+end
+
+# function make_strains_mfss_scatterplot(df)
 # end
