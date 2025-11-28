@@ -26,11 +26,11 @@ function main1()
         @time xx = run_siny_cmms(
             cmmsp,
             50, 1e8,
-            10, 10000,
-            1.0, 100, 20.0;
+            10, 5000,
+            1.0, 100, 50.0;
             Ds,
-            maxtime=60 * 60,
-            run_threads=4,
+            maxtime=5 * 60,
+            run_threads=8,
             save_sols=false,
         )
 
@@ -41,7 +41,7 @@ function main1()
         results[i] = xx
     end
 
-    jldsave("./rslts2.jld2"; Ks, results)
+    jldsave("./rslts3.jld2"; Ks, results)
 end
 
 
