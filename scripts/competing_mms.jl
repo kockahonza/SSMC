@@ -76,6 +76,7 @@ function run_siny_cmms(
     tol=1e-8,
     extthreshold=100 * tol,
     maxtime=60,
+    save_sols=true,
     # threading
     run_threads=1,
     total_threads=nthreads(),
@@ -84,7 +85,10 @@ function run_siny_cmms(
     dx = L / sN
 
     sols = Vector{Any}(undef, numrepeats)
-    outcomes = Vector{Any}(undef, numrepeats)
+    retcodes = Vector{ReturnCode.T}(undef, numrepeats)
+    fss = Vector{Matrix{Float64}}(undef, numrepeats)
+    fTs = Vector{Float64}(undef, numrepeats)
+    outcomes = Vector{CMMsSpatialOutcome.T}(undef, numrepeats)
 
     prog = Progress(numrepeats)
     @tasks for i in 1:numrepeats
@@ -106,7 +110,14 @@ function run_siny_cmms(
             callback=make_timer_callback(maxtime),
         )
 
-        sols[i] = s
+        sols[i] = if save_sols
+            s
+        else
+            nothing
+        end
+        retcodes[i] = s.retcode
+        fss[i] = s.u[end]
+        fTs[i] = s.t[end]
         outcomes[i] = cmms_spatial_sol_to_outcome(s; extthreshold)
 
         next!(prog)
@@ -115,7 +126,7 @@ function run_siny_cmms(
     finish!(prog)
     flush(stdout)
 
-    (; outcomes, sols)
+    (; outcomes, retcodes, fss, fTs, sols)
 end
 function run_siny_cmms(cmmsp::CMMsParams, args...; kwargs...)
     run_siny_cmms(cmmsp_to_mmicrm(cmmsp), args...; kwargs...)

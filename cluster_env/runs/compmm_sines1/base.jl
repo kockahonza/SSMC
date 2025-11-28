@@ -20,7 +20,7 @@ function main1()
         Ds = SA[1e-6, 1e-6, 1.0, 1.0, 1.0]
         @show cmmsp_get_single_mm_results(cmmsp, Ds...)
 
-        @sprintf "Starting K=%.3g" K
+        @printf "Starting K=%.3g" K
         flush(stdout)
 
         @time xx = run_siny_cmms(
@@ -31,14 +31,17 @@ function main1()
             Ds,
             maxtime=60 * 60,
             run_threads=4,
+            save_sols=false,
         )
 
         @show countmap(xx.outcomes)
-        @sprintf "Finished K=%.3g" K
+        @printf "Finished K=%.3g" K
         flush(stdout)
 
         results[i] = xx
     end
 
-    jldsave("./rslts.jld2"; Ks, results)
+    jldsave("./rslts2.jld2"; Ks, results)
 end
+
+
