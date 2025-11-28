@@ -27,7 +27,7 @@ function main1()
             cmmsp,
             50, 1e8,
             10, 10000,
-            1.0, 100, 2.0;
+            1.0, 100, 20.0;
             Ds,
             maxtime=60 * 60,
             run_threads=4,
