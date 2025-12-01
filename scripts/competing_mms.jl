@@ -328,5 +328,5 @@ function make_nospace_initial_cond_pds(
     xlims!(ax, extrema(Ns)...)
     ylims!(ax, extrema(Ns)...)
 
-    fap
+    nothing
 end

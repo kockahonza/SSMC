@@ -14,6 +14,8 @@ using Reexport
 @reexport using DimensionalData
 @reexport using EnumX
 
+using HypothesisTests
+
 using REPL.TerminalMenus
 using Logging
 using ProgressMeter

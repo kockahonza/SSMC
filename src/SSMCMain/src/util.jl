@@ -254,6 +254,52 @@ function make_grid(n;
 end
 export make_grid
 
+function plot_binom_sample!(ax, xs, ns, num_repeats;
+    proportions=false,
+    kwargs...
+)
+    if isa(num_repeats, Number)
+        num_repeats = fill(num_repeats, length(ns))
+    end
+
+    xx = if proportions
+        ns ./ num_repeats
+    else
+        ns
+    end
+    sl = scatterlines!(ax, xs, xx;
+        kwargs...
+    )
+
+    mins = Float64[]
+    maxs = Float64[]
+    for (n, nrs) in zip(ns, num_repeats)
+        bt = BinomialTest(n, nrs)
+        ci = confint(bt; method=:wilson)
+        if proportions
+            push!(mins, ci[1])
+            push!(maxs, ci[2])
+        else
+            push!(mins, ci[1] * nrs)
+            push!(maxs, ci[2] * nrs)
+        end
+    end
+
+    b = band!(ax, xs, mins, maxs;
+        alpha=0.5,
+        kwargs...
+    )
+
+    (sl, b)
+end
+function plot_binom_sample(xs, ns, num_repeats; figure=(;), axis=(;), kwargs...)
+    fig = Figure(; figure...)
+    ax = Axis(fig[1, 1]; axis...)
+    xx = plot_binom_sample!(ax, xs, ns, num_repeats; kwargs...)
+    FigureAxisAnything(fig, ax, xx)
+end
+export plot_binom_sample!, plot_binom_sample
+
 ################################################################################
 # Plotting DimensionalData.jl stuff
 ################################################################################
