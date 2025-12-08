@@ -1,5 +1,7 @@
 using SSMCMain, SSMCMain.ModifiedMiCRM.MinimalModelV2
 
+using Revise
+
 using OhMyThreads
 using ProgressMeter
 using JLD2
