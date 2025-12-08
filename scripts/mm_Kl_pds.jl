@@ -70,10 +70,10 @@ function make_Kl_pd!(
 end
 function make_Kl_pd(args...)
     fig = Figure(;
-        size=(double_col_width * 0.25, double_col_width * 0.18),
-        default_fig_kwargs...,
-        # figure_padding=tuple(fill(3., 4))
-        figure_padding=(2.0, 8.0, 2.0, 2.0)
+        # size=(double_col_width * 0.25, double_col_width * 0.18),
+        # default_fig_kwargs...,
+        # # figure_padding=tuple(fill(3., 4))
+        # figure_padding=(2.0, 8.0, 2.0, 2.0)
     )
 
     ax, hm = make_Kl_pd!(fig[1, 1], args...)

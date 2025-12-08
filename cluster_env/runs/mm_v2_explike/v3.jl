@@ -375,8 +375,10 @@ function get_peaks(fss, dx)
         end
     end
     avg_pksp = map(full_peaks) do pks
-        if length(pks.indices) > 1
-            mean(pks.indices[2:end] .- pks.indices[1:end-1]) * dx
+        if length(pks.indices) > 0
+            spacings = pks.indices[2:end] .- pks.indices[1:end-1]
+            push!(spacings, length(pks.data) + pks.indices[1] - pks.indices[end]) # periodic boundary
+            mean(spacings) * dx
         else
             missing
         end
@@ -434,6 +436,10 @@ function make_peaks_full_plot!(place, f)
     )
     Colorbar(gl4[1, 2], hm4)
 
+    for ax in [ax1, ax2, ax3, ax4]
+        MinimalModelV2.draw_fr_lines2!(ax, ls, f["m"], f["c"], f["DR"] / f["DI"])
+    end
+
     place
 end
 function make_peaks_full_plot(f)
@@ -444,9 +450,94 @@ function make_peaks_full_plot(f)
     fig
 end
 
+function make_lengths_plot!(place, f)
+    logKs = f["logKs"]
+    ls = f["ls"]
+    leak_xs = LeakageScale.ltox.(ls)
+
+    Ks = 10 .^ logKs
+
+    c = f["c"]
+    m = f["m"]
+    DI = f["DI"]
+    DR = f["DR"]
+    r = 1.0
+
+    (; full_peaks, numpeaks, avg_pkh, avg_pkw, avg_pkp, avg_pksp) = get_peaks(f)
+
+    L0s = map(tuple.(Ks, ls')) do (K, l)
+        beta = K * c / (m * r)
+        MinimalModelV2.fr_lengths_L0(beta, l, r, DI)
+    end
+    Lms = map(tuple.(Ks, ls')) do (K, l)
+        beta = K * c / (m * r)
+        MinimalModelV2.fr_lengths_Lmax(beta, l, r, DI)
+    end
+    L0s2 = copy(L0s)
+    Lms2 = copy(Lms)
+    for ii in findall(==(0), numpeaks)
+        L0s2[ii] = missing
+        Lms2[ii] = missing
+    end
+
+    gl1 = GridLayout(place[1, 1])
+    ax1 = MinimalModelV2.make_mm_Kl_hm_ax(gl1[1, 1], logKs, ls; title="L_max")
+    hm1 = heatmap!(
+        ax1,
+        10 .^ logKs,
+        leak_xs,
+        Lms2;
+        # colorscale=log10,
+    )
+    Colorbar(gl1[1, 2], hm1)
+
+    gl2 = GridLayout(place[1, 2])
+    ax2 = MinimalModelV2.make_mm_Kl_hm_ax(gl2[1, 1], logKs, ls; title="L_0")
+    hm2 = heatmap!(
+        ax2,
+        10 .^ logKs,
+        leak_xs,
+        L0s2;
+        # colorscale=log10,
+    )
+    Colorbar(gl2[1, 2], hm2)
+
+    gl3 = GridLayout(place[2, 1])
+    ax3 = Axis(gl3[1, 1];
+        title="L_max vs peak spacing",
+        # aspect=DataAspect(),
+        xlabel=L"\text{Average peak spacing in PDE sol}",
+        ylabel=L"L_\text{max}",
+    )
+    scatter!(ax3, avg_pksp[:], Lms2[:])
+
+    pred_numpeaks = div.(f["L"], Lms2)
+    gl4 = GridLayout(place[2, 2])
+    ax4 = Axis(gl4[1, 1];
+        title="Predicted numpeaks vs actual numpeaks",
+        # aspect=DataAspect(),
+        ylabel=L"\lfloor\frac{L}{L_\text{max}}\rfloor",
+        xlabel=L"\text{Number of peaks in PDE sol}",
+    )
+    scatter!(ax4, numpeaks[:], pred_numpeaks[:])
+
+    for ax in [ax1, ax2]
+        MinimalModelV2.draw_fr_lines2!(ax, ls, m, c, DR / DI)
+    end
+
+    place
+end
+function make_lengths_plot(f)
+    fig = Figure(;
+        size=(1000, 800)
+    )
+    make_lengths_plot!(fig, f)
+    fig
+end
+
 function make_full_report_plot1(f::JLD2.JLDFile)
     fig = Figure(;
-        size=(800, 2200)
+        size=(800, 3000)
     )
 
     Label(fig[1, 1], "Data quality summary";
@@ -473,11 +564,17 @@ function make_full_report_plot1(f::JLD2.JLDFile)
     )
     make_peaks_full_plot!(fig[8, 1], f)
 
-    Label(fig[9, 1], "Analytic+Semi-analytic results";
+    Label(fig[9, 1], "Lenghtscales comparison";
         fontsize=30,
         tellwidth=false,
     )
-    gl = GridLayout(fig[10, 1])
+    make_lengths_plot!(fig[10, 1], f)
+
+    Label(fig[11, 1], "Analytic+Semi-analytic results";
+        fontsize=30,
+        tellwidth=false,
+    )
+    gl = GridLayout(fig[12, 1])
     make_Kl_pd!(gl[1, 1], f["logKs"], f["ls"], f["m"], f["c"], f["DN"], f["DI"], f["DR"])
     make_Kl_pd_legend_full!(gl[1, 2];
         labelsize=10,
@@ -485,7 +582,7 @@ function make_full_report_plot1(f::JLD2.JLDFile)
     )
 
     rowsize!(fig.layout, 6, Relative(0.1))
-    rowsize!(fig.layout, 10, Relative(0.1))
+    rowsize!(fig.layout, 12, Relative(0.1))
 
     fig
 end
