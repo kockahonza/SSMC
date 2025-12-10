@@ -4,4 +4,4 @@
 #SBATCH --cpus-per-task=128
 #SBATCH --mem=300G
 
-time julia -t $SLURM_CPUS_PER_TASK --project -L v4.jl -e 'v4main_base()'
+time julia -t $SLURM_CPUS_PER_TASK --project -L v3.jl -e 'v3main_DRs()'

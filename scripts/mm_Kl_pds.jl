@@ -14,7 +14,7 @@ function do_Kl_pd_run(
     logKs, ls,
     m, c,
     DN, DI, DR,
-    d, k, r
+    d=c, k=0.0, r=1.0
     ;
     return_raw=false,
 )
@@ -72,10 +72,10 @@ function make_Kl_pd!(
 end
 function make_Kl_pd(args...)
     fig = Figure(;
-        # size=(double_col_width * 0.25, double_col_width * 0.18),
-        # default_fig_kwargs...,
-        # # figure_padding=tuple(fill(3., 4))
-        # figure_padding=(2.0, 8.0, 2.0, 2.0)
+    # size=(double_col_width * 0.25, double_col_width * 0.18),
+    # default_fig_kwargs...,
+    # # figure_padding=tuple(fill(3., 4))
+    # figure_padding=(2.0, 8.0, 2.0, 2.0)
     )
 
     ax, hm = make_Kl_pd!(fig[1, 1], args...)

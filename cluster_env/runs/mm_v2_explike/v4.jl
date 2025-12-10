@@ -20,13 +20,13 @@ function get_siny_u0(
     u0
 end
 
-function do_v3_pde_run(
+function do_v4_pde_run(
     logKs, ls, T,
     m, c,
     DN, DI, DR,
     meanN0, numwaves, waveampfactor,
     L, sN;
-    outfname="v3_run_" * timestamp() * ".jld2",
+    outfname="v4_run_" * timestamp() * ".jld2",
     solver=QNDF,
     tol=10000 * eps(),
     maxtime=30 * 60,
@@ -95,7 +95,7 @@ function do_v3_pde_run(
     (; params, u0s, retcodes, final_states, final_Ts)
 end
 
-function add_v3_nospace_run!(fname;
+function add_v4_nospace_run!(fname;
     solver=QNDF,
     tol=nothing,
     maxtime=5 * 60,
@@ -108,7 +108,7 @@ function add_v3_nospace_run!(fname;
     tol_ = something(tol, f["tol"])
 
     params = f["params"]
-    u0s = f["u0s"]
+    space_u0s = f["u0s"]
 
     retcodes = Matrix{ReturnCode.T}(undef, size(params)...)
     u0s = Matrix{Vector{Float64}}(undef, size(params)...)
@@ -119,7 +119,7 @@ function add_v3_nospace_run!(fname;
     @tasks for ci in eachindex(params)
         ps = params[ci].mmicrm_params
 
-        N0 = mean(u0s[ci][1, :])
+        N0 = mean(space_u0s[ci][1, :])
         u0 = [N0, 0.0, 0.0]
 
         p = make_mmicrm_problem(ps, copy(u0), T)
@@ -153,7 +153,7 @@ end
 ################################################################################
 function v4main_base()
     outfname = "v4_base1.jld2"
-    pde_results = do_v3_pde_run(
+    pde_results = do_v4_pde_run(
         range(-0.1, 3, 100),
         LeakageScale.lxrange(0.01, 0.99, 30),
         1e6,
@@ -164,6 +164,6 @@ function v4main_base()
         outfname,
     )
     @show countmap(pde_results.retcodes)
-    nospace_results = add_v3_nospace_run!(outfname)
+    nospace_results = add_v4_nospace_run!(outfname)
     @show countmap(nospace_results.retcodes)
 end

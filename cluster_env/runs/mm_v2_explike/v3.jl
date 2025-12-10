@@ -186,6 +186,29 @@ function v3main1()
     v3main_lowm_lowDR()
 end
 
+function v3main_DRs()
+    for DR in [1.0, 0.5, 0.1, 0.05, 0.01, 0.001]
+        outfname = @sprintf "v3_lowDR%.3f.jld2" DR
+        @printf "Starting %s\n" outfname
+        flush(stdout)
+        pde_results = do_v3_pde_run(
+            range(-0.1, 3, 100),
+            LeakageScale.lxrange(0.01, 0.99, 30),
+            1e6,
+            1.0, 1.0,
+            1e-6, 1.0, DR,
+            100.0, 1e-5,
+            5, 5000;
+            outfname,
+        )
+        @show countmap(pde_results.retcodes)
+        nospace_results = add_v3_nospace_run!(outfname)
+        @show countmap(nospace_results.retcodes)
+        @printf "Finished %s\n" outfname
+        flush(stdout)
+    end
+end
+
 ################################################################################
 # Plotting/making consise reports
 ################################################################################
