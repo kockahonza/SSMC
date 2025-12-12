@@ -83,7 +83,7 @@ end
 
 function main2()
     do_cmm_siny_runs_wrt_K(
-        "./rslts_m_0.5c_0.9.jld2", 10 .^ range(0.0, 2.0, 20),
+        "./rslts4_m_0.5c_0.9.jld2", 10 .^ range(0.0, 2.0, 20),
         # Physics params
         0.5, 0.9, 1.0,
         1.0, 1.0, 1.0,
