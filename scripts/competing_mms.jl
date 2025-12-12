@@ -86,6 +86,7 @@ function run_siny_cmms(
 
     sols = Vector{Any}(undef, numrepeats)
     retcodes = Vector{ReturnCode.T}(undef, numrepeats)
+    u0s = Vector{Matrix{Float64}}(undef, numrepeats)
     fss = Vector{Matrix{Float64}}(undef, numrepeats)
     fTs = Vector{Float64}(undef, numrepeats)
     outcomes = Vector{CMMsSpatialOutcome.T}(undef, numrepeats)
@@ -116,6 +117,7 @@ function run_siny_cmms(
             nothing
         end
         retcodes[i] = s.retcode
+        u0s[i] = u0
         fss[i] = s.u[end]
         fTs[i] = s.t[end]
         outcomes[i] = cmms_spatial_sol_to_outcome(s; extthreshold)
@@ -126,7 +128,7 @@ function run_siny_cmms(
     finish!(prog)
     flush(stdout)
 
-    (; outcomes, retcodes, fss, fTs, sols)
+    (; outcomes, retcodes, fss, fTs, u0s, sols)
 end
 function run_siny_cmms(cmmsp::CMMsParams, args...; kwargs...)
     run_siny_cmms(cmmsp_to_mmicrm(cmmsp), args...; kwargs...)
