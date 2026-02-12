@@ -117,7 +117,7 @@ function linstab_make_k_func(p::AbstractMMiCRMParams, Ds, ss;
         end
     end
 end
-linstab_make_k_func(sp::AbstractSMMiCRMParams, ss) = linstab_make_k_func(sp, get_Ds(sp), ss)
+linstab_make_k_func(sp::AbstractSMMiCRMParams, ss; kwargs...) = linstab_make_k_func(sp, get_Ds(sp), ss; kwargs...)
 export linstab_make_k_func
 
 """

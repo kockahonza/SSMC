@@ -4,6 +4,8 @@ double_col_width = single_col_width * 2
 golden_ratio = 1.618
 pt_per_mm_ratio = 3.779527559
 
+fontsize_pt = (4/3)
+
 fig_fontsize = 8
 
 default_fig_kwargs = (;
