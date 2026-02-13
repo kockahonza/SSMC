@@ -113,7 +113,7 @@ end
 
 """Somewhat revised - specifically for fig 1 with slightly random m, c etc."""
 function gendata5()
-    fname = joinpath("./gd5_forfigures_" * timestamp() * ".jld2")
+    fname = joinpath("./gd5_forfigures_DN0_" * timestamp() * ".jld2")
 
     N = 20
     M = N
@@ -135,6 +135,8 @@ function gendata5()
             m=base10_lognormal(0.0, 0.001),
             c=base10_lognormal(0.0, 0.001),
             cinflux=base10_lognormal(0.0, 0.001),
+            # Diffusions
+            Ds=0., Dr=1.,
             # Always eat influx with fixed l
             pei=1.0, linflux=li,
             # Eat rest with chance at no l
