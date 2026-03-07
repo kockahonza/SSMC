@@ -15,7 +15,6 @@ function fr_instab_line_K(l, m, c, r=1.0)
     end
 end
 function fr_cor1_instab_line_K(l, m, c, p, r=1.0)
-    # if (1 - 1 / (2 * p)) <= l <= 1.0
     if (p / (1 + p)) <= l <= 1.0
         if p < (1 / (2 * (1 - l)))
             l * m * r / (c * p * (1 - l) * (1 - p * (1 - l)))
@@ -34,6 +33,7 @@ function ksquared_to_L(k2; threshold=zero(k2))
         missing
     end
 end
+ksquared_to_L(k2::Missing; kwargs...) = missing
 
 function fr_lengths_beta_range(l, args...; kwargs...)
     if l > 0.5
@@ -63,4 +63,36 @@ function fr_lengths_Lmax(beta, l, r, D; s=+1)
         km2 = (r / D) * ((2 * l * (2 * l - 1 + s * 2 * (l + 1) * sqrtchi + 3 * chi)) / ((1 - chi) * (2 * l - 1 - s * sqrtchi)))
         ksquared_to_L(km2)
     end
+end
+
+################################################################################
+# FR analytics v2 where we consider DI=D and DR=p*D with p!=1 !
+################################################################################
+fr2_beta_lb(l) = l < 0.5 ? 1 / (1 - l) : 4 * l
+fr2_beta_ub(l, p) = l / (p * (1 - l) * (1 - p * (1 - l)))
+
+function fr2_instab_beta_range(l, p, n; betamax=1000.0)
+    lb = fr2_beta_lb(l)
+    ub = fr2_beta_ub(l, p)
+    if lb >= ub
+        []
+    else
+        if ub == Inf
+            ub = betamax
+        end
+        range(lb, ub, n)
+    end
+end
+
+function fr2_km2(beta, l, p, roverD; s=+1)
+    chi = 1 - 4 * l / beta
+    if chi < 0.0
+        return missing
+    end
+    rootchi = sqrt(chi)
+    underroot = (2 * p - 1) * chi + 2 * p * (1 - 2 * (1 - l) * p) * rootchi + (1 - 2 * (1 - l) * p)^2
+    if underroot < 0.0
+        return missing
+    end
+    roverD * ((2 * l) / (1 - rootchi)) * ((2 * p * rootchi + s * sqrt(underroot)) / (p * (1 - 2 * (1 - l) * p - rootchi)))
 end

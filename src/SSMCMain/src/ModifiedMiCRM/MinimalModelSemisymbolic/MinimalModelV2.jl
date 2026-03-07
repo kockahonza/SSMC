@@ -164,6 +164,56 @@ function analyse_mmp(mmp::MMParams{F};
 end
 export analyse_mmp
 
+function analyse_mmp_scanning(mmp::MMParams{F}, ks;
+    DN=1e-12, DI=1.0, DR=1.0,
+    threshold=10 * eps(F),
+) where {F}
+    # find no space solutions
+    nospace_sols = mm_get_nospace_sol(mmp; threshold)
+
+    # get rid of negative solutions - filtering on N is sufficient
+    filter!(ss -> ss[1] > threshold, nospace_sols)
+
+    if length(nospace_sols) == 0
+        []
+    end
+
+    # do linear stability analysis
+    mmicrm_params = mmp_to_smmicrm(mmp; DN, DI, DR)
+    Ds = SA[DN, DI, DR]
+
+    nospace_sol_stability = NospaceSolStability.T[]
+    for ss in nospace_sols
+        M1 = make_M1(mmicrm_params, ss)
+
+        M1evals = eigvals(M1)
+        if any(l -> real(l) > threshold, M1evals) # it is unstable even without space
+            push!(nospace_sol_stability, NospaceSolStability.nospace_unstable)
+            continue
+        end
+
+        has_instability = false
+        for k in ks
+            evals = eigvals!(M1_to_M(M1, Ds, k); sortby=eigen_sortby_reverse)
+            # @show real(evals[1])
+            if real(evals[1]) > threshold
+                has_instability = true
+                break
+            end
+        end
+
+        if has_instability
+            push!(nospace_sol_stability, NospaceSolStability.unstable)
+        else
+            push!(nospace_sol_stability, NospaceSolStability.stable)
+        end
+    end
+
+    nospace_sol_stability
+end
+export analyse_mmp_scanning
+
+
 function get_simplified_analysis(full_analysis_results::Vector{NospaceSolStability.T})
     nonext = filter(!=(NospaceSolStability.nospace_unstable), full_analysis_results)
     if length(nonext) == 0

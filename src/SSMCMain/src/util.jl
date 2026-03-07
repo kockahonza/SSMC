@@ -256,6 +256,7 @@ export make_grid
 
 function plot_binom_sample!(ax, xs, ns, num_repeats;
     proportions=false,
+    sl_kwargs=(;),
     kwargs...
 )
     if isa(num_repeats, Number)
@@ -268,7 +269,7 @@ function plot_binom_sample!(ax, xs, ns, num_repeats;
         ns
     end
     sl = scatterlines!(ax, xs, xx;
-        kwargs...
+        kwargs..., sl_kwargs...,
     )
 
     mins = Float64[]

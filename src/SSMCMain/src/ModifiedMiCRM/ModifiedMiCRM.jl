@@ -268,6 +268,7 @@ lxticks(ls) = (ltox.(ls), [@sprintf("%.2f", l) for l in ls])
 function lxrange(lmin, lmax, n)
     l.(range(ltox(lmin), ltox(lmax), n))
 end
+lxrange(deltal, n) = lxrange(deltal, 1 - deltal, n)
 
 end
 export LeakageScale

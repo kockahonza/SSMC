@@ -488,18 +488,13 @@ function make_lengths_plot!(place, f)
 
     (; full_peaks, numpeaks, avg_pkh, avg_pkw, avg_pkp, avg_pksp) = get_peaks(f)
 
-    L0s = map(tuple.(Ks, ls')) do (K, l)
-        beta = K * c / (m * r)
-        MinimalModelV2.fr_lengths_L0(beta, l, r, DI)
-    end
     Lms = map(tuple.(Ks, ls')) do (K, l)
         beta = K * c / (m * r)
-        MinimalModelV2.fr_lengths_Lmax(beta, l, r, DI)
+        km2 = MinimalModelV2.fr2_km2(beta, l, DR / DI, r / DI)
+        MinimalModelV2.ksquared_to_L(km2)
     end
-    L0s2 = copy(L0s)
     Lms2 = copy(Lms)
     for ii in findall(==(0), numpeaks)
-        L0s2[ii] = missing
         Lms2[ii] = missing
     end
 
@@ -515,15 +510,7 @@ function make_lengths_plot!(place, f)
     Colorbar(gl1[1, 2], hm1)
 
     gl2 = GridLayout(place[1, 2])
-    ax2 = MinimalModelV2.make_mm_Kl_hm_ax(gl2[1, 1], logKs, ls; title="L_0")
-    hm2 = heatmap!(
-        ax2,
-        10 .^ logKs,
-        leak_xs,
-        L0s2;
-        # colorscale=log10,
-    )
-    Colorbar(gl2[1, 2], hm2)
+    # ax2 = MinimalModelV2.make_mm_Kl_hm_ax(gl2[1, 1], logKs, ls; title="L_0")
 
     gl3 = GridLayout(place[2, 1])
     ax3 = Axis(gl3[1, 1];
@@ -544,7 +531,7 @@ function make_lengths_plot!(place, f)
     )
     scatter!(ax4, numpeaks[:], pred_numpeaks[:])
 
-    for ax in [ax1, ax2]
+    for ax in [ax1]
         MinimalModelV2.draw_fr_lines2!(ax, ls, m, c, DR / DI)
     end
 
@@ -555,6 +542,60 @@ function make_lengths_plot(f)
         size=(1000, 800)
     )
     make_lengths_plot!(fig, f)
+    fig
+end
+
+function make_lengths_plot_smaller!(place, f)
+    logKs = f["logKs"]
+    ls = f["ls"]
+    leak_xs = LeakageScale.ltox.(ls)
+
+    Ks = 10 .^ logKs
+
+    c = f["c"]
+    m = f["m"]
+    DI = f["DI"]
+    DR = f["DR"]
+    r = 1.0
+
+    (; full_peaks, numpeaks, avg_pkh, avg_pkw, avg_pkp, avg_pksp) = get_peaks(f)
+
+    Lms = map(tuple.(Ks, ls')) do (K, l)
+        beta = K * c / (m * r)
+        km2 = MinimalModelV2.fr2_km2(beta, l, DR / DI, r / DI)
+        MinimalModelV2.ksquared_to_L(km2)
+    end
+    Lms2 = copy(Lms)
+    for ii in findall(==(0), numpeaks)
+        Lms2[ii] = missing
+    end
+
+    gl3 = GridLayout(place[1, 1])
+    ax3 = Axis(gl3[1, 1];
+        title="L_max vs peak spacing",
+        # aspect=DataAspect(),
+        xlabel=L"\text{Average peak spacing in PDE sol}",
+        ylabel=L"L_\text{max}",
+    )
+    scatter!(ax3, avg_pksp[:], Lms2[:])
+
+    pred_numpeaks = div.(f["L"], Lms2)
+    gl4 = GridLayout(place[1, 2])
+    ax4 = Axis(gl4[1, 1];
+        title="Predicted numpeaks vs actual numpeaks",
+        # aspect=DataAspect(),
+        ylabel=L"\lfloor\frac{L}{L_\text{max}}\rfloor",
+        xlabel=L"\text{Number of peaks in PDE sol}",
+    )
+    scatter!(ax4, numpeaks[:], pred_numpeaks[:])
+
+    place
+end
+function make_lengths_plot_smaller(f)
+    fig = Figure(;
+        size=(1000, 800)
+    )
+    make_lengths_plot_smaller!(fig, f)
     fig
 end
 

@@ -43,6 +43,42 @@ function do_Kl_pd_run(
     end
 end
 
+function do_Kl_pd_run_scanning(
+    ks,
+    logKs, ls,
+    m, c,
+    DN, DI, DR,
+    d=c, k=0.0, r=1.0
+    ;
+    threshold=10 * eps(),
+    return_raw=false,
+)
+    rslts = Matrix{Vector{NospaceSolStability.T}}(undef, length(logKs), length(ls))
+    @tasks for i in 1:length(logKs)
+        logK = logKs[i]
+        for (j, l) in enumerate(ls)
+            rslts[i, j] = analyse_mmp_scanning(
+                MMParams(;
+                    K=10^logK,
+                    m,
+                    l,
+                    k,
+                    c,
+                    d,
+                    r,
+                ), ks;
+                DN, DI, DR,
+                threshold,
+            )
+        end
+    end
+    if return_raw
+        rslts
+    else
+        nospacesolstabilities_to_code.(rslts)
+    end
+end
+
 function make_Kl_pd!(
     place,
     logKs, ls,
