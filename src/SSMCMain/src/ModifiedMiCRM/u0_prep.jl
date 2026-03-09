@@ -100,3 +100,19 @@ function add_1d_many_sines!(u, numewaves, maxamp, dx;
     end
 end
 export add_1d_many_sines!
+
+function add_1d_many_sines2!(u, numewaves, maxamp;
+    nmax=10 # this is in effect the maximum number of periods of a sine within the domain (should be at most sN / 10 or so)
+)
+    sN = length(u)
+    xs = range(0.0, 1.0, sN)
+
+    for _ in 1:numewaves
+        amp = rand() * maxamp
+        origin = rand()
+        n = rand(1:nmax)
+        xx = (2 * pi) * n
+        u .+= amp .* sin.(xx .* (xs .- origin))
+    end
+end
+export add_1d_many_sines2!
