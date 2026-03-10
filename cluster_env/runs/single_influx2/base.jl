@@ -30,22 +30,22 @@ function main1()
 
     Kmcrs = []
 
-    for K in 10 .^ range(-0.5, 4.0, 2)
+    for K in 10 .^ range(-0.5, 4.0, 20)
         m = base10_lognormal(0.0, 0.001)
         c = base10_lognormal(0.0, 0.001)
         push!(Kmcrs, (K, m, c, 1.0))
     end
-    for m_ in range(-4.0, 0.5, 2)
+    for m_ in range(-4.0, 0.5, 20)
         m = base10_lognormal(m_, 0.001)
         c = base10_lognormal(0.0, 0.001)
         push!(Kmcrs, (1.0, m, c, 1.0))
     end
-    for c_ in range(-0.5, 4.0, 2)
+    for c_ in range(-0.5, 4.0, 20)
         m = base10_lognormal(0.0, 0.001)
         c = base10_lognormal(c_, 0.001)
         push!(Kmcrs, (1.0, m, c, 1.0))
     end
-    for r in 10 .^ range(-4.0, 0.5, 2)
+    for r in 10 .^ range(-4.0, 0.5, 20)
         m = base10_lognormal(0.0, 0.001)
         c = base10_lognormal(0.0, 0.001)
         push!(Kmcrs, (1.0, m, c, r))
