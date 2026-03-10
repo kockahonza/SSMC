@@ -13,7 +13,7 @@ function main1()
 
     linflux = 1.0
 
-    num_repeats = 100
+    num_repeats = 10
 
     lsks = 10 .^ range(-5, 3, 2000)
     lst = LinstabScanTester2(
@@ -30,22 +30,22 @@ function main1()
 
     Kmcrs = []
 
-    for K in 10 .^ range(-0.5, 4.0, 50)
+    for K in 10 .^ range(-0.5, 4.0, 2)
         m = base10_lognormal(0.0, 0.001)
         c = base10_lognormal(0.0, 0.001)
         push!(Kmcrs, (K, m, c, 1.0))
     end
-    for m_ in range(-4.0, 0.5, 50)
+    for m_ in range(-4.0, 0.5, 2)
         m = base10_lognormal(m_, 0.001)
         c = base10_lognormal(0.0, 0.001)
         push!(Kmcrs, (1.0, m, c, 1.0))
     end
-    for c_ in range(-0.5, 4.0, 50)
+    for c_ in range(-0.5, 4.0, 2)
         m = base10_lognormal(0.0, 0.001)
         c = base10_lognormal(c_, 0.001)
         push!(Kmcrs, (1.0, m, c, 1.0))
     end
-    for r in 10 .^ range(-4.0, 0.5, 50)
+    for r in 10 .^ range(-4.0, 0.5, 2)
         m = base10_lognormal(0.0, 0.001)
         c = base10_lognormal(0.0, 0.001)
         push!(Kmcrs, (1.0, m, c, r))
@@ -66,6 +66,7 @@ function main1()
 
     results = []
 
+    prog = Progress(length(rsgs))
     for rsg in rsgs
         params, sss, sscodes, lsrslts = example_do_rg_run3(rsg, num_repeats, lst;
             maxresidthr=1e-8,
@@ -98,7 +99,12 @@ function main1()
         end
 
         push!(results, (; extinct, nonext_stable, nonext_unstable, bad_ss, good_ss_bad_ls))
+
+        next!(prog)
+        flush(stdout)
     end
+    finish!(prog)
+    flush(stdout)
 
     jldsave(fname;
         metadata, Kmcrs, rsgs, results
