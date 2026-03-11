@@ -378,7 +378,161 @@ function main1()
     save_filename = "data1.jld2"
 
     metadata = (;
-        S, M, ode_u0, T,
+        S, M, ode_u0, T, L, sN,
+        sp_epsilon,
+        nh_numwaves, nh_baseline, nh_maxamp,
+        num_runs,
+        pde_solve_maxtime, run_threads,
+    )
+
+    ########################################
+    # Generate a bunch of params
+    ########################################
+    params = Vector{BSMMiCRMParams}(undef, num_runs)
+    @tasks for ri in 1:num_runs
+        params[ri] = marsland_initialization(S, M)
+    end
+
+    ########################################
+    # solve ODEs
+    ########################################
+    ode_retcodes = Vector{ReturnCode.T}(undef, num_runs)
+    ode_final_states = Vector{Vector{Float64}}(undef, num_runs)
+    ode_final_Ts = Vector{Float64}(undef, num_runs)
+
+    println("Starting ODE runs")
+    flush(stdout)
+    @tasks for ri in 1:num_runs
+        # @set ntasks = run_threads
+        p = make_mmicrm_problem(params[ri], copy(ode_u0), T)
+        s = solve(p)
+        ode_retcodes[ri] = s.retcode
+        ode_final_states[ri] = s.u[end]
+        ode_final_Ts[ri] = s.t[end]
+    end
+    GC.gc()
+
+    ########################################
+    # solve PDEs from perturbed ODE solution
+    ########################################
+    sp_retcodes = Vector{ReturnCode.T}(undef, num_runs)
+    sp_final_states = Vector{Matrix{Float64}}(undef, num_runs)
+    sp_final_Ts = Vector{Float64}(undef, num_runs)
+
+    println("Starting PDE runs near ODE ss")
+    flush(stdout)
+    prog1 = Progress(num_runs)
+    @tasks for ri in 1:num_runs
+        @set ntasks = run_threads
+
+        ode_ss = ode_final_states[ri]
+        u0_ = expand_u0_to_size((sN,), ode_ss)
+        u0 = perturb_u0_uniform(S, M, u0_, sp_epsilon)
+
+        s = run_1d_pde_sim(params[ri], u0, T, L, sN;
+            maxtime=pde_solve_maxtime,
+            solver_threads,
+        )
+
+        sp_retcodes[ri] = s.retcode
+        sp_final_states[ri] = s.u[end]
+        sp_final_Ts[ri] = s.t[end]
+
+        s = nothing
+        GC.gc()
+
+        next!(prog1)
+        flush(stdout)
+    end
+    GC.gc()
+
+    ########################################
+    # solve PDEs from perturbed ODE solution
+    ########################################
+    nh_u0s = Vector{Matrix{Float64}}(undef, num_runs)
+    nh_retcodes = Vector{ReturnCode.T}(undef, num_runs)
+    nh_final_states = Vector{Matrix{Float64}}(undef, num_runs)
+    nh_final_Ts = Vector{Float64}(undef, num_runs)
+
+    println("Starting PDE runs from non-homogeneous initial condition")
+    flush(stdout)
+    prog2 = Progress(num_runs)
+    @tasks for ri in 1:num_runs
+        @set ntasks = run_threads
+
+        u0 = fill(0.0, S + M, sN)
+        for i in 1:S
+            N = @view u0[i, :]
+            N .= nh_baseline
+            add_1d_many_sines2!(N, nh_numwaves, nh_maxamp / nh_maxamp; nmax=10)
+        end
+        clamp!(u0, 0.0, Inf)
+        nh_u0s[ri] = u0
+
+        s = run_1d_pde_sim(params[ri], u0, T, L, sN;
+            maxtime=pde_solve_maxtime,
+            solver_threads,
+        )
+
+        nh_retcodes[ri] = s.retcode
+        nh_final_states[ri] = s.u[end]
+        nh_final_Ts[ri] = s.t[end]
+
+        s = nothing
+        GC.gc()
+
+        next!(prog2)
+        flush(stdout)
+    end
+    GC.gc()
+
+    results = (;
+        metadata,
+        params,
+        ode_retcodes,
+        ode_final_states,
+        ode_final_Ts,
+        sp_retcodes,
+        sp_final_states,
+        sp_final_Ts,
+        nh_u0s,
+        nh_retcodes,
+        nh_final_states,
+        nh_final_Ts,
+    )
+
+    jldsave(save_filename; results...)
+
+    results
+end
+
+function main2()
+    S = 30
+    M = 30
+
+    T = 1000000000
+
+    ode_u0 = [fill(1.0, S); fill(0.0, M)]
+
+    L = 5
+    sN = 5000
+
+    sp_epsilon = 1e-3
+
+    nh_baseline = 10.0
+    nh_numwaves = 10
+    nh_maxamp = 10.0
+
+    num_runs = 100
+
+    pde_solve_maxtime = 5 * 60 * 60
+    run_threads = 8
+    solver_threads = div(nthreads(), run_threads)
+
+    save_filename = "data2.jld2"
+
+    metadata = (;
+        S, M, ode_u0, T, L, sN,
         sp_epsilon,
         nh_numwaves, nh_baseline, nh_maxamp,
         num_runs,
