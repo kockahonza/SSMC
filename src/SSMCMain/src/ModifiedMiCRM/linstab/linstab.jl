@@ -113,7 +113,6 @@ function linstab_make_k_func(p::AbstractMMiCRMParams, Ds, ss;
             M .= M1
             M1_to_M!(M, Ds, k)
             func(M)
-            # eigvals!(M; sortby=eigen_sortby_reverse)
         end
     end
 end
