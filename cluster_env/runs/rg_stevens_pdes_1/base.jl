@@ -725,7 +725,7 @@ function main3()
         lsfunc = linstab_make_k_func(p.p, s.u[end];
             returnobj=:maxeval
         )
-        linstab_mrls[ri] = lsfunc.(lsks)
+        linstab_mrls[ri] = real.(lsfunc.(lsks))
     end
     GC.gc()
 
