@@ -176,7 +176,6 @@ function diagram_sfss_v3(p::AbstractMMiCRMParams, ss=nothing;
         )
     end
 
-
     g
 end
 export diagram_sfss_v3

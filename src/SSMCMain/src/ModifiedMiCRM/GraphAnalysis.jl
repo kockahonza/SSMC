@@ -68,16 +68,14 @@ function make_eflowgraph_simple(ps, ss;
 
     # add edges to/from the Sink/Source
     for a in 1:Nr
-        K = ps.K[a] * ps.w[a]
-        if !iszero(K)
+        if !iszero(ps.K[a])
             # Note that the source value is set to 1
-            mg[Source(), R(a)] = K
+            mg[Source(), R(a)] = ps.K[a] * ps.w[a]
         end
-        mg[R(a), Sink()] = ps.r[a] * ps.w[a]
+        mg[R(a), Sink()] = ps.r[a] * ss[Ns+a] * ps.w[a]
     end
-
     for i in 1:Ns
-        mg[S(i), Sink()] = ps.m[i]
+        mg[S(i), Sink()] = ps.m[i] * ss[i]
     end
 
     # add the metabolic edges, the complex bit
@@ -118,100 +116,6 @@ function make_eflowgraph_simple(ps, ss;
 end
 export make_eflowgraph_simple
 
-function make_eflowgraph_KS(ps, ss;
-    clamp_zero=false,
-    default_weight=0.
-)
-    Ns, Nr = get_Ns(ps)
-
-    if clamp_zero
-        ss = clamp_ss(ss)
-    end
-
-    mg = MetaGraph(
-        DiGraph();
-        label_type=FGNodeType,
-        vertex_data_type=@NamedTuple{name::String, val::Float64, desc::String},
-        edge_data_type=Float64,
-        graph_data=(;
-            Ns, Nr, ps, ss
-        ),
-        weight_function=identity,
-        default_weight,
-    )
-
-    # first add
-    mg[Source()] = (; name="Source", val=1.0, desc="source")
-    mg[Sink()] = (; name="Sink", val=-Inf, desc="sink")
-    for i in 1:Ns
-        mg[S(i)] = (
-            name="N_$i",
-            val=ss[i] / ps.g[i],
-            desc="strain $i"
-        )
-    end
-    for a in 1:Nr
-        mg[R(a)] = (
-            name="R_$a",
-            val=ss[Ns+a] * ps.w[a],
-            desc="resource $a"
-        )
-    end
-
-    # add edges to/from the Sink/Source
-    for a in 1:Nr
-        K = ps.K[a] * ps.w[a]
-        if !iszero(K)
-            # Note that the source value is set to 1
-            mg[Source(), R(a)] = K
-        end
-        mg[R(a), Sink()] = ps.r[a] * mg[R(a)].val
-    end
-
-    for i in 1:Ns
-        mg[S(i), Sink()] = ps.m[i] * ss[i]
-    end
-
-    # add the metabolic edges, the complex bit
-    for i in 1:Ns
-        for a in 1:Nr
-            c = ps.c[i, a]
-            
-            C = ss[i] * ps.c[i, a] * ss[Ns+a] * ps.w[a]
-            mg[R(a), S(i)] = C
-        
-            
-            l = ps.l[i, a]
-            if !iszero(l)
-                sum_of_Ds = 0.0
-                for b in 1:Nr
-                    D = ps.D[i, a, b]
-                    if !iszero(D)
-                        sum_of_Ds += D
-
-                        kk = l * D * C
-                        s = S(i)
-                        d = R(b)
-                        if haskey(mg, s, d)
-                            mg[s, d] = kk + mg[s, d]
-                        else
-                            mg[s, d] = kk
-                        end
-                    end
-                end
-                if sum_of_Ds < 1.0
-                    mg[S(i), Sink()] += l * (1 - sum_of_Ds) * C
-                end
-            end
-        end
-    end
-
-    mg
-end
-export make_eflowgraph_KS
-
-
-
 function remove_env(mg)
     nmg = copy(mg)
     rem_vertex!(nmg, code_for(nmg, Source()))
@@ -234,10 +138,9 @@ function make_strain_ecouple_graph(mg::MetaGraph;
     Ns = mg[].Ns
     Nr = mg[].Nr
 
-
     sg = MetaGraph(
         DiGraph();
-        label_type=FGNodeType,
+        label_type=GNodeType,
         vertex_data_type=Float64,
         edge_data_type=Float64,
         graph_data=(;
@@ -283,93 +186,62 @@ function make_strain_ecouple_graph(mg::MetaGraph;
 end
 export make_strain_ecouple_graph
 
-################################################################################
-# Old or incomplete bits
-################################################################################
-function make_flowy_graph(ps, ss)
+function make_strain_ecouple_matrix(ps, ss;
+    threshold=-Inf,
+    clamp_zero=false,
+)
     Ns, Nr = get_Ns(ps)
 
-    numMs = count(!iszero, ps.c)
-
-    mg = MetaGraph(
-        DiGraph(),
-        label_type=FGNodeType,
-        vertex_data_type=@NamedTuple{name::String, val::Float64, desc::String},
-        edge_data_type=Float64,
-        graph_data=(;
-            Ns, Nr, numMs
-        )
-    )
-
-    # first add
-    mg[Source()] = (; name="Source", val=1.0, desc="source")
-    mg[Sink()] = (; name="Sink", val=-Inf, desc="sink")
-    for i in 1:Ns
-        mg[S(i)] = (
-            name="N_$i",
-            val=ss[i] / ps.g[i],
-            desc="strain $i"
-        )
-    end
-    for a in 1:Nr
-        mg[R(a)] = (
-            name="R_$a",
-            val=ss[Ns+a] * ps.w[a],
-            desc="resource $a"
-        )
-    end
-    # for x in 1:numMs
-    #     mg[M(x)] = (
-    #         name="M_$x",
-    #         val=0.0,
-    #         desc="resource $x"
-    #     )
-    # end
-
-    # add edges to/from the Sink/Source
-    for a in 1:Nr
-        K = ps.K[a] * ps.w[a]
-        if !iszero(K)
-            # Note that the source value is set to 1
-            mg[Source(), R(a)] = K
-        end
-        mg[R(a), Sink()] = ps.r[a] * ps.w[a]
+    if clamp_zero
+        ss = clamp_ss(ss)
     end
 
-    for i in 1:Ns
-        mg[S(i), Sink()] = ps.m[i]
-    end
+    strains_produce_mat = zeros(Ns, Nr)
+    resources_go_to_props_mat = zeros(Nr, Ns)
 
-    # add the metabolic edges, the complex bit
-    mi = 1
     for i in 1:Ns
         for a in 1:Nr
-            c = ps.c[i, a]
-            if !iszero(c)
-                mn = M(mi)
-                mg[M(mi)] = (
-                    name="M_$mi",
-                    val=0.0,
-                    desc="$i uptaking $a"
-                )
+            if !iszero(ps.c[i, a])
+                C = ss[i] * ps.c[i, a] * ss[Ns+a] * ps.w[a]
 
-                C = ss[i] * ps.c[i, a] * ss[Ns+a]
-                mg[R(a), mn] = C * ps.w[a]
+                resources_go_to_props_mat[a, i] = C
 
-                for b in 1:Nr
-                    D = ps.D[i, b, a]
-                    if !iszero(D)
-                        mg[mn, R(b)] = D * ps.l[i, b] * C * ps.w[b]
+                l = ps.l[i, a]
+                if !iszero(l)
+                    for b in 1:Nr
+                        D = ps.D[i, b, a]
+                        if !iszero(D)
+                            kk = l * D * C
+                            strains_produce_mat[i, a] += kk
+                        end
                     end
                 end
-
-                mi += 1
             end
         end
     end
 
-    mg
+    for a in 1:Nr
+        xx = @view resources_go_to_props_mat[a, :]
+        ss = sum(xx)
+        xx ./= ss
+    end
+
+    ecouple_mat = zeros(Ns, Ns)
+    for i in 1:Ns
+        for a in 1:Nr
+            if !iszero(strains_produce_mat[i, a])
+                for j in 1:Ns
+                    if !iszero(resources_go_to_props_mat[a, j])
+                        ecouple_mat[i, j] += strains_produce_mat[i, a] * resources_go_to_props_mat[a, j]
+                    end
+                end
+            end
+        end
+    end
+
+    # strains_produce_mat, resources_go_to_props_mat, ecouple_mat
+    ecouple_mat
 end
-export make_flowy_graph
+export make_strain_ecouple_matrix
 
 end
