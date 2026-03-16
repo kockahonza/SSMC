@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -p BIOP
-#SBATCH --time 72:00:00
+#SBATCH --time 120:00:00
 #SBATCH --cpus-per-task=128
 #SBATCH --mem=500G
 
