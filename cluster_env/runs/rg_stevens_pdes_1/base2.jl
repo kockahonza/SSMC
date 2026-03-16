@@ -155,10 +155,10 @@ function marsland_initialization_v2(S, M;
                 p = fill(1.0, M)
             end
 
-            # disable leaking what is eaten
+            # disable leaking what is eaten part 1 (hacky but Dirichlet requires non-zeros for every component)
             for k in 1:M
                 if !iszero(c[i, k])
-                    p[k] = 0.0
+                    p[k] = 1000 * eps()
                 end
             end
 
@@ -166,6 +166,15 @@ function marsland_initialization_v2(S, M;
             vec = rand(Dirichlet(p))
             D[i, :, j] = vec
 
+            # disable leaking what is eaten part 2
+            for k in 1:M
+                if !iszero(c[i, k])
+                    D[i, k, j] = 0.0
+                end
+            end
+            vv = @view D[i, :, j]
+            ss = sum(vv)
+            vv ./= ss
         end
     end
 
