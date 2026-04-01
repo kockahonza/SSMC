@@ -830,6 +830,7 @@ function main3()
 
     metadata = (;
         S, M, ode_u0, T, L, sN,
+        lsks,
         sp_epsilon,
         nh_numwaves, nh_baseline, nh_maxamp,
         num_runs,
