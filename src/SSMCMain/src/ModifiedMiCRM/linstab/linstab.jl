@@ -103,7 +103,7 @@ function linstab_make_k_func(p::AbstractMMiCRMParams, Ds, ss;
     elseif returnobj == :full
         M -> eigen!(M; sortby=eigen_sortby_reverse)
     elseif returnobj == :maxeval
-        M -> eigvals!(M; sortby=eigen_sortby_reverse)[1]
+        M -> real(eigvals!(M; sortby=eigen_sortby_reverse)[1])
     else
         throw(ArgumentError(@sprintf "unrecognized returnobj %s" string(returnobj)))
     end
