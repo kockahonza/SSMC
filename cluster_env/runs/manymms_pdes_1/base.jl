@@ -488,7 +488,7 @@ function main2()
 end
 
 """
-Quite different now -- trying to go crazy to see if we get cool stuff -- making the weak links less weak.
+Quite different now -- trying to go crazy to see if we get cool stuff -- making the weak links less weak and making c and m more uniform.
 """
 function main3()
     N = 50
@@ -499,8 +499,8 @@ function main3()
         K=10.0,
         #
         l=Dirac(1.0),
-        m=base10_lognormal(0.0, 0.1),
-        c=base10_lognormal(0.0, 0.1),
+        m=base10_lognormal(0.0, 0.01),
+        c=base10_lognormal(0.0, 0.01),
         #
         k=Dirac(0.5),
         B=Binomial(N, B / N),
