@@ -338,7 +338,7 @@ end
 ################################################################################
 # SI random sampling scheme for paper
 ################################################################################
-function get_si_sampler_for_paper(K, l, DN=0.;
+function get_si_sampler_for_paper(K, li, DN=0.;
     N=20, M=N, B=3,
     DR=1.0,
     # Slightly random vars
@@ -351,12 +351,10 @@ function get_si_sampler_for_paper(K, l, DN=0.;
         num_influx_resources=1,
         # strains
         m,
-        # eating byproducts of the network
-        prob_eating=(B / M),
-        l, c,
-        # first network layer
-        prob_eating_influx=1.0,
-        linflux=1.0, cinflux,
+        # metabolisms - everything eats influx resource, no leakage on eating byproducts
+        prob_eating=(B / M), prob_eating_influx=1.0,
+        l=0.0, linflux=li,
+        c, cinflux,
         # rest
         num_byproducts=Binomial(M, B / M), # applies to both!
         Ds=DN,

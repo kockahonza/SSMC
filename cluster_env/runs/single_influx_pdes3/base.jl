@@ -163,7 +163,36 @@ function run_v1(
 end
 
 """
-Testing 2
+Testing with DN=1e-3
+"""
+function main1()
+    Klis_to_run = [
+        (9.319395762340777, 1.0),
+        (26.826957952797258, 1.0),
+        (77.22449945836259, 1.0),
+        (222.29964825261956, 1.0),
+        (517.9474679231213, 1.0)
+    ]
+    num_runs = 8
+    N = 20
+
+    DN = 1e-3
+
+    T = 1000000000
+    L = 15
+    sN = 2000
+
+    sp_epsilon = 1e-3
+
+    run_v1(
+        "data_test1.jld2",
+        Klis_to_run, num_runs, N, N, DN,
+        T, L, sN, sp_epsilon
+    )
+end
+
+"""
+Testing with DN=1e-12
 """
 function main2()
     Klis_to_run = [
@@ -186,35 +215,6 @@ function main2()
 
     run_v1(
         "data_test2.jld2",
-        Klis_to_run, num_runs, N, N, DN,
-        T, L, sN, sp_epsilon
-    )
-end
-
-"""
-Testing
-"""
-function main1()
-    Klis_to_run = [
-        (9.319395762340777, 1.0),
-        (26.826957952797258, 1.0),
-        (77.22449945836259, 1.0),
-        (222.29964825261956, 1.0),
-        (517.9474679231213, 1.0)
-    ]
-    num_runs = 20
-    N = 20
-
-    DN = 1e-3
-
-    T = 1000000000
-    L = 15
-    sN = 2000
-
-    sp_epsilon = 1e-3
-
-    run_v1(
-        "data_test1.jld2",
         Klis_to_run, num_runs, N, N, DN,
         T, L, sN, sp_epsilon
     )
