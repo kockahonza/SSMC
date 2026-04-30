@@ -268,9 +268,12 @@ end
 """
 Plot a single snapshot of a 1D SMMiCRM solution
 """
-function plot_1dsmmicrm_sol_snap(params::AbstractSMMiCRMParams, snap_u, t=nothing; singleax=false, plote=false)
+function plot_1dsmmicrm_sol_snap(params::AbstractSMMiCRMParams, snap_u, t=nothing;
+    singleax=false, plote=false,
+    dx=get_space(params).dx[1],
+)
     len = size(snap_u)[2]
-    xs = get_space(params).dx[1] .* ((1:len) .- 0.5)
+    xs = dx .* ((1:len) .- 0.5)
 
     # Setup the figure
     fig, strain_lines, resource_lines, _ = setup_1dsmmicrm_figure(
@@ -745,49 +748,51 @@ function get_spatial_gridpoints_L(u::AbstractVector, L)
 end
 export get_spatial_gridpoints_dx, get_spatial_gridpoints_L
 
-# function plot_spatial_fs!(gl, u, Ns, sN, dx, ss=nothing;
-#     axis=(;),
-# )
-#     Nr = size(u)[1] - Ns
-#     xs = ((1:sN) .- 0.5) .* dx
-#
-#     axs = Axis(gl[1, 1]; axis...)
-#     axr = Axis(gl[2, 1]; axis...)
-#     linkxaxes!(axs, axr)
-#     hidexdecorations!(axs)
-#     rowgap!(gl, 4.0)
-#
-#     for i in 1:Ns
-#         lines!(axs, xs, u[i, :]; color=Cycled(i))
-#     end
-#     for a in 1:Nr
-#         lines!(axr, xs, u[Ns+a, :]; color=Cycled(Ns + a))
-#     end
-#
-#     if !isnothing(ss)
-#         for i in 1:Ns
-#             hlines!(axs, ss[i];
-#                 color=Cycled(i),
-#                 linestyle=:dash
-#             )
-#         end
-#         for a in 1:Nr
-#             hlines!(axr, ss[Ns+a];
-#                 color=Cycled(Ns + a),
-#                 linestyle=:dash
-#             )
-#         end
-#     end
-#
-#     axs, axr
-# end
-# function plot_spatial_fs(args...;
-#     figure=(;),
-#     kwargs...
-# )
-#     fig = Figure(; figure...)
-#     plot_spatial_fs!(fig, args...; kwargs...)
-#
-#     fig
-# end
-# export plot_spatial_fs!, plot_spatial_fs
+function plot_spatial_fs!(where, u, Ns, sN, dx, ss=nothing;
+    axis=(;),
+)
+    Nr = size(u)[1] - Ns
+    xs = ((1:sN) .- 0.5) .* dx
+
+    gl = GridLayout(where)
+
+    axs = Axis(gl[1, 1]; axis...)
+    axr = Axis(gl[2, 1]; axis...)
+    linkxaxes!(axs, axr)
+    hidexdecorations!(axs)
+    rowgap!(gl, 4.0)
+
+    for i in 1:Ns
+        lines!(axs, xs, u[i, :]; color=Cycled(i))
+    end
+    for a in 1:Nr
+        lines!(axr, xs, u[Ns+a, :]; color=Cycled(Ns + a))
+    end
+
+    if !isnothing(ss)
+        for i in 1:Ns
+            hlines!(axs, ss[i];
+                color=Cycled(i),
+                linestyle=:dash
+            )
+        end
+        for a in 1:Nr
+            hlines!(axr, ss[Ns+a];
+                color=Cycled(Ns + a),
+                linestyle=:dash
+            )
+        end
+    end
+
+    axs, axr
+end
+function plot_spatial_fs(args...;
+    figure=(;),
+    kwargs...
+)
+    fig = Figure(; figure...)
+    plot_spatial_fs!(fig[1,1], args...; kwargs...)
+
+    fig
+end
+export plot_spatial_fs!, plot_spatial_fs

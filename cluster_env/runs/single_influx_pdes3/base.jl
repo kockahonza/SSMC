@@ -41,42 +41,17 @@ function run_1d_pde_sim(ps, u0, T, L, sN;
 end
 
 ################################################################################
-# Main functions
+# Main functions V1
 ################################################################################
-"""
-Testing
-"""
-function main1()
-    Klis_to_run = [
-        (9.319395762340777, 1.0),
-        (26.826957952797258, 1.0),
-        (77.22449945836259, 1.0),
-        (222.29964825261956, 1.0),
-        (517.9474679231213, 1.0)
-    ]
-    N = 20
-    M = 20
-    DN = 1e-3
-
-    T = 1000000000
-
-    ode_u0 = [fill(1.0, N); fill(0.0, M)]
-
-    lsks = 10 .^ range(-5, 2, 2000)
-
-    L = 15
-    sN = 2000
-
-    sp_epsilon = 1e-3
-
-    num_runs = 20
-
-    pde_solve_maxtime = 2 * 60 * 60
-    run_threads = 8
-    solver_threads = div(nthreads(), run_threads)
-
-    save_filename = "data_test1.jld2"
-
+function run_v1(
+    out_fname, Klis_to_run, num_runs, N, M, DN,
+    T, L, sN, sp_epsilon;
+    ode_u0=[fill(1.0, N); fill(0.0, M)],
+    lsks=10 .^ range(-5, 2, 2000),
+    pde_solve_maxtime=2 * 60 * 60,
+    run_threads=8,
+    solver_threads=div(nthreads(), run_threads),
+)
     metadata = (;
         Klis_to_run, N, M, DN,
         T, ode_u0, lsks, L, sN,
@@ -182,7 +157,65 @@ function main1()
         sp_final_Ts=reshape(sp_final_Ts, num_runs, num_Klis),
     )
 
-    jldsave(save_filename; results...)
+    jldsave(out_fname; results...)
 
     results
+end
+
+"""
+Testing 2
+"""
+function main2()
+    Klis_to_run = [
+        (9.319395762340777, 1.0),
+        (26.826957952797258, 1.0),
+        (77.22449945836259, 1.0),
+        (222.29964825261956, 1.0),
+        (517.9474679231213, 1.0)
+    ]
+    num_runs = 8
+    N = 20
+
+    DN = 1e-12
+
+    T = 1000000000
+    L = 15
+    sN = 2000
+
+    sp_epsilon = 1e-3
+
+    run_v1(
+        "data_test2.jld2",
+        Klis_to_run, num_runs, N, N, DN,
+        T, L, sN, sp_epsilon
+    )
+end
+
+"""
+Testing
+"""
+function main1()
+    Klis_to_run = [
+        (9.319395762340777, 1.0),
+        (26.826957952797258, 1.0),
+        (77.22449945836259, 1.0),
+        (222.29964825261956, 1.0),
+        (517.9474679231213, 1.0)
+    ]
+    num_runs = 20
+    N = 20
+
+    DN = 1e-3
+
+    T = 1000000000
+    L = 15
+    sN = 2000
+
+    sp_epsilon = 1e-3
+
+    run_v1(
+        "data_test1.jld2",
+        Klis_to_run, num_runs, N, N, DN,
+        T, L, sN, sp_epsilon
+    )
 end
