@@ -93,7 +93,7 @@ function main1()
     ########################################
     params = Vector{BSMMiCRMParams}(undef, total_num_runs)
     pri = 1
-    @tasks for (K, li) in Klis_to_run
+    for (K, li) in Klis_to_run
         for _ in 1:num_run
             params[pri] = get_si_sampler_for_paper(K, li, DN; N, M)
             pri += 1
