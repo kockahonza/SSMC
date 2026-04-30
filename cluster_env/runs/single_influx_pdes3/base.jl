@@ -170,14 +170,14 @@ function main1()
     # reshape results
     results = (;
         metadata,
-        reshape(params, num_runs, num_Klis),
-        reshape(ode_retcodes, num_runs, num_Klis),
-        reshape(ode_final_states, num_runs, num_Klis),
-        reshape(ode_final_Ts, num_runs, num_Klis),
-        reshape(linstab_mrls, num_runs, num_Klis),
-        reshape(sp_retcodes, num_runs, num_Klis),
-        reshape(sp_final_states, num_runs, num_Klis),
-        reshape(sp_final_Ts, num_runs, num_Klis),
+        params=reshape(params, num_runs, num_Klis),
+        ode_retcodes=reshape(ode_retcodes, num_runs, num_Klis),
+        ode_final_states=reshape(ode_final_states, num_runs, num_Klis),
+        ode_final_Ts=reshape(ode_final_Ts, num_runs, num_Klis),
+        linstab_mrls=reshape(linstab_mrls, num_runs, num_Klis),
+        sp_retcodes=reshape(sp_retcodes, num_runs, num_Klis),
+        sp_final_states=reshape(sp_final_states, num_runs, num_Klis),
+        sp_final_Ts=reshape(sp_final_Ts, num_runs, num_Klis),
     )
 
     jldsave(save_filename; results...)
