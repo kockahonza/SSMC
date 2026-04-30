@@ -94,8 +94,9 @@ function main1()
     params = Vector{BSMMiCRMParams}(undef, total_num_runs)
     pri = 1
     for (K, li) in Klis_to_run
+        rsg = get_si_sampler_for_paper(K, li, DN; N, M)
         for _ in 1:num_runs
-            params[pri] = get_si_sampler_for_paper(K, li, DN; N, M)
+            params[pri] = rsg()
             pri += 1
         end
     end
