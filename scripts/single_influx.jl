@@ -281,3 +281,56 @@ function make_Kli_matrix(f)
 
     Ks, lis, rslt
 end
+
+function make_Kli_matrix_raw(f)
+    Ks = f["Ks"]
+    lis = f["lis"]
+    rdfs = f["raw_dfs"]
+
+    rslt = Matrix{Any}(undef, length(Ks), length(lis))
+    pb = Progress(length(rslt))
+    for j in 1:length(lis)
+        li = lis[j]
+        df = rdfs[j]
+
+        for sdf in groupby(df, :K)
+            K = sdf.K[1]
+            i = findfirst(==(K), Ks)
+            if isnothing(i)
+                @show Ks
+                throw(ErrorException())
+            end
+
+            num_runs = nrow(sdf)
+            
+            data = map(eachrow(sdf)) do r
+                linstab_outcome = if r.sscode == 1
+                    if r.lscode == 1
+                        :stable
+                    elseif r.lscode == 2
+                        :unstable
+                    else
+                        :bad_data
+                    end
+                elseif r.sscode == 2
+                    :extinct
+                else
+                    :bad_data
+                end
+
+                (;
+                    linstab_outcome, k0mrl=r.k0mrl, maxmrl=r.maxmrl,
+                    params=r.params,
+                    odess=r.steadystates
+                )
+            end
+
+            rslt[i, j] = data
+
+            next!(pb)
+        end
+    end
+    finish!(pb)
+
+    Ks, lis, rslt
+end
