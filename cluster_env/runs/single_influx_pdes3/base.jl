@@ -54,12 +54,13 @@ function main1()
         (222.29964825261956, 1.0),
         (517.9474679231213, 1.0)
     ]
+    N = 20
+    M = 20
     DN = 1e-3
-    # get_si_sampler_for_paper(K, l, DN)
 
     T = 1000000000
 
-    ode_u0 = [fill(1.0, S); fill(0.0, M)]
+    ode_u0 = [fill(1.0, N); fill(0.0, M)]
 
     lsks = 10 .^ range(-5, 2, 2000)
 
@@ -77,7 +78,7 @@ function main1()
     save_filename = "data_test1.jld2"
 
     metadata = (;
-        Klis_to_run, DN,
+        Klis_to_run, N, M, DN,
         T, ode_u0, lsks, L, sN,
         sp_epsilon,
         num_runs,
@@ -94,7 +95,7 @@ function main1()
     pri = 1
     @tasks for (K, li) in Klis_to_run
         for _ in 1:num_run
-            params[pri] = get_si_sampler_for_paper(K, li, DN)
+            params[pri] = get_si_sampler_for_paper(K, li, DN; N, M)
             pri += 1
         end
     end
@@ -146,7 +147,7 @@ function main1()
 
         ode_ss = ode_final_states[ri]
         u0_ = expand_u0_to_size((sN,), ode_ss)
-        u0 = perturb_u0_uniform(S, M, u0_, sp_epsilon)
+        u0 = perturb_u0_uniform(N, M, u0_, sp_epsilon)
 
         s = run_1d_pde_sim(params[ri], u0, T, L, sN;
             maxtime=pde_solve_maxtime,
