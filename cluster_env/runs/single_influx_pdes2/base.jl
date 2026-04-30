@@ -105,7 +105,7 @@ function main1()
     do_pde_runs(
         "systems1.jld2", "data1.jld2",
         1000000000, 5, 5000, 1e-3, # T, L, sN, sp_epsilon
-        10 * 60 * 60, # max time per pde run
+        5 * 60 * 60, # max time per pde run
         8, # number of simultaneous runs
     )
 end
