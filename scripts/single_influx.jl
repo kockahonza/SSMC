@@ -334,3 +334,33 @@ function make_Kli_matrix_raw(f)
 
     Ks, lis, rslt
 end
+
+################################################################################
+# SI random sampling scheme for paper
+################################################################################
+function get_si_sampler_for_paper(K, l, DN=0.;
+    N=20, M=N, B=3,
+    DR=1.0,
+    # Slightly random vars
+    m=base10_lognormal(0.0, 0.001),
+    c=base10_lognormal(0.0, 0.001),
+    cinflux=base10_lognormal(0.0, 0.001),
+)
+    JansSampler3(N, M;
+        K,
+        num_influx_resources=1,
+        # strains
+        m,
+        # eating byproducts of the network
+        prob_eating=(B / M),
+        l, c,
+        # first network layer
+        prob_eating_influx=1.0,
+        linflux=1.0, cinflux,
+        # rest
+        num_byproducts=Binomial(M, B / M), # applies to both!
+        Ds=DN,
+        Dr=DR,
+        Drinflux=1.0,
+    )
+end
