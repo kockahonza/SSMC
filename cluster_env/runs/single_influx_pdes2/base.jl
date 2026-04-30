@@ -56,6 +56,7 @@ function do_pde_runs(systems_fname, out_fname, T, L, sN, sp_epsilon, pde_solve_m
     pde_final_states = Vector{Vector{Matrix{Float64}}}(undef, length(systems_to_run))
     pde_final_Ts = Vector{Vector{Float64}}(undef, length(systems_to_run))
 
+    prog1 = Progress(systems_to_run)
     for groupi in 1:length(systems_to_run)
         systems = systems_to_run[groupi].systems
         num_systems = length(systems)
@@ -83,6 +84,9 @@ function do_pde_runs(systems_fname, out_fname, T, L, sN, sp_epsilon, pde_solve_m
             s = nothing
             GC.gc()
         end
+
+        next!(prog1)
+        flush(stdout)
     end
 
     jldsave(out_fname;
