@@ -56,7 +56,9 @@ function do_pde_runs(systems_fname, out_fname, T, L, sN, sp_epsilon, pde_solve_m
     pde_final_states = Vector{Vector{Matrix{Float64}}}(undef, length(systems_to_run))
     pde_final_Ts = Vector{Vector{Float64}}(undef, length(systems_to_run))
 
-    prog1 = Progress(length(systems_to_run))
+    total_runs = sum(systems_to_run) do x length(x.systems) end
+
+    prog1 = Progress(total_runs)
     for groupi in 1:length(systems_to_run)
         systems = systems_to_run[groupi].systems
         num_systems = length(systems)
@@ -83,11 +85,13 @@ function do_pde_runs(systems_fname, out_fname, T, L, sN, sp_epsilon, pde_solve_m
 
             s = nothing
             GC.gc()
-        end
 
-        next!(prog1)
-        flush(stdout)
+            next!(prog1)
+            flush(stdout)
+        end
     end
+    finish!(prog1)
+    flush(stdout)
 
     jldsave(out_fname;
         systems_to_run,
@@ -122,6 +126,18 @@ function main2()
         "systems2.jld2", "data2.jld2",
         1000000000, 5, 5000, 1e-3, # T, L, sN, sp_epsilon
         5 * 60 * 60, # max time per pde run
+        8, # number of simultaneous runs
+    )
+end
+
+"""
+systems3.jld2 -- same as main2 but just li=1 and a lower max solver time
+"""
+function main3()
+    do_pde_runs(
+        "systems3_just_l1.jld2", "data3.jld2",
+        1000000000, 5, 5000, 1e-3, # T, L, sN, sp_epsilon
+        2 * 60 * 60, # max time per pde run
         8, # number of simultaneous runs
     )
 end
