@@ -72,7 +72,7 @@ function do_pde_runs(systems_fname, out_fname, T, L, sN, sp_epsilon, pde_solve_m
             u0_ = expand_u0_to_size((sN,), odess)
             u0 = perturb_u0_uniform(get_Ns(ps)..., u0_, sp_epsilon)
 
-            s = run_1d_pde_sim(params[ri], u0, T, L, sN;
+            s = run_1d_pde_sim(ps, u0, T, L, sN;
                 maxtime=pde_solve_maxtime,
                 solver_threads,
             )
