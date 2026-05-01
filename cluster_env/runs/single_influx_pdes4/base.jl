@@ -43,7 +43,7 @@ end
 ################################################################################
 # Main function V2. Adding ps!!
 ################################################################################
-function run_v1(
+function run_v2(
     out_fname, Klips_to_run, num_runs, N, M, DN,
     T, L, sN, sp_epsilon;
     ode_u0=[fill(1.0, N); fill(0.0, M)],
