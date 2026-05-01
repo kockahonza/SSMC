@@ -734,8 +734,8 @@ end
 export plot_2dsmmicrm_sol_animation_heatmap
 
 # Simpler version of plotting a 1D spatial solution
-function get_spatial_gridpoints_dx(N::Integer, dx)
-    ((1:N) .- 0.5) .* dx
+function get_spatial_gridpoints_dx(sN::Integer, dx)
+    ((1:sN) .- 0.5) .* dx
 end
 function get_spatial_gridpoints_dx(u::AbstractVector, dx)
     get_spatial_gridpoints_L(length(u), dx)
@@ -752,7 +752,7 @@ function plot_spatial_fs!(where, u, Ns, sN, dx, ss=nothing;
     axis=(;),
 )
     Nr = size(u)[1] - Ns
-    xs = ((1:sN) .- 0.5) .* dx
+    xs = get_spatial_gridpoints_dx(sN, dx)
 
     gl = GridLayout(where)
 
