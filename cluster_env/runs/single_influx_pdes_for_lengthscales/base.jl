@@ -166,7 +166,7 @@ function run_v2(
 end
 
 """
-Following on from main3 from single_influx_pdes3 but with ps. DN=1e-6, multiple Ks, lis and ps.
+Focusing on large enough systems for many peaks.
 """
 function main1()
     Klips_to_run = [
