@@ -116,3 +116,19 @@ function add_1d_many_sines2!(u, numewaves, maxamp;
     end
 end
 export add_1d_many_sines2!
+
+function get_siny_u0(N, M, sN, dx, Nbase, numwaves, extra_factor; kwargs...)
+    NpM = N + M
+    u0 = fill(0.0, NpM, sN)
+
+    for i in 1:N
+        N = @view u0[i, :]
+        N .= Nbase
+        add_1d_many_sines!(N, numwaves, extra_factor * Nbase / numwaves, dx; kwargs...)
+    end
+
+    clamp!(u0, 0.0, Inf)
+
+    u0
+end
+export get_siny_u0
