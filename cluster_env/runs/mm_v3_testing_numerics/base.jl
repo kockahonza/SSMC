@@ -49,7 +49,7 @@ function main1()
 
         sps = SASMMiCRMParams(
             mmp_to_mmicrm(mmp),
-            SA[DN, DI, DR],
+            SA[DN, 1., p],
             make_cartesianspace_smart(1; dx),
             solver_threads,
         )
