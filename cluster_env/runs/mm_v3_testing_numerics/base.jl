@@ -62,7 +62,6 @@ function main1()
             abstol=tol,
             reltol=tol,
             callback=make_timer_callback(maxtime),
-            kwargs...
         )
 
         sols[i] = s
