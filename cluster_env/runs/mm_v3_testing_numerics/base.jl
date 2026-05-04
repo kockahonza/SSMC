@@ -21,8 +21,8 @@ function main1()
 
     tol=10000 * eps()
     maxtime=60 * 60
-    run_threads=4,
-    solver_threads=div(nthreads(), run_threads),
+    run_threads=4
+    solver_threads=div(nthreads(), run_threads)
 
     dxs = [0.001, 0.01, 0.05, 0.1]
 
