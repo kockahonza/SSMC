@@ -59,6 +59,7 @@ export change_cartesianspace_bcs
 ################################################################################
 # implement the actual diffusion
 ################################################################################
+# 1D
 function add_diffusion!(
     du::AbstractArray{F1,2}, u::AbstractArray{F2,2},
     Ds,
@@ -81,10 +82,10 @@ function add_diffusion!(
         @inbounds for ui in axes(u, 1)
             du[ui, 1] += Ds[ui] * (
                 -u[ui, 1] + u[ui, 2]
-            ) / (cs1.dx[1]^2)
+            ) / (cs1.dx[1])
             du[ui, ssize] += Ds[ui] * (
                 u[ui, ssize-1] - u[ui, ssize]
-            ) / (cs1.dx[1]^2)
+            ) / (cs1.dx[1])
         end
     else
         throw(ErrorException("Unsupported BCS"))
@@ -107,6 +108,71 @@ function add_diffusion!(
                 du[ui, i] += Ds[ui] * (
                     u[ui, i-1] - 2 * u[ui, i] + u[ui, i+1]
                 ) / (cs1.dx[1]^2)
+            end
+        end
+    end
+end
+
+function ci_to_lini_1D(ui, si, usize)
+    (si - 1) * usize + ui
+end
+
+function add_diffusion_jac!(
+    J::AbstractMatrix, u::AbstractArray{F2,2},
+    Ds,
+    cs1::CartesianSpace{1,Tuple{BC}},
+    usenthreads=nothing
+) where {BC,F2}
+    usize, ssize = size(u)
+
+    denom = (cs1.dx[1]^2)
+
+    # handle edges
+    if BC == Periodic
+        @inbounds for ui in axes(u, 1)
+            lini1 = ci_to_lini_1D(ui, 1, usize)
+            J[lini1, ci_to_lini_1D(ui, ssize, usize)] += Ds[ui] / denom
+            J[lini1, lini1] += -2 * Ds[ui] / denom
+            J[lini1, ci_to_lini_1D(ui, 2, usize)] += Ds[ui] / denom
+
+            lini2 = ci_to_lini_1D(ui, ssize, usize)
+            J[lini2, ci_to_lini_1D(ui, ssize-1, usize)] += Ds[ui] / denom
+            J[lini2, lini2] += -2 * Ds[ui] / denom
+            J[lini2, ci_to_lini_1D(ui, 1, usize)] += Ds[ui] / denom
+        end
+    elseif BC == Closed
+        @inbounds for ui in axes(u, 1)
+            lini1 = ci_to_lini_1D(ui, 1, usize)
+            J[lini1, lini1] += -1 * Ds[ui] / cs1.dx[1]
+            J[lini1, ci_to_lini_1D(ui, 2, usize)] += Ds[ui] / cs1.dx[1]
+
+            lini2 = ci_to_lini_1D(ui, ssize, usize)
+            J[lini2, ci_to_lini_1D(ui, ssize-1, usize)] += Ds[ui] / cs1.dx[1]
+            J[lini2, lini2] += -1 * Ds[ui] / cs1.dx[1]
+        end
+    else
+        throw(ErrorException("Unsupported BCS"))
+    end
+
+    bulk_is = 2:(ssize-1)
+
+    if isnothing(usenthreads)
+        @inbounds for i in bulk_is
+            for ui in axes(u, 1)
+                lini = ci_to_lini_1D(ui, i, usize)
+                J[lini, ci_to_lini_1D(ui, i - 1, usize)] += Ds[ui] / denom
+                J[lini, lini] += -2 * Ds[ui] / denom
+                J[lini, ci_to_lini_1D(ui, i + 1, usize)] += Ds[ui] / denom
+            end
+        end
+    else
+        @tasks for i in bulk_is
+            @set ntasks = usenthreads
+            @inbounds for ui in axes(u, 1)
+                lini = ci_to_lini_1D(ui, i, usize)
+                J[lini, ci_to_lini_1D(ui, i - 1, usize)] += Ds[ui] / denom
+                J[lini, lini] += -2 * Ds[ui] / denom
+                J[lini, ci_to_lini_1D(ui, i + 1, usize)] += Ds[ui] / denom
             end
         end
     end

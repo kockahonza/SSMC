@@ -4,7 +4,7 @@
 function make_M1!(M1, p::AbstractMMiCRMParams, ss)
     Ns, Nr = get_Ns(p)
 
-    for i in 1:Ns
+    @inbounds for i in 1:Ns
         # 0 everywhere
         for j in 1:Ns
             M1[i, j] = 0.0
@@ -15,7 +15,7 @@ function make_M1!(M1, p::AbstractMMiCRMParams, ss)
         end
         M1[i, i] -= p.g[i] * p.m[i]
     end
-    for i in 1:Ns
+    @inbounds for i in 1:Ns
         for a in 1:Nr
             # this is U
             M1[i, Ns+a] = p.g[i] * (1 - p.l[i, a]) * p.w[a] * p.c[i, a] * ss[i]
@@ -27,7 +27,7 @@ function make_M1!(M1, p::AbstractMMiCRMParams, ss)
             M1[Ns+a, i] -= p.c[i, a] * ss[Ns+a]
         end
     end
-    for a in 1:Nr
+    @inbounds for a in 1:Nr
         for b in 1:Nr
             # makes sure everything is initialized
             M1[Ns+a, Ns+b] = 0.0
@@ -53,7 +53,7 @@ end
 export make_M1!, make_M1
 
 function M1_to_M!(M1, Ds, k)
-    for i in 1:length(Ds)
+    @inbounds for i in 1:length(Ds)
         M1[i, i] -= k^2 * Ds[i]
     end
 end

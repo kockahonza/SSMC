@@ -38,10 +38,15 @@ function mmp_to_mmicrm(mmp::MMParams{F}, args...; static=true, kwargs...) where 
 end
 export mmp_to_mmicrm
 function mmp_to_smmicrm(mmps::MMParams{F};
-    DN=1e-12, DI=1.0, DR=1e-12
+    static=true,
+    DN=1e-12, DI=1.0, DR=1e-12, kwargs...
 ) where {F}
-    mmicrm_params = mmp_to_mmicrm(mmps)
-    SASMMiCRMParams(mmicrm_params, SA[DN, DI, DR])
+    mmicrm_params = mmp_to_mmicrm(mmps; static, kwargs...)
+    if static
+        SASMMiCRMParams(mmicrm_params, SA[DN, DI, DR])
+    else
+        BSMMiCRMParams(mmicrm_params, SA[DN, DI, DR])
+    end
 end
 export mmp_to_smmicrm
 

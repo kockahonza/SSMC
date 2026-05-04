@@ -17,6 +17,7 @@ function run_1d_pde_sim(ps, u0, T, L, sN;
     solver_threads=nothing,
     tol=100000 * eps(),
     solver=QNDF,
+    kwargs...
 )
     dx = L / sN
 
@@ -26,7 +27,7 @@ function run_1d_pde_sim(ps, u0, T, L, sN;
         CartesianSpace{1,Tuple{Periodic}}(SA[dx]),
         solver_threads
     )
-    sp = make_smmicrm_problem(sps, u0, T)
+    sp = make_smmicrm_problem(sps, u0, T; jac_type=:sparse)
 
     s = solve(sp, solver();
         dense=false,
@@ -34,7 +35,8 @@ function run_1d_pde_sim(ps, u0, T, L, sN;
         calck=false,
         abstol=tol,
         reltol=tol,
-        callback=make_timer_callback(maxtime)
+        callback=make_timer_callback(maxtime),
+        kwargs...
     )
 
     s

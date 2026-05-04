@@ -104,6 +104,10 @@ function mmicrmfunc!(du, u, p::BMMiCRMParams{Int}, t=0)
     end
     du
 end
+function mmicrmjac!(J, u, p::BMMiCRMParams, t=0)
+    make_M1!(J, p, u)
+    J
+end
 function copy(p::BMMiCRMParams)
     BMMiCRMParams(
         copy(p.g), copy(p.w), copy(p.m), copy(p.K), copy(p.r),
@@ -145,17 +149,45 @@ get_Ds(sp::BSMMiCRMParams) = sp.Ds
 get_space(sp::BSMMiCRMParams) = sp.space
 function smmicrmfunc!(du, u, p::BSMMiCRMParams, t=0)
     if isnothing(p.usenthreads)
-        @inbounds for r in CartesianIndices(axes(u)[2:end])
-            mmicrmfunc!((@view du[:, r]), (@view u[:, r]), p.mmicrm_params, t)
+        for r in CartesianIndices(axes(u)[2:end])
+            @inbounds mmicrmfunc!((@view du[:, r]), (@view u[:, r]), p.mmicrm_params, t)
         end
     else
         @tasks for r in CartesianIndices(axes(u)[2:end])
             @set ntasks = p.usenthreads
-                mmicrmfunc!((@view du[:, r]), (@view u[:, r]), p.mmicrm_params, t)
+                @inbounds mmicrmfunc!((@view du[:, r]), (@view u[:, r]), p.mmicrm_params, t)
         end
     end
     add_diffusion!(du, u, p.Ds, p.space, p.usenthreads)
     du
+end
+function smmicrmjac!(J, u, p::BSMMiCRMParams, t=0)
+    NpM = sum(get_Ns(p))
+
+    J .= 0.
+
+    if isnothing(p.usenthreads)
+        cis1 = CartesianIndices(axes(u)[2:end])
+        for ii in 1:length(cis1)
+            r = cis1[ii]
+            indices = (1 + (ii - 1) * NpM):(ii * NpM)
+            @inbounds subJ = @view J[indices, indices]
+            @inbounds mmicrmjac!(subJ, (@view u[:, r]), p.mmicrm_params, t)
+        end
+    else
+        cis2 = CartesianIndices(axes(u)[2:end])
+        @tasks for ii in 1:length(cis2)
+            @set ntasks = p.usenthreads
+            r = cis2[ii]
+            indices = (1 + (ii - 1) * NpM):(ii * NpM)
+            @inbounds subJ = @view J[indices, indices]
+            @inbounds mmicrmjac!(subJ, (@view u[:, r]), p.mmicrm_params, t)
+        end
+    end
+
+    add_diffusion_jac!(J, u, p.Ds, p.space, p.usenthreads)
+
+    J
 end
 function copy(sp::BSMMiCRMParams)
     BSMMiCRMParams(copy(sp.mmicrm_params), copy(sp.Ds), copy(sp.space), sp.usenthreads)

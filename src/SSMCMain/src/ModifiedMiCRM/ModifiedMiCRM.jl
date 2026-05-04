@@ -30,8 +30,11 @@ end
 function mmicrmfunc!(du, u, p::AbstractMMiCRMParams, t=0)
     throw(ArgumentError(@sprintf "mmicrmfunc! not implemented for AbstractMMiCRMParams type %s" string(typeof(p))))
 end
+function mmicrmjac!(J, u, p::AbstractMMiCRMParams, t=0)
+    throw(ArgumentError(@sprintf "mmicrmjac! not implemented for AbstractMMiCRMParams type %s" string(typeof(p))))
+end
 # getproperty should also be overloaded for g, w, m, K, r, l, c and D
-export AbstractMMiCRMParams, get_Ns, mmicrmfunc!
+export AbstractMMiCRMParams, get_Ns, mmicrmfunc!, mmicrmjac!
 
 ################################################################################
 # Similar interface for spatial MMiCRM model params
@@ -48,10 +51,13 @@ the first index, the others designating space.
 function add_diffusion!(du, u, Ds, s::AbstractSpace, usenthreads=nothing)
     throw(ErrorException(@sprintf "no function add_diffusion! defined for space type %s" string(typeof(s))))
 end
+function add_diffusion_jac!(J, u, Ds, s::AbstractSpace, usenthreads=nothing)
+    throw(ErrorException(@sprintf "no function add_diffusion_jac! defined for space type %s" string(typeof(s))))
+end
 function space_cell_size(s::AbstractSpace)
     throw(ErrorException(@sprintf "no function space_cell_size defined for space type %s" string(typeof(s))))
 end
-export AbstractSpace, space_cell_size, add_diffusion!
+export AbstractSpace, space_cell_size, add_diffusion!, add_diffusion_jac!
 
 abstract type SingleAxisBC end
 struct Periodic <: SingleAxisBC end
@@ -76,7 +82,10 @@ ndims(sp::AbstractSMMiCRMParams) = ndims(get_space(sp))
 function smmicrmfunc!(du, u, sp::AbstractSMMiCRMParams, t=0)
     throw(ArgumentError(@sprintf "smmicrmfunc! not implemented for AbstractSMMiCRMParams type %s" string(typeof(sp))))
 end
-export AbstractSMMiCRMParams, get_Ds, get_space, smmicrmfunc!
+function smmicrmjac!(J, u, sp::AbstractSMMiCRMParams, t=0)
+    throw(ArgumentError(@sprintf "smmicrmjac! not implemented for AbstractSMMiCRMParams type %s" string(typeof(sp))))
+end
+export AbstractSMMiCRMParams, get_Ds, get_space, smmicrmfunc!, smmicrmjac!
 
 function check_mmicrmparams(p::AbstractMMiCRMParams;
     threshold=10 * eps()
@@ -128,7 +137,7 @@ export check_mmicrmparams
 
 # Making ODEProblem s
 function make_mmicrm_problem(p::AbstractMMiCRMParams, u0, T;
-    sparse_jac=false, t0=0.0, kwargs...
+    usejac=true, t0=0.0, kwargs...
 )
     if (ndims(u0) != 1) || (length(u0) != sum(get_Ns(p)))
         throw(ArgumentError(
@@ -136,14 +145,8 @@ function make_mmicrm_problem(p::AbstractMMiCRMParams, u0, T;
         ))
     end
 
-    func = if sparse_jac
-        jac_prot = ADTypes.jacobian_sparsity(
-            (du, u) -> mmicrmfunc!(du, u, p),
-            similar(u0),
-            u0,
-            TracerSparsityDetector()
-        )
-        ODEFunction(mmicrmfunc!; jac_prototype=float.(jac_prot))
+    func = if usejac
+        ODEFunction(mmicrmfunc!; jac=mmicrmjac!)
     else
         mmicrmfunc!
     end
@@ -178,7 +181,7 @@ end
 export make_mmicrm_ss_problem
 
 function make_smmicrm_problem(p::AbstractSMMiCRMParams, u0, T;
-    sparse_jac=true, t0=0.0, kwargs...
+    jac_type=:both, t0=0.0, kwargs...
 )
     # check the Ns, Nr match up
     if size(u0)[1] != sum(get_Ns(p))
@@ -197,7 +200,7 @@ function make_smmicrm_problem(p::AbstractSMMiCRMParams, u0, T;
         throw(ArgumentError("u0 spatial size is so small that there may be numerical issues from violated assumption"))
     end
 
-    func = if sparse_jac
+    func = if jac_type == :sparse
         jac_prot = ADTypes.jacobian_sparsity(
             (du, u) -> smmicrmfunc!(du, u, p),
             similar(u0),
@@ -205,8 +208,23 @@ function make_smmicrm_problem(p::AbstractSMMiCRMParams, u0, T;
             TracerSparsityDetector()
         )
         ODEFunction(smmicrmfunc!; jac_prototype=float.(jac_prot))
-    else
+    elseif jac_type == :predef
+        ODEFunction(smmicrmfunc!; jac=smmicrmjac!)
+    elseif jac_type == :both
+        jac_prot = ADTypes.jacobian_sparsity(
+            (du, u) -> smmicrmfunc!(du, u, p),
+            similar(u0),
+            u0,
+            TracerSparsityDetector()
+        )
+        ODEFunction(smmicrmfunc!;
+            jac_prototype=float.(jac_prot),
+            jac=smmicrmjac!,
+        )
+    elseif jac_type == :none
         smmicrmfunc!
+    else
+        throw(ArgumentError(@sprintf "jac_type %s not recognized, should be one of :sparse, :predef, :both or :none" string(jac_type)))
     end
 
     ODEProblem(func, u0, (t0, t0 + T), p; kwargs...)
@@ -214,6 +232,7 @@ end
 export make_smmicrm_problem
 
 function mmicrmresid(u, p::AbstractMMiCRMParams)
+    @assert ndims(u) == 1
     du = zeros(eltype(u), size(u))
     mmicrmfunc!(du, u, p)
     du
@@ -225,6 +244,20 @@ function mmicrmmaxresid(args...)
     maximum(abs, mmicrmresid(args...))
 end
 export mmicrmresid, mmicrmmaxresid
+
+function smmicrmresid(u, p::AbstractSMMiCRMParams)
+    @assert ndims(u) > 1
+    du = zeros(eltype(u), size(u))
+    smmicrmfunc!(du, u, p)
+    du
+end
+function smmicrmresid(s::ODESolution)
+    smmicrmresid(s.u[end], s.prob.p)
+end
+function smmicrmmaxresid(args...)
+    maximum(abs, smmicrmresid(args...))
+end
+export smmicrmresid, smmicrmmaxresid
 
 ################################################################################
 # Imports
