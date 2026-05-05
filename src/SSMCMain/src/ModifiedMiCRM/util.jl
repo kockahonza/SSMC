@@ -76,3 +76,18 @@ function base10_lognormal(b10m, b10std)
     LogNormal(b10m * log(10), b10std * log(10))
 end
 export base10_lognormal
+
+function num_survivors_in_space(u, Ns, threshold=1e5 * eps(eltype(u)))
+    num = 0
+    for i in 1:Ns
+        us = @view u[i, :]
+        for v in us
+            if v > threshold
+                num += 1
+                break
+            end
+        end
+    end
+    num
+end
+export num_survivors_in_space

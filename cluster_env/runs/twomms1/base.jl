@@ -78,16 +78,18 @@ function do_tmm_siny_runs_wrt_K(
     meanN0, numwaves, waveampfactor;
     kwargs...
 )
+    Ds = SA[DN1, DN2, DI, DR1, DR2]
+
+    tmm_params = Vector{Any}(undef, length(Ks)
     results = Vector{Any}(undef, length(Ks))
     for i in 1:length(Ks)
         K = Ks[i]
 
         tmmps = TMMsParams(;
             K=K,
-            m1, c1, l1,
-            m2, c2, l2,
+            m1, c1, l1, k1,
+            m2, c2, l2, k2,
         )
-        Ds = SA[DN1, DN2, DI, DR1, DR2]
 
         @printf "Starting K=%.3g\n" K
         flush(stdout)
@@ -107,16 +109,17 @@ function do_tmm_siny_runs_wrt_K(
         @printf "Finished K=%.3g\n" K
         flush(stdout)
 
+        tmm_params[i] = tmmps
         results[i] = xx
     end
 
-    params = (;
+    metadata = (;
         Ks, m1, c1, l1, m2, c2, l2, DN1, DN2, DI, DR1, DR2,
         numrepeats, T, L, sN, meanN0, numwaves, waveampfactor,
         outfname, kwargs...
     )
 
-    jldsave(outfname; Ks, results, params)
+    jldsave(outfname; Ks, tmm_params, results, metadata)
 
     results
 end
