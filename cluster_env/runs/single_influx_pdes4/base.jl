@@ -199,6 +199,35 @@ function main1()
         T, L, sN, sp_epsilon
     )
 end
+function main1_better()
+    Klips_to_run = [
+        (5.0, 1.0, 0.1),
+        (11.0, 1.0, 0.1),
+        (25.0, 1.0, 0.1),
+        (5.0, 0.99, 0.1),
+        (11.0, 0.99, 0.1),
+        (25.0, 0.99, 0.1),
+        (3.0, 0.7, 0.1),
+        (3.0, 0.5, 0.1),
+    ]
+
+    num_runs = 8
+    N = 20
+
+    DN = 1e-6
+
+    T = 1000000000
+    L = 10
+    sN = 5000
+
+    sp_epsilon = 1e-3
+
+    run_v2(
+        "data1_better.jld2",
+        Klips_to_run, num_runs, N, N, DN,
+        T, L, sN, sp_epsilon
+    )
+end
 
 """
 Same exact Ks and lis as in main1 but using p=0.01 to see a direct comparison.
