@@ -92,7 +92,7 @@ function run_v2(
     prog0 = Progress(total_num_runs)
     @tasks for ri in 1:total_num_runs
         # @set ntasks = run_threads
-        p = make_mmicrm_problem(params[ri], copy(ode_u0), T)
+        p = make_mmicrm_problem(params[ri].mmicrm_params, copy(ode_u0), T)
         s = solve(p, QNDF();
             maxiters=100000,
             callback=make_timer_callback(10 * 60),
