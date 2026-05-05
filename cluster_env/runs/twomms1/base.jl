@@ -80,7 +80,7 @@ function do_tmm_siny_runs_wrt_K(
 )
     Ds = SA[DN1, DN2, DI, DR1, DR2]
 
-    tmm_params = Vector{Any}(undef, length(Ks)
+    tmm_params = Vector{Any}(undef, length(Ks))
     results = Vector{Any}(undef, length(Ks))
     for i in 1:length(Ks)
         K = Ks[i]
