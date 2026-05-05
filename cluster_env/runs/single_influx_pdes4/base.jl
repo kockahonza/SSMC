@@ -101,7 +101,7 @@ function run_v2(
         ode_final_states[ri] = s.u[end]
         ode_final_Ts[ri] = s.t[end]
 
-        lsfunc = linstab_make_k_func(p.p, s.u[end];
+        lsfunc = linstab_make_k_func(params[ri], s.u[end];
             returnobj=:maxeval
         )
         linstab_mrls[ri] = real.(lsfunc.(lsks))
