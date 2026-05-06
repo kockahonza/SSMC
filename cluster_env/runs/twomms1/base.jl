@@ -124,6 +124,9 @@ function do_tmm_siny_runs_wrt_K(
     results
 end
 
+################################################################################
+# Changing k
+################################################################################
 function main1()
     for k in [0.0, 0.1, 0.4, 0.5, 0.6, 0.9, 1.0]
         outfname = "./d1_k$(k).jld2"
@@ -135,6 +138,30 @@ function main1()
             1e-6, 1e-6, 1.0, 1.0, 1.0,
             # Run params
             50, 1e8,
+            10, 5000,
+            # Initial condition params
+            1.0, 100, 100.0;
+            maxtime=5 * 60,
+            run_threads=8,
+            save_sols=false,
+        )
+    end
+end
+
+################################################################################
+# Changing p/D_R
+################################################################################
+function main2_ps()
+    for p in [1., 0.5, 0.1, 0.01]
+        outfname = "./wrtp/d1_p$(p).jld2"
+        do_tmm_siny_runs_wrt_K(
+            outfname, 10 .^ range(0.3, 2.0, 20),
+            # Physics params
+            0.9, 0.9, 1.0, 0.0,
+            1.0, 1.0, 1.0, 0.0,
+            1e-6, 1e-6, 1.0, p, p,
+            # Run params
+            25, 1e8,
             10, 5000,
             # Initial condition params
             1.0, 100, 100.0;
