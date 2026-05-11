@@ -225,7 +225,8 @@ function main1_better()
     run_v2(
         "data1_better.jld2",
         Klips_to_run, num_runs, N, N, DN,
-        T, L, sN, sp_epsilon
+        T, L, sN, sp_epsilon;
+        pde_solve_maxtime=4 * 60 * 60,
     )
 end
 
