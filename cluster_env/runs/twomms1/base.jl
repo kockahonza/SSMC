@@ -30,6 +30,7 @@ function run_siny_tmms(
     u0s = Vector{Matrix{Float64}}(undef, numrepeats)
     fss = Vector{Matrix{Float64}}(undef, numrepeats)
     fTs = Vector{Float64}(undef, numrepeats)
+    sols = Vector{Any}(undef, numrepeats)
 
     prog = Progress(numrepeats)
     @tasks for i in 1:numrepeats
@@ -46,7 +47,7 @@ function run_siny_tmms(
         p = make_smmicrm_problem(sps, u0, T)
         s = solve(p, QNDF();
             dense=false,
-            save_everystep=false,
+            save_everystep=save_sols,
             abstol=tol, reltol=tol,
             callback=make_timer_callback(maxtime),
         )
@@ -55,6 +56,7 @@ function run_siny_tmms(
         u0s[i] = u0
         fss[i] = s.u[end]
         fTs[i] = s.t[end]
+        sols[i] = save_sols ? s : nothing
 
         next!(prog)
         flush(stdout)
@@ -62,7 +64,7 @@ function run_siny_tmms(
     finish!(prog)
     flush(stdout)
 
-    (; retcodes, fss, fTs, u0s)
+    (; retcodes, fss, fTs, u0s, sols)
 end
 
 function do_tmm_siny_runs_wrt_K(
@@ -144,6 +146,30 @@ function main1()
             maxtime=5 * 60,
             run_threads=8,
             save_sols=false,
+        )
+    end
+end
+
+"""
+Zooming in on smaller ks. Reduced the number of random runs as they all seem the same, included time history.
+"""
+function main3_ks2()
+    for k in [0.0, 0.001, 0.01, 0.1, 0.2]
+        outfname = "./wrtk_2/d1_k$(k).jld2"
+        do_tmm_siny_runs_wrt_K(
+            outfname, 10 .^ range(0.3, 2., 20),
+            # Physics params
+            0.9, 0.9, 1.0, k,
+            1.0, 1.0, 1.0, k,
+            1e-6, 1e-6, 1.0, 1.0, 1.0,
+            # Run params
+            20, 1e8,
+            10, 5000,
+            # Initial condition params
+            1.0, 100, 100.0;
+            maxtime=5 * 60,
+            run_threads=8,
+            save_sols=true,
         )
     end
 end
