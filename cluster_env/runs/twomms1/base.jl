@@ -151,7 +151,7 @@ function main1()
 end
 
 """
-Zooming in on smaller ks. Reduced the number of random runs as they all seem the same, included time history.
+Zooming in on smaller ks. Reduced the number of random runs as they all seem the same.
 """
 function main3_ks2()
     for k in [0.0, 0.001, 0.01, 0.1, 0.2]
@@ -169,7 +169,7 @@ function main3_ks2()
             1.0, 100, 100.0;
             maxtime=5 * 60,
             run_threads=8,
-            save_sols=true,
+            save_sols=false,
         )
     end
 end
