@@ -174,6 +174,30 @@ function main3_ks2()
     end
 end
 
+"""
+Same as above but even more
+"""
+function main4_ks3()
+    for k in round.(10 .^ range(-2, log10(0.15), 5); digits=4)
+        outfname = "./wrtk_3/d1_k$(k).jld2"
+        do_tmm_siny_runs_wrt_K(
+            outfname, 10 .^ range(0.3, 2., 20),
+            # Physics params
+            0.9, 0.9, 1.0, k,
+            1.0, 1.0, 1.0, k,
+            1e-6, 1e-6, 1.0, 1.0, 1.0,
+            # Run params
+            20, 1e8,
+            10, 5000,
+            # Initial condition params
+            1.0, 100, 100.0;
+            maxtime=5 * 60,
+            run_threads=8,
+            save_sols=false,
+        )
+    end
+end
+
 ################################################################################
 # Changing p/D_R
 ################################################################################
