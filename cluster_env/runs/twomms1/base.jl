@@ -203,7 +203,7 @@ Same as above but even more
 """
 function main5_ks4()
     for k in [0.08, 0.09, 0.1, 0.11, 0.12]
-        outfname = "./wrtk_3/d1_k$(k).jld2"
+        outfname = "./wrtk_4/d1_k$(k).jld2"
         do_tmm_siny_runs_wrt_K(
             outfname, 10 .^ range(0.3, 2., 20),
             # Physics params

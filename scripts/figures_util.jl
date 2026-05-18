@@ -59,4 +59,8 @@ end
 mm_extline() = ColorSchemes.Dark2_6[end-4]
 mm_instabline() = ColorSchemes.Dark2_6[end-3]
 
+twomms_1() = ColorSchemes.Reds[end-2]
+twomms_2() = ColorSchemes.Blues[end-2]
+twomms_coexistence() = colorant"#b53296"
+
 end
