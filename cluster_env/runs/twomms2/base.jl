@@ -180,7 +180,7 @@ function changingps_coop_wide()
     k = 0.5
     Ks = 10 .^ range(0.3, 2., 20)
     for p in [1., 0.1, 0.01]
-        outfname = "./wrtp_k0_wide/p$(p).jld2"
+        outfname = "./wrtp_k0.5_wide/p$(p).jld2"
         do_tmm_siny_runs_wrt_K(
             outfname, Ks,
             # Physics params
