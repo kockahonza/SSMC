@@ -177,6 +177,26 @@ function changingps_pure_comp_zoom()
 end
 
 function changingps_coop_wide()
+    k = 0.5
+    Ks = 10 .^ range(0.3, 2., 20)
+    for p in [1., 0.1, 0.01]
+        outfname = "./wrtp_k0_wide/p$(p).jld2"
+        do_tmm_siny_runs_wrt_K(
+            outfname, Ks,
+            # Physics params
+            0.9, 0.9, 1.0, k,
+            1.0, 1.0, 1.0, k,
+            1e-6, 1e-6, 1.0, p, p,
+            # Run params
+            100, 1e8,
+            10, 5000,
+            # Initial condition params
+            1.0, 100, 100.0;
+            maxtime=6 * 60,
+            run_threads=8,
+            save_sols=false,
+        )
+    end
 end
 
 function changingps_coop_zoom()
