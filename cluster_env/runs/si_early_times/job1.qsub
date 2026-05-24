@@ -7,3 +7,5 @@
 #$ -l h_vmem=4G
 
 time julia -t $NSLOTS --project -L base.jl -e 'main1()'
+
+echo Finished
