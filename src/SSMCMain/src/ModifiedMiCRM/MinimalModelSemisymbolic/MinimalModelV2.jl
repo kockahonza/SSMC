@@ -50,6 +50,11 @@ function mmp_to_smmicrm(mmps::MMParams{F};
 end
 export mmp_to_smmicrm
 
+function get_mmp_beta(mmp::MMParams)
+    mmp.K * mmp.c / (mmp.m * mmp.r)
+end
+export get_mmp_beta
+
 function mm_get_nospace_sol(mmp::MMParams{F};
     include_extinct=false,
     threshold=100 * eps(F)

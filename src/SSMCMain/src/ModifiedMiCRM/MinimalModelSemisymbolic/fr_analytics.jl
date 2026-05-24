@@ -96,3 +96,9 @@ function fr2_km2(beta, l, p, roverD; s=+1)
     end
     roverD * ((2 * l) / (1 - rootchi)) * ((2 * p * rootchi + s * sqrt(underroot)) / (p * (1 - 2 * (1 - l) * p - rootchi)))
 end
+
+function fr2_Lmax(beta, l, p; roverD=1., s=+1)
+    km2 = fr2_km2(beta, l, p, roverD; s=s)
+    ismissing(km2) ? missing : ksquared_to_L(km2)
+end
+export fr2_Lmax

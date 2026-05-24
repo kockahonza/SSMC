@@ -15,6 +15,7 @@ using Reexport
 @reexport using EnumX
 
 using HypothesisTests
+using FFTW
 
 using REPL.TerminalMenus
 using Logging

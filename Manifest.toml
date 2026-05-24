@@ -2,7 +2,7 @@
 
 julia_version = "1.10.10"
 manifest_format = "2.0"
-project_hash = "9e1ce53be91b0ddb530d1a251c92a3b24210a169"
+project_hash = "db3bcfa541587507af9b846c52e456923c09be6e"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "27cecae79e5cc9935255f90c53bb831cc3c870d7"
@@ -688,6 +688,12 @@ weakdeps = ["Compiler"]
     [deps.Cthulhu.extensions]
     CthulhuCompilerExt = "Compiler"
 
+[[deps.DSP]]
+deps = ["Compat", "FFTW", "IterTools", "LinearAlgebra", "Polynomials", "Random", "Reexport", "SpecialFunctions", "Statistics"]
+git-tree-sha1 = "0df00546373af8eee1598fb4b2ba480b1ebe895c"
+uuid = "717857b8-e6f2-59f4-9121-6e50c889abd2"
+version = "0.7.10"
+
 [[deps.DataAPI]]
 git-tree-sha1 = "abe83f3a2f1b857aac70ef8b269080af17764bbe"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
@@ -1198,6 +1204,18 @@ weakdeps = ["StaticArrays"]
 
     [deps.ForwardDiff.extensions]
     ForwardDiffStaticArraysExt = "StaticArrays"
+
+[[deps.FourierAnalysis]]
+deps = ["AbstractFFTs", "DSP", "FFTW", "LinearAlgebra", "PosDefManifold", "RecipesBase", "Statistics"]
+git-tree-sha1 = "ce76c8f8422c5faad0259a747808db784c6c9c87"
+uuid = "e7e9c730-dc46-11e9-3633-f1ab55cc17e1"
+version = "1.2.3"
+
+[[deps.FourierSeries]]
+deps = ["FFTW"]
+git-tree-sha1 = "c648ac50e68ca83915706ef2c82e8d40c9541317"
+uuid = "91b0b092-f7f9-44d0-82ad-103031573311"
+version = "0.2.4"
 
 [[deps.FreeType]]
 deps = ["CEnum", "FreeType2_jll"]
@@ -2866,6 +2884,12 @@ git-tree-sha1 = "36d8b4b899628fb92c2749eb488d884a926614d3"
 uuid = "2dfb63ee-cc39-5dd5-95bd-886bf059d720"
 version = "1.4.3"
 
+[[deps.PosDefManifold]]
+deps = ["LinearAlgebra", "PrecompileSignatures", "Statistics"]
+git-tree-sha1 = "53c3daa77daf38076c18845cff392e8f5cdf6f3a"
+uuid = "f45a3650-5c51-11e9-1e9a-133aa5e309cf"
+version = "0.5.8"
+
 [[deps.PositiveFactorizations]]
 deps = ["LinearAlgebra"]
 git-tree-sha1 = "17275485f373e6673f7e7f97051f703ed5b15b20"
@@ -2887,6 +2911,11 @@ version = "0.4.34"
     ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
     ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
     SparseConnectivityTracer = "9f842d2f-2579-4b1d-911e-f412cf18a3f5"
+
+[[deps.PrecompileSignatures]]
+git-tree-sha1 = "18ef344185f25ee9d51d80e179f8dad33dc48eb1"
+uuid = "91cefc8d-f054-46dc-8f8c-26e11d7c5411"
+version = "3.0.3"
 
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
@@ -3148,7 +3177,7 @@ uuid = "94e857df-77ce-4151-89e5-788b33177be4"
 version = "0.1.0"
 
 [[deps.SSMCMain]]
-deps = ["ADTypes", "ChunkSplitters", "ColorSchemes", "Colors", "DataFrames", "Dates", "DifferentialEquations", "DimensionalData", "Distributions", "EnumX", "FreqTables", "Geppetto", "Graphs", "GraphvizDotLang", "HypothesisTests", "Interpolations", "JLD2", "LaTeXStrings", "LinearAlgebra", "Logging", "Makie", "MetaGraphsNext", "NamedArrays", "NonlinearSolve", "OhMyThreads", "Optimization", "OptimizationLBFGSB", "OptimizationOptimJL", "Polynomials", "PrettyTables", "Printf", "ProgressMeter", "QuickTypes", "REPL", "Reexport", "SciMLBase", "SimpleWeightedGraphs", "SparseConnectivityTracer", "StaticArrays", "Statistics", "StatsBase"]
+deps = ["ADTypes", "ChunkSplitters", "ColorSchemes", "Colors", "DataFrames", "Dates", "DifferentialEquations", "DimensionalData", "Distributions", "EnumX", "FFTW", "FreqTables", "Geppetto", "Graphs", "GraphvizDotLang", "HypothesisTests", "Interpolations", "JLD2", "LaTeXStrings", "LinearAlgebra", "Logging", "Makie", "MetaGraphsNext", "NamedArrays", "NonlinearSolve", "OhMyThreads", "Optimization", "OptimizationLBFGSB", "OptimizationOptimJL", "Polynomials", "PrettyTables", "Printf", "ProgressMeter", "QuickTypes", "REPL", "Reexport", "SciMLBase", "SimpleWeightedGraphs", "SparseConnectivityTracer", "StaticArrays", "Statistics", "StatsBase"]
 path = "src/SSMCMain"
 uuid = "a75ad852-21c5-4a12-a12f-b1392bb0ea4b"
 version = "0.1.0"
