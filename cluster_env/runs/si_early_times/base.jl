@@ -198,3 +198,31 @@ function main1()
         run_threads=6,
     )
 end
+
+"""
+A bigger run, mostly increasing the number of runs at each param value but also
+expanding the K range to span the instability region, only doing l=p=1.
+"""
+function main2()
+    Klips_to_run = [(K, 1., 1.) for K in (10 .^ range(0.6, 1.5, 15))]
+
+    num_runs = 30
+    N = 20
+
+    DN = 1e-6
+
+    T = 1e8
+    L = 10
+    sN = 2500
+
+    perturbation_epsilon = 1e-3
+
+    do_si_early_time_run(
+        "data2.jld2", Klips_to_run, num_runs,
+        N, N, DN,
+        T, L, sN,
+        perturbation_epsilon;
+        fft_factor=100.,
+        run_threads=6,
+    )
+end
