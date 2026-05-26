@@ -226,3 +226,27 @@ function main2()
         run_threads=6,
     )
 end
+"""Same as the above but l=0.99"""
+function main3()
+    Klips_to_run = [(K, 0.99, 1.) for K in (10 .^ range(0.6, 1.5, 15))]
+
+    num_runs = 30
+    N = 20
+
+    DN = 1e-6
+
+    T = 1e8
+    L = 10
+    sN = 2500
+
+    perturbation_epsilon = 1e-3
+
+    do_si_early_time_run(
+        "data2_lowerl.jld2", Klips_to_run, num_runs,
+        N, N, DN,
+        T, L, sN,
+        perturbation_epsilon;
+        fft_factor=100.,
+        run_threads=6,
+    )
+end
