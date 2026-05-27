@@ -316,4 +316,6 @@ include("SymCosmo/SymCosmo.jl")
 include("RandomSystems/RandomSystems.jl")
 include("TwoMMs.jl")
 
+include("FFTAnalysis.jl")
+
 end

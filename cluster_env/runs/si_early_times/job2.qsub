@@ -1,11 +1,11 @@
 #!/bin/bash -l
-#$ -N kocka3
+#$ -N kocka5
 #$ -cwd
 
-#$ -l h_rt=48:00:00
-#$ -pe smp 36
-#$ -l h_vmem=4G
+#$ -l h_rt=20:00:00
+#$ -pe smp 12
+#$ -l h_vmem=6G
 
-time julia -t $NSLOTS --project -L base.jl -e 'main3()'
+time julia -t $NSLOTS --project -L base.jl -e 'main5()'
 
 echo Finished

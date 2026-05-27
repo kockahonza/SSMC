@@ -1,5 +1,5 @@
 using Revise
-using SSMCMain, SSMCMain.ModifiedMiCRM, SSMCMain.ModifiedMiCRM.RandomSystems
+using SSMCMain, SSMCMain.ModifiedMiCRM, SSMCMain.ModifiedMiCRM.RandomSystems, SSMCMain.ModifiedMiCRM.FFTAnalysis
 
 include("../../../scripts/single_influx.jl")
 
@@ -18,10 +18,12 @@ function do_si_early_time_run(
     T, L, sN,
     perturbation_epsilon,
     ;
+    save_sols=false,
+    save_everystep=false,
     ode_u0=[fill(1.0, N); fill(0.0, M)],
     lsks=10 .^ range(-5, 2, 2000),
     fft_factor=100.,
-    pde_solve_maxtime=2 * 60 * 60,
+    pde_solve_maxtime=60 * 60,
     tol=1e-9,
     run_threads=8,
     solver_threads=div(nthreads(), run_threads),
@@ -97,6 +99,7 @@ function do_si_early_time_run(
     pde_final_states = Vector{Matrix{Float64}}(undef, total_num_runs)
     pde_final_Ts = Vector{Float64}(undef, total_num_runs)
     pde_dom_length = Vector{Float64}(undef, total_num_runs)
+    pde_sols = Vector{Any}(undef, total_num_runs)
 
     println("Starting PDE runs near ODE ss")
     flush(stdout)
@@ -118,12 +121,12 @@ function do_si_early_time_run(
 
         s = solve(sp, QNDF();
             dense=false,
-            save_everystep=false,
+            save_everystep,
             calck=false,
             abstol=tol,
             reltol=tol,
             # callback=make_timer_callback(pde_solve_maxtime),
-            callback=CallbackSet(make_fft_callback1(N, sN, dx, fft_factor), make_timer_callback(pde_solve_maxtime), PositiveDomain(copy(sp.u0))),
+            callback=CallbackSet(make_fft_callback2(N, sN, dx, fft_factor), make_timer_callback(pde_solve_maxtime), PositiveDomain(copy(sp.u0))),
         )
 
         pde_u0s[ri] = s.u[1]
@@ -131,9 +134,7 @@ function do_si_early_time_run(
         pde_final_states[ri] = s.u[end]
         pde_final_Ts[ri] = s.t[end]
         pde_dom_length[ri] = get_dominant_lengthscale(get_total_biomass_1d(s.u[end], N), dx)
-
-        s = nothing
-        GC.gc()
+        pde_sols[ri] = save_sols ? s : nothing
 
         next!(prog1)
         flush(stdout)
@@ -153,8 +154,9 @@ function do_si_early_time_run(
         pde_u0s=reshape(pde_u0s, num_runs, num_Klips),
         pde_retcodes=reshape(pde_retcodes, num_runs, num_Klips),
         pde_final_states=reshape(pde_final_states, num_runs, num_Klips),
-        pde_dom_length=reshape(pde_dom_length, num_runs, num_Klips),
         pde_final_Ts=reshape(pde_final_Ts, num_runs, num_Klips),
+        pde_dom_length=reshape(pde_dom_length, num_runs, num_Klips),
+        pde_sols=reshape(pde_sols, num_runs, num_Klips),
     )
 
     jldsave(out_fname; results...)
@@ -272,5 +274,60 @@ function main2_smaller()
         perturbation_epsilon;
         fft_factor=100.,
         run_threads=6,
+    )
+end
+
+"""
+Same as main2 but using the continuous callback and somewhat smaller
+"""
+function main4()
+    Klips_to_run = [(K, 1., 1.) for K in (10 .^ range(0.9, 1.5, 10))]
+
+    num_runs = 30
+    N = 20
+
+    DN = 1e-6
+
+    T = 1e8
+    L = 10
+    sN = 2500
+
+    perturbation_epsilon = 1e-3
+
+    do_si_early_time_run(
+        "data4.jld2", Klips_to_run, num_runs,
+        N, N, DN,
+        T, L, sN,
+        perturbation_epsilon;
+        fft_factor=100.,
+        pde_solve_maxtime=20 * 60,
+        run_threads=nthreads(),
+        solver_threads=nothing,
+    )
+end
+"""Same as the above but l=0.99"""
+function main5()
+    Klips_to_run = [(K, 0.99, 1.) for K in (10 .^ range(0.9, 1.5, 10))]
+
+    num_runs = 30
+    N = 20
+
+    DN = 1e-6
+
+    T = 1e8
+    L = 10
+    sN = 2500
+
+    perturbation_epsilon = 1e-3
+
+    do_si_early_time_run(
+        "data5.jld2", Klips_to_run, num_runs,
+        N, N, DN,
+        T, L, sN,
+        perturbation_epsilon;
+        fft_factor=100.,
+        pde_solve_maxtime=20 * 60,
+        run_threads=nthreads(),
+        solver_threads=nothing,
     )
 end

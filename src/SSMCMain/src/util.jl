@@ -153,33 +153,6 @@ function clamp_for_log(xx)
 end
 export clamp_for_log
 
-function get_total_biomass_1d(u::AbstractMatrix, Ns)
-    sN = size(u, 2)
-    biom = Vector{eltype(u)}(undef, sN)
-    for x in 1:sN
-        biom[x] = 0.
-        for i in 1:Ns
-            biom[x] += u[i, x]
-        end
-    end
-    biom
-end
-export get_total_biomass_1d
-
-function get_dominant_lengthscale(ys, dx)
-    sN = length(ys)
-    f = fft(ys)
-
-    halfi = div(sN, 2, RoundUp)
-    sP = abs2.(f[2:halfi]) .* (dx / sN)
-
-    Pmax, iPmax = findmax(sP)
-
-    freqs = fftfreq(sN, 1. / dx)
-    1 / freqs[iPmax+1]
-end
-export get_dominant_lengthscale
-
 ################################################################################
 # Various callbacks
 ################################################################################
@@ -245,36 +218,6 @@ function make_progress_callback(T; t0=0.0)
     )
 end
 export make_progress_callback
-
-function make_fft_callback1(Ns, sN, dx, exit_ratio)
-    halfi = div(sN, 2, RoundUp)
-    f = Vector{ComplexF64}(undef, sN)
-    sP = Vector{Float64}(undef, halfi-1)
-    
-    cc = let Ns=Ns, f=f, sP=sP, halfi=halfi
-        function(u, t, i)
-            for x in 1:sN
-                f[x] = 0.
-                for i in 1:Ns
-                    f[x] += u[i,x]
-                end
-            end
-            fft!(f)
-            
-            for i in 1:(halfi-1)
-                sP[i] = abs2(f[i+1]) * (dx / sN)
-            end
-        
-            Pmax = maximum(sP)
-            Pmean = mean(sP)
-            
-            (Pmax / Pmean) > exit_ratio
-        end
-    end
-
-    DiscreteCallback(cc, i->terminate!(i))
-end
-export make_fft_callback1
 
 ################################################################################
 # Plotting
