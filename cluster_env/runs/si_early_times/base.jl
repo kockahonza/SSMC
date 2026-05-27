@@ -250,3 +250,27 @@ function main3()
         run_threads=6,
     )
 end
+
+function main2_smaller()
+    Klips_to_run = [(K, 1., 1.) for K in (10 .^ range(0.6, 1.5, 10))]
+
+    num_runs = 18
+    N = 20
+
+    DN = 1e-6
+
+    T = 1e8
+    L = 10
+    sN = 2500
+
+    perturbation_epsilon = 1e-3
+
+    do_si_early_time_run(
+        "data2_smaller.jld2", Klips_to_run, num_runs,
+        N, N, DN,
+        T, L, sN,
+        perturbation_epsilon;
+        fft_factor=100.,
+        run_threads=6,
+    )
+end
