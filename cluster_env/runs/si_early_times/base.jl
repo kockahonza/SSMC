@@ -331,3 +331,32 @@ function main5()
         solver_threads=nothing,
     )
 end
+
+"""
+Same as main4 but with a smaller fft_factor
+"""
+function main6()
+    Klips_to_run = [(K, 1., 1.) for K in (10 .^ range(0.9, 1.5, 10))]
+
+    num_runs = 30
+    N = 20
+
+    DN = 1e-6
+
+    T = 1e8
+    L = 10
+    sN = 2500
+
+    perturbation_epsilon = 1e-3
+
+    do_si_early_time_run(
+        "data6.jld2", Klips_to_run, num_runs,
+        N, N, DN,
+        T, L, sN,
+        perturbation_epsilon;
+        fft_factor=50.,
+        pde_solve_maxtime=20 * 60,
+        run_threads=nthreads(),
+        solver_threads=nothing,
+    )
+end

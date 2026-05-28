@@ -51,7 +51,7 @@ function get_dominant_lengthscale2(ys, dx)
 end
 export get_dominant_lengthscale2
 
-function get_sP(ys, dx)
+function get_sP(ys::AbstractVector, dx)
     sN = length(ys)
     f = fft(ys)
 
@@ -61,11 +61,7 @@ end
 export get_sP
 
 function get_fftfactor1(ys, dx)
-    sN = length(ys)
-    f = fft(ys)
-
-    halfi = div(sN, 2, RoundUp)
-    sP = abs2.(f[2:halfi]) .* (dx / sN)
+    sP = get_sP(ys, dx)
     maximum(sP) / mean(sP)
 end
 export get_fftfactor1
