@@ -194,5 +194,6 @@ function main1()
         Klips_to_run, num_runs, N, N, DN,
         T, L, sN, sp_epsilon;
         run_threads=16,
+        pde_solve_maxtime=10 * 60 * 60,
     )
 end

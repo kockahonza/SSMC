@@ -84,7 +84,8 @@ function add_disprels!(df, ks; ls_threshold=1e-9)
     df.mrls = map(df.ls_revals) do revals
         getindex.(revals, 1)
     end
-    df.spatially_unstable = map(df.mrls) do mrls maximum(mrls) > ls_threshold end
+    df.mmrls = maximum.(df.mrls)
+    df.spatially_unstable = df.mmrls .> ls_threshold
     df
 end
 
@@ -138,6 +139,22 @@ function fit_ds!(df, ks, T, K, l, p;
     end
 
     df.fit_ds = map(opt_rs) do opt_r opt_r.minimizer[1] end
+
+    df
+end
+
+function add_mm_mrls!(df, ks, T, K, l, p;
+    DN=0.,
+    kwargs...
+)
+    mm_Ds = [DN, 1., p]
+
+    df.mm_mrls = map(eachrow(df)) do r
+        mm_s = solve_mm(T, K, l, p, r.fit_ds; DN, kwargs...)
+        linstab_simple(mm_s.prob.p, mm_Ds, mm_s.u[end], ks)
+    end
+
+    df
 end
 
 ################################################################################
@@ -191,12 +208,20 @@ end
 # Plotting
 ################################################################################
 function plot_disprels(df, ks, num_runs=nrow(df);
-    num_evals=1
+    num_evals=1,
+    autoylims=true,
+    random_rows=true,
 )
     fig = Figure()
     ax = Axis(fig[1,1])
 
-    for ri in 1:num_runs
+    iis = if random_rows
+        sample(1:nrow(df), num_runs; replace=false)
+    else
+        1:num_runs
+    end
+
+    for ri in iis
         r = df[ri,:]
         lines!(ax, ks, r.mrls; color=Cycled(ri))
         if num_evals > 1
@@ -206,7 +231,43 @@ function plot_disprels(df, ks, num_runs=nrow(df);
         end
     end
 
+    if autoylims
+        mm = abs(maximum(df[iis,:].mmrls))
+        ylims!(ax, -1.1mm, 1.1mm)
+    end
 
+    fig
+end
+
+function plot_fitted_disprels(df, ks, num_runs=1;
+    autoylims=true,
+    legend=false,
+)
+    fig = Figure()
+    ax = Axis(fig[1,1])
+
+    iis = sample(1:nrow(df), num_runs; replace=false)
+
+    for (ci, ri) in enumerate(iis)
+        r = df[ri,:]
+        lines!(ax, ks, r.mrls;
+            color=Cycled(ci),
+               label=(@sprintf "ri=%d, fited d=%.3g" ri r.fit_ds)
+        )
+        lines!(ax, ks, r.mm_mrls;
+            color=:black,
+            linestyle=:dash
+        )
+    end
+
+    if legend
+        axislegend(ax)
+    end
+
+    if autoylims
+        mm = abs(maximum(df[iis,:].mmrls))
+        ylims!(ax, -1.1mm, 1.1mm)
+    end
 
     fig
 end
