@@ -34,7 +34,7 @@ function solve_si_odes(
     retcodes = Vector{ReturnCode.T}(undef, num_runs)
     final_states = Vector{Vector{Float64}}(undef, num_runs)
     maxresids = Vector{Float64}(undef, num_runs)
-    num_surv = Vector{Int}{undef, num_runs}
+    num_surv = Vector{Int}(undef, num_runs)
 
     prog = Progress(num_runs)
     @tasks for i in 1:num_runs
