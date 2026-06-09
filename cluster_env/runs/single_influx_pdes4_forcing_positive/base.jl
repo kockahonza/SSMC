@@ -93,8 +93,8 @@ function run_v2(
     @tasks for ri in 1:total_num_runs
         # @set ntasks = run_threads
         p = make_mmicrm_problem(params[ri].mmicrm_params, copy(ode_u0), T)
-        s = solve(p, QNDF();
-            maxiters=100000,
+        s = solve(p, TRBDF2();
+            maxiters=1000000,
             callback=CallbackSet(make_timer_callback(10 * 60), PositiveDomain(copy(p.u0))),
         )
         ode_retcodes[ri] = s.retcode

@@ -52,22 +52,23 @@ function mmicrmfunc!(du, u, p::BMMiCRMParams{Nothing}, t=0)
     Ns, Nr = get_Ns(p)
 
     @inbounds for i in 1:Ns
-        sumterm = 0.0
+        # du[i] = 1e-9 # migration term to keep things positive and give things a chance to reenter
+        du[i] = 0.0
         for a in 1:Nr
-            sumterm += p.w[a] * (1.0 - p.l[i, a]) * p.c[i, a] * u[Ns+a]
+            du[i] += p.g[i] * p.w[a] * (1.0 - p.l[i, a]) * (u[i] * p.c[i, a] * u[Ns+a])
         end
-        du[i] = p.g[i] * u[i] * (sumterm - p.m[i])
+        du[i] -= p.g[i] * u[i] * p.m[i]
     end
 
     @inbounds for a in 1:Nr
         sumterm1 = 0.0
         for i in 1:Ns
-            sumterm1 += u[i] * p.c[i, a] * u[Ns+a]
+            sumterm1 += (u[i] * p.c[i, a] * u[Ns+a])
         end
         sumterm2 = 0.0
         for i in 1:Ns
             for b in 1:Nr
-                sumterm2 += p.D[i, a, b] * (p.w[b] / p.w[a]) * p.l[i, b] * u[i] * p.c[i, b] * u[Ns+b]
+                sumterm2 += p.D[i, a, b] * (p.w[b] / p.w[a]) * p.l[i, b] * (u[i] * p.c[i, b] * u[Ns+b])
             end
         end
 

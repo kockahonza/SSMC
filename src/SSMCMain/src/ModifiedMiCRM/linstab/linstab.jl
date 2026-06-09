@@ -119,6 +119,12 @@ end
 linstab_make_k_func(sp::AbstractSMMiCRMParams, ss; kwargs...) = linstab_make_k_func(sp, get_Ds(sp), ss; kwargs...)
 export linstab_make_k_func
 
+function linstab_simple(p::AbstractMMiCRMParams, Ds, ss, ks; returnobj=:maxeval)
+    kf = linstab_make_k_func(p, Ds, ss; returnobj)
+    kf.(ks)
+end
+export linstab_simple
+
 """
 Optimized function that will test if a system has an instability by scanning
 a range of preselected ks.

@@ -60,11 +60,28 @@ function get_sP(ys::AbstractVector, dx)
 end
 export get_sP
 
+function get_sp(ys, dx)
+    sp = get_sP(ys, dx)
+    @. sp = sqrt(sp)
+    sp
+end
+export get_sp
+
 function get_fftfactor1(ys, dx)
     sP = get_sP(ys, dx)
     maximum(sP) / mean(sP)
 end
 export get_fftfactor1
+
+function get_maxreldiff(u::AbstractMatrix, ode_ss::AbstractVector)
+    maximum(abs, (u .- ode_ss) ./ ode_ss)
+end
+export get_maxreldiff
+
+function get_maxdiff(u::AbstractMatrix, ode_ss::AbstractVector)
+    maximum(abs, u .- ode_ss)
+end
+export get_maxdiff
 
 ################################################################################
 # Useful plots
@@ -155,6 +172,45 @@ function make_fft_dl_plot2(s, N, dx)
 end
 export make_fft_dl_plot2!, make_fft_dl_plot2
 
+function make_dl_maxdiff_plot!(where, s, ode_ss, N, dx)
+    gl = GridLayout(where)
+    ax1 = Axis(gl[1,1];
+        xscale=log10,
+        ylabel="Dominant lengthscale",
+    )
+    ax2 = Axis(gl[2,1];
+        xscale=log10,
+        ylabel="Max difference from ODE levels",
+    )
+    linkxaxes!(ax1, ax2)
+    hidexdecorations!(ax1; grid=false)
+    
+    Ls = map(s.u) do u
+        get_dominant_lengthscale(get_total_biomass_1d(u, N), dx)
+    end;
+    lines!(ax1, s.t, Ls;
+    )
+
+    @show extrema(Ls) extrema(s.t)
+
+    maxdiffs = get_maxdiff.(s.u, Ref(ode_ss))
+    lines!(ax2, s.t, maxdiffs;
+    )
+    
+    xlims!(ax1, s.t[3]/2, s.t[end]*2)
+
+    rowgap!(gl, 6.)
+    
+    ax1, ax2
+end
+function make_dl_maxdiff_plot(s, ode_ss, N, dx)
+    fig = Figure()
+    make_dl_maxdiff_plot!(fig[1, 1], s, ode_ss, N, dx)
+    fig
+end
+export make_dl_maxdiff_plot!, make_dl_maxdiff_plot
+
+
 ################################################################################
 # FFT based solver exit callbacks
 ################################################################################
@@ -218,5 +274,32 @@ function make_fft_callback2(Ns, sN, dx, exit_ratio)
 end
 export make_fft_callback2
 
+function make_perturb_callback(sN, ode_ss, exit_level)
+    reldiffs = Matrix{Float64}(undef, length(ode_ss), sN)
+    
+    cc = let ode_ss=ode_ss, reldiffs=reldiffs
+        function(u, t, i)
+            @. reldiffs = (u - ode_ss) / ode_ss
+            maximum(abs, reldiffs) - exit_level
+        end
+    end
+
+    ContinuousCallback(cc, i->terminate!(i), i->terminate!(i, ReturnCode.Failure))
+end
+export make_perturb_callback
+
+function make_perturb_callback2(sN, ode_ss, exit_level)
+    diffs = Matrix{Float64}(undef, length(ode_ss), sN)
+    
+    cc = let ode_ss=ode_ss, diffs=diffs
+        function(u, t, i)
+            @. diffs = u - ode_ss
+            maximum(abs, diffs) - exit_level
+        end
+    end
+
+    ContinuousCallback(cc, i->terminate!(i), i->terminate!(i, ReturnCode.Failure))
+end
+export make_perturb_callback2
 
 end

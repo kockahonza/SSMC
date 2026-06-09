@@ -219,6 +219,21 @@ function make_progress_callback(T; t0=0.0)
 end
 export make_progress_callback
 
+function make_extinction_threshold_callback(threshold)
+    effect! = let threshold=threshold
+        function(int)
+            for i in eachindex(int.u)
+                if int.u[i] < threshold
+                    int.u[i] = 0.0
+                end
+            end
+        end
+    end
+
+    DiscreteCallback((u, t, i) -> true, effect!)
+end
+export make_extinction_threshold_callback
+
 ################################################################################
 # Plotting
 ################################################################################
