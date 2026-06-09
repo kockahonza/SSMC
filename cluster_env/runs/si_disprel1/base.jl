@@ -11,6 +11,9 @@ using Random, Distributions
 using DataFrames, DataFramesMeta
 using Optim
 
+################################################################################
+# Finding SI steady states
+################################################################################
 function solve_si_odes(
     outfname, num_runs,
     K, l, p,
@@ -51,13 +54,13 @@ function solve_si_odes(
             reltol=tol,
         )
         si_fs = si_s.u[end]
-        si_num_surv = count(>(surv_threshold), si_fs[1:N])
 
         params[i] = si_ps
         Dss[i] = si_Ds
         retcodes[i] = si_s.retcode
         final_states[i] = si_fs
         maxresids[i] = mmicrmmaxresid(si_s)
+        num_surv[i] = count(>(surv_threshold), si_fs[1:N])
 
         next!(prog)
         flush(stdout)
@@ -65,11 +68,81 @@ function solve_si_odes(
     finish!(prog)
     flush(stdout)
 
-    df = DataFrame(; params, Dss, retcodes, final_states, maxresids, num_runs)
+    df = DataFrame(; params, Dss, retcodes, final_states, maxresids, num_surv)
     jldsave(outfname; metadata, df)
     df
 end
 
+################################################################################
+# Getting dispersion relations for SI
+################################################################################
+function add_disprels!(df, ks; ls_threshold=1e-9)
+    df.ls_evals = map(eachrow(df)) do r
+        linstab_simple(r.params, r.Dss, r.final_states, ks; returnobj=:evals)
+    end
+    df.ls_revals = real(df.ls_evals)
+    df.mrls = map(df.ls_revals) do revals
+        getindex.(revals, 1)
+    end
+    df.spatially_unstable = map(df.mrls) do mrls maximum(mrls) > ls_threshold end
+    df
+end
+
+################################################################################
+# Minimal model stuff
+################################################################################
+function solve_mm(T, K, l, p, d=1.;
+    m=1., c=1.,
+    DN=0.,
+    mm_u0=[1., 0., 0.],
+    tol=1e-9,
+    maxtime=10.,
+)
+    mmp = MMParams(;
+        K, l,
+        m=1., c=1.,
+        d=d,
+    )
+    mm_ps = mmp_to_mmicrm(mmp; static=false)
+
+    mm_p = make_mmicrm_problem(mm_ps, mm_u0, T)
+    solve(mm_p, QNDF();
+        callback=CallbackSet(make_timer_callback(maxtime), PositiveDomain(mm_u0)),
+        abstol=tol,
+        reltol=tol,
+    )
+end
+
+function fit_ds!(df, ks, T, K, l, p;
+    DN=0.,
+    test_threshold=1e-9,
+    kwargs...
+)
+    add_disprels!(df, ks)
+
+    mm_Ds = [DN, 1., p]
+
+    opt_rs = map(eachrow(df)) do r
+        optimize([1.]) do u
+            mm_s = solve_mm(T, K, l, p, u[1]; DN, kwargs...)
+
+            mm_fs = mm_s.u[end]
+            mresid = mmicrmmaxresid(mm_s)
+            if (mresid > test_threshold) || (mm_fs[1] < test_threshold)
+                return Inf
+            end
+
+            mm_mrls = linstab_simple(mm_s.prob.p, mm_Ds, mm_fs, ks)
+            abs(maximum(mm_mrls) - maximum(r.mrls))
+        end
+    end
+
+    df.fit_ds = map(opt_rs) do opt_r opt_r.minimizer[1] end
+end
+
+################################################################################
+# Cluster runs
+################################################################################
 function main1()
     Klps_to_run = []
     for p in [1., 0.1]
@@ -90,4 +163,50 @@ function main1()
             1e8, 1e-9,
         )
     end
+end
+
+function main2()
+    Klps_to_run = []
+    for p in [1.]
+        for l in [0.999]
+            for K in range(10^0.5, 10^2, 5)
+                push!(Klps_to_run, (K, l, p))
+            end
+        end
+    end
+    Klps_to_run
+    for ri in 1:length(Klps_to_run)
+        K, l, p = Klps_to_run[ri]
+        @printf("Running %d/%d: K=%.3f, l=%.3f, p=%.3f\n", ri, length(Klps_to_run), K, l, p)
+        flush(stdout)
+
+        solve_si_odes("main2/ri$(ri).jld2", 100,
+            K, l, p,
+            1e8, 1e-9,
+        )
+    end
+end
+
+################################################################################
+# Plotting
+################################################################################
+function plot_disprels(df, ks, num_runs=nrow(df);
+    num_evals=1
+)
+    fig = Figure()
+    ax = Axis(fig[1,1])
+
+    for ri in 1:num_runs
+        r = df[ri,:]
+        lines!(ax, ks, r.mrls; color=Cycled(ri))
+        if num_evals > 1
+            for ii in 2:num_evals
+                lines!(ax, ks, getindex.(r.ls_revals, ii); color=Cycled(ri), linestyle=:dash)
+            end
+        end
+    end
+
+
+
+    fig
 end
