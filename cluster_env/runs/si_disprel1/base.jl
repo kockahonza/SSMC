@@ -49,7 +49,7 @@ function solve_si_odes(
         si_s = solve(si_p, solver();
             dense=false,
             save_everystep=false,
-            callback=CallbackSet(make_timer_callback(maxtime), PositiveDomain(si_u0)),
+            callback=CallbackSet(make_timer_callback(maxtime), make_ode_extinction_exit_callback(N, tol / 10), PositiveDomain(si_u0)),
             abstol=tol,
             reltol=tol,
         )
@@ -137,6 +137,7 @@ function fit_ds!(df, ks, T, K, l, p;
             abs(maximum(mm_mrls) - maximum(r.mrls))
         end
     end
+    df.fit_opt_rs = opt_rs
 
     df.fit_ds = map(opt_rs) do opt_r opt_r.minimizer[1] end
 
@@ -198,6 +199,28 @@ function main2()
         flush(stdout)
 
         solve_si_odes("main2/ri$(ri).jld2", 100,
+            K, l, p,
+            1e8, 1e-9,
+        )
+    end
+end
+
+function main3()
+    Klps_to_run = []
+    for p in [1.]
+        for l in [0.999]
+            for K in range(10^0.5, 10^2, 5)
+                push!(Klps_to_run, (K, l, p))
+            end
+        end
+    end
+    Klps_to_run
+    for gi in 1:length(Klps_to_run)
+        K, l, p = Klps_to_run[gi]
+        @printf("Running %d/%d: K=%.3f, l=%.3f, p=%.3f\n", gi, length(Klps_to_run), K, l, p)
+        flush(stdout)
+
+        solve_si_odes("main3/gi$(gi).jld2", 1000,
             K, l, p,
             1e8, 1e-9,
         )
