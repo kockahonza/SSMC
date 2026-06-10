@@ -219,6 +219,17 @@ function make_progress_callback(T; t0=0.0)
 end
 export make_progress_callback
 
+function make_ode_extinction_exit_callback(Ns, threshold=eps(); returncode=ReturnCode.Success)
+    cond! = let Ns=Ns, threshold=threshold
+        function(u, t, i)
+            all(<(threshold), u[1:Ns])
+        end
+    end
+
+    DiscreteCallback(cond!, (i) -> terminate!(i, returncode))
+end
+export make_ode_extinction_exit_callback
+
 function make_extinction_threshold_callback(threshold)
     effect! = let threshold=threshold
         function(int)
