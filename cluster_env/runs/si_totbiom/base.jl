@@ -197,33 +197,3 @@ function main1()
         pde_solve_maxtime=10 * 60 * 60,
     )
 end
-
-"""
-Changing p right away, also further increasing run times to reach ss
-"""
-function main2()
-    Klips_to_run = [
-        (10.0, 0.999, 1.),
-        (10.0, 0.999, 0.1),
-        (10.0, 0.999, 0.01),
-    ]
-
-    num_runs = 8
-    N = 20
-
-    DN = 1e-6
-
-    T = 1000000000
-    L = 10
-    sN = 2000
-
-    sp_epsilon = 1e-3
-
-    run_v2(
-        "data2.jld2",
-        Klips_to_run, num_runs, N, N, DN,
-        T, L, sN, sp_epsilon;
-        run_threads=16,
-        pde_solve_maxtime=20 * 60 * 60,
-    )
-end

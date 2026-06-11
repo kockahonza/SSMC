@@ -191,7 +191,7 @@ function smmicrmjac!(J, u, p::BSMMiCRMParams, t=0)
     J
 end
 function copy(sp::BSMMiCRMParams)
-    BSMMiCRMParams(copy(sp.mmicrm_params), copy(sp.Ds), copy(sp.space), sp.usenthreads)
+    BSMMiCRMParams(copy(sp.mmicrm_params), copy(sp.Ds), isnothing(sp.space) ? nothing : copy(sp.space), sp.usenthreads)
 end
 export BSMMiCRMParams
 

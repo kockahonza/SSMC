@@ -72,20 +72,20 @@ function mm_get_nospace_sol(mmp::MMParams{F};
         sqrtD = sqrt(D)
 
         N1 = (-qb + sqrtD) / (2.0 * qa)
-        if abs(N1) > threshold # only add non-extinct solution
+        if abs(N1) > threshold # only add non-extinct solutions
             I1 = mmp.K / (mmp.r + mmp.c * N1)
             R1 = (mmp.c * mmp.l * I1 * N1) / (mmp.r + mmp.d * N1)
             push!(sols, [N1, I1, R1])
         end
 
         N2 = (-qb - sqrtD) / (2.0 * qa)
-        if abs(N2) > threshold # only add non-extinct solution
+        if abs(N2) > threshold # only add non-extinct solutions
             I2 = mmp.K / (mmp.r + mmp.c * N2)
             R2 = (mmp.c * mmp.l * I2 * N2) / (mmp.r + mmp.d * N2)
             push!(sols, [N2, I2, R2])
         end
     elseif D > -threshold # then D ~ 0
-        if abs(qb) > threshold # only add non-extinct solution
+        if abs(qb) > threshold # only add non-extinct solutions
             N = (-qb) / (2.0 * qa)
             I = mmp.K / (mmp.r + mmp.c * N)
             R = (mmp.c * mmp.l * I * N) / (mmp.r + mmp.d * N)
@@ -117,6 +117,26 @@ function nospacesolstabilities_to_code(xx)
     sum(vals .* (10 .^ (0:(length(xx)-1))); init=0)
 end
 export nospacesolstabilities_to_code
+
+function mm_nospace_sol_stable(mmp, ss; threshold=10 * eps(eltype(ss)))
+    mmicrm_params = mmp_to_mmicrm(mmp; static=false)
+    M1 = make_M1(mmicrm_params, ss)
+    M1evals = eigvals(M1)
+    all(l -> real(l) < threshold, M1evals)
+end
+export mm_nospace_sol_stable
+
+function get_mm_the_nonext_sol(mmp)
+    ns_sols = mm_get_nospace_sol(mmp; include_extinct=true)
+    stability = mm_nospace_sol_stable.(Ref(mmp), ns_sols)
+    if !(stability[1:(end-1)] in [[1, 0], [0, 0], [1], []])
+        @warn "Found unexpected MM nospace sol stability vector: $stability"
+    # elseif stability[1:(end-1)] == [0, 0]
+    #     @warn "Seeing an MM nospace sol stability vector of [0, 0]"
+    end
+    ns_sols[findfirst(stability)]
+end
+export get_mm_the_nonext_sol
 
 function analyse_mmp(mmp::MMParams{F};
     DN=1e-12, DI=1.0, DR=1.0,

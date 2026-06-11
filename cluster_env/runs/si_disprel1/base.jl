@@ -90,34 +90,11 @@ function add_disprels!(df, ks; ls_threshold=1e-9)
 end
 
 ################################################################################
-# Minimal model stuff
+# Minimal model stuff v2
 ################################################################################
-function solve_mm(T, K, l, p, d=1.;
-    m=1., c=1.,
-    DN=0.,
-    mm_u0=[1., 0., 0.],
-    tol=1e-9,
-    maxtime=10.,
-)
-    mmp = MMParams(;
-        K, l,
-        m=1., c=1.,
-        d=d,
-    )
-    mm_ps = mmp_to_mmicrm(mmp; static=false)
-
-    mm_p = make_mmicrm_problem(mm_ps, mm_u0, T)
-    solve(mm_p, QNDF();
-        callback=CallbackSet(make_timer_callback(maxtime), PositiveDomain(mm_u0)),
-        abstol=tol,
-        reltol=tol,
-    )
-end
-
-function fit_ds!(df, ks, T, K, l, p;
+function fit_ds_v2!(df, ks, K, l, p;
     DN=0.,
     test_threshold=1e-9,
-    kwargs...
 )
     add_disprels!(df, ks)
 
@@ -125,37 +102,64 @@ function fit_ds!(df, ks, T, K, l, p;
 
     opt_rs = map(eachrow(df)) do r
         optimize([1.]) do u
-            mm_s = solve_mm(T, K, l, p, u[1]; DN, kwargs...)
+            mmp = MMParams(;
+                K, l,
+                m=1., c=1.,
+                d=u[1],
+            )
+            mmicrm_params = mmp_to_mmicrm(mmp; static=false)
 
-            mm_fs = mm_s.u[end]
-            mresid = mmicrmmaxresid(mm_s)
+            mm_fs = get_mm_the_nonext_sol(mmp)
+            mresid = mmicrmmaxresid(mm_fs, mmicrm_params)
             if (mresid > test_threshold) || (mm_fs[1] < test_threshold)
                 return Inf
             end
 
-            mm_mrls = linstab_simple(mm_s.prob.p, mm_Ds, mm_fs, ks)
+            mm_mrls = linstab_simple(mmicrm_params, mm_Ds, mm_fs, ks)
             abs(maximum(mm_mrls) - maximum(r.mrls))
         end
     end
-    df.fit_opt_rs = opt_rs
 
+    df.fit_opt_rs = opt_rs
     df.fit_ds = map(opt_rs) do opt_r opt_r.minimizer[1] end
+    df.fit_quality = map(df.fit_opt_rs) do opt_r
+        opt_r.minimum
+    end;
 
     df
 end
 
-function add_mm_mrls!(df, ks, T, K, l, p;
+function add_mm_mrls_v2!(df, ks, K, l, p;
     DN=0.,
-    kwargs...
 )
     mm_Ds = [DN, 1., p]
 
     df.mm_mrls = map(eachrow(df)) do r
-        mm_s = solve_mm(T, K, l, p, r.fit_ds; DN, kwargs...)
-        linstab_simple(mm_s.prob.p, mm_Ds, mm_s.u[end], ks)
+        mmp = MMParams(;
+            K, l,
+            m=1., c=1.,
+            d=r.fit_ds,
+        )
+        mmicrm_params = mmp_to_mmicrm(mmp; static=false)
+        mm_fs = get_mm_the_nonext_sol(mmp)
+        linstab_simple(mmicrm_params, mm_Ds, mm_fs, ks)
     end
 
     df
+end
+
+function get_naive_mm_mrls(ks, K, l, p;
+    DN=0.,
+)
+    mm_Ds = [DN, 1., p]
+    mmp = MMParams(;
+        K, l,
+        m=1., c=1.,
+        d=1.,
+    )
+    mmicrm_params = mmp_to_mmicrm(mmp; static=false)
+    mm_fs = get_mm_the_nonext_sol(mmp)
+    linstab_simple(mmicrm_params, mm_Ds, mm_fs, ks)
 end
 
 ################################################################################
@@ -265,9 +269,12 @@ end
 function plot_fitted_disprels(df, ks, num_runs=1;
     autoylims=true,
     legend=false,
+    same_col=true,
+    figure=(;),
+    axis=(;),
 )
-    fig = Figure()
-    ax = Axis(fig[1,1])
+    fig = Figure(; figure...)
+    ax = Axis(fig[1,1]; axis...)
 
     iis = sample(1:nrow(df), num_runs; replace=false)
 
@@ -278,7 +285,7 @@ function plot_fitted_disprels(df, ks, num_runs=1;
                label=(@sprintf "ri=%d, fited d=%.3g" ri r.fit_ds)
         )
         lines!(ax, ks, r.mm_mrls;
-            color=:black,
+            color=same_col ? Cycled(ci) : :black,
             linestyle=:dash
         )
     end
@@ -292,5 +299,90 @@ function plot_fitted_disprels(df, ks, num_runs=1;
         ylims!(ax, -1.1mm, 1.1mm)
     end
 
-    fig
+    FigureAxisAnything(fig, ax, nothing)
+end
+
+################################################################################
+# Bits&Bobs
+################################################################################
+function get_mrl_metrics(ks, mrls; threshold=1000 * eps())
+    mmrl, mmrl_i = findmax(mrls)
+    if mmrl > threshold
+        kmax = ks[mmrl_i]
+        k0_i = findfirst(>(threshold), mrls)
+        k0 = ks[k0_i]
+        k0, kmax, mmrl
+    else
+        (missing, missing, missing)
+    end
+end
+
+################################################################################
+# NOTE: OLD: Minimal model stuff v1
+################################################################################
+function solve_mm(T, K, l, p, d=1.;
+    m=1., c=1.,
+    DN=0.,
+    N0=1.,
+    tol=1e-9,
+    maxtime=10.,
+)
+    mm_u0=[N0, 0., 0.]
+    mmp = MMParams(;
+        K, l,
+        m=1., c=1.,
+        d=d,
+    )
+    mm_ps = mmp_to_mmicrm(mmp; static=false)
+
+    mm_p = make_mmicrm_problem(mm_ps, mm_u0, T)
+    solve(mm_p, QNDF();
+        callback=CallbackSet(make_timer_callback(maxtime), PositiveDomain(mm_u0)),
+        abstol=tol,
+        reltol=tol,
+    )
+end
+
+function fit_ds!(df, ks, T, K, l, p;
+    DN=0.,
+    test_threshold=1e-9,
+    kwargs...
+)
+    add_disprels!(df, ks)
+
+    mm_Ds = [DN, 1., p]
+
+    opt_rs = map(eachrow(df)) do r
+        optimize([1.]) do u
+            mm_s = solve_mm(T, K, l, p, u[1]; DN, kwargs...)
+
+            mm_fs = mm_s.u[end]
+            mresid = mmicrmmaxresid(mm_s)
+            if (mresid > test_threshold) || (mm_fs[1] < test_threshold)
+                return Inf
+            end
+
+            mm_mrls = linstab_simple(mm_s.prob.p, mm_Ds, mm_fs, ks)
+            abs(maximum(mm_mrls) - maximum(r.mrls))
+        end
+    end
+    df.fit_opt_rs = opt_rs
+
+    df.fit_ds = map(opt_rs) do opt_r opt_r.minimizer[1] end
+
+    df
+end
+
+function add_mm_mrls!(df, ks, T, K, l, p;
+    DN=0.,
+    kwargs...
+)
+    mm_Ds = [DN, 1., p]
+
+    df.mm_mrls = map(eachrow(df)) do r
+        mm_s = solve_mm(T, K, l, p, r.fit_ds; DN, kwargs...)
+        linstab_simple(mm_s.prob.p, mm_Ds, mm_s.u[end], ks)
+    end
+
+    df
 end
