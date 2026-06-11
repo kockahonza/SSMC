@@ -181,7 +181,8 @@ function make_timer_callback(limit)
     DiscreteCallback(
         (u, t, i) -> check_timer!(tc),
         i -> terminate!(i, ReturnCode.MaxTime);
-        initialize=(c, u, t, i) -> init_timer!(tc)
+        initialize=(c, u, t, i) -> init_timer!(tc),
+        save_positions=(false, false),
     )
 end
 export make_timer_callback
@@ -214,7 +215,8 @@ function make_progress_callback(T; t0=0.0)
         (u, t, i) -> update_progress!(pc, t),
         i -> nothing;
         initialize=(c, u, t, i) -> init_progress!(pc),
-        finalize=(c, u, t, i) -> finish_progress!(pc)
+        finalize=(c, u, t, i) -> finish_progress!(pc),
+        save_positions=(false, false),
     )
 end
 export make_progress_callback
@@ -226,7 +228,9 @@ function make_ode_extinction_exit_callback(Ns, threshold=eps(); returncode=Retur
         end
     end
 
-    DiscreteCallback(cond!, (i) -> terminate!(i, returncode))
+    DiscreteCallback(cond!, (i) -> terminate!(i, returncode);
+        # save_positions=(false, false),
+    )
 end
 export make_ode_extinction_exit_callback
 
@@ -241,9 +245,45 @@ function make_extinction_threshold_callback(threshold)
         end
     end
 
-    DiscreteCallback((u, t, i) -> true, effect!)
+    DiscreteCallback((u, t, i) -> true, effect!;
+        # save_positions=(false, false),
+    )
 end
 export make_extinction_threshold_callback
+
+function make_save_totbiom_callback(totbiom_vector, times_vector, Ns)
+    effect! = let totbiom_vector=totbiom_vector, times_vector=times_vector, Ns=Ns
+        function(int)
+            push!(totbiom_vector, sum(@view int.u[1:Ns,:]) / size(int.u, 2))
+            push!(times_vector, int.t)
+        end
+    end
+
+    DiscreteCallback((u, t, i) -> true, effect!;
+        save_positions=(false, false),
+    )
+end
+export make_save_totbiom_callback
+
+function make_stepped_saver_callback(sample_u, save_step=1)
+    ts = Float64[]
+    us = Vector{typeof(sample_u)}(undef, 0)
+
+    effect! = let ts=ts, us=us, save_step=save_step, counter=1
+        function(int)
+            if mod(counter-1, save_step) == 0
+                push!(ts, int.t)
+                push!(us, copy(int.u))
+            end
+            counter += 1
+        end
+    end
+
+    ts, us, DiscreteCallback((u, t, i) -> true, effect!;
+        save_positions=(false, false),
+    )
+end
+export make_stepped_saver_callback
 
 ################################################################################
 # Plotting
