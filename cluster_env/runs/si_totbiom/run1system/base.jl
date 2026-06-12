@@ -4,7 +4,7 @@ includet("../base.jl")
 
 function change_p(ps, p; DI=1.)
     N, M = get_Ns(ps)
-    iri = findfirst(!iszero, gen_ps.K)
+    iri = findfirst(!iszero, ps.K)
 
     new_ps = copy(ps);
     new_ps.Ds[N+1:N+M] .= p * DI
@@ -21,11 +21,13 @@ function main1()
     tol = 1e-9
     dx = L / sN
 
-    ps = 10 .^ range(0, -2, 8)
+    ps = 10 .^ range(0, -2, 2)
+    # ps = 10 .^ range(0, -2, 8)
 
     save_step = 500
 
-    maxtime = 3 * 60 * 60
+    maxtime = 5
+    # maxtime = 3 * 60 * 60
     run_threads=8
     solver_threads=16
 
