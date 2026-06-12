@@ -34,7 +34,7 @@ function run_1d_pde_sim(ps, u0, T, L, sN;
         calck=false,
         abstol=tol,
         reltol=tol,
-        callback=CallbackSet(make_timer_callback(maxtime), PositiveDomain(copy(u0))),
+        callback=CallbackSet(make_timer_callback(maxtime), PositiveDomain(copy(u0); save=false)),
         kwargs...
     )
 
@@ -95,7 +95,7 @@ function run_v2(
         p = make_mmicrm_problem(params[ri].mmicrm_params, copy(ode_u0), T)
         s = solve(p, TRBDF2();
             maxiters=100000,
-            callback=CallbackSet(make_timer_callback(10 * 60), PositiveDomain(copy(ode_u0))),
+            callback=CallbackSet(make_timer_callback(10 * 60), PositiveDomain(copy(ode_u0); save=false)),
         )
         ode_retcodes[ri] = s.retcode
         ode_final_states[ri] = s.u[end]
