@@ -102,3 +102,47 @@ function fr2_Lmax(beta, l, p; roverD=1., s=+1)
     ismissing(km2) ? missing : ksquared_to_L(km2)
 end
 export fr2_Lmax
+
+################################################################################
+# FR analytics v3 where we consider DI=D and DR=p*D with p!=1 and d!=c !
+################################################################################
+function fr3_beta1(l, gamma)
+    b1 = (1 + gamma) / gamma
+    b2 = 1 / (1 - l)
+    pos_b = min(b1, b2)
+
+    rootbit = l * (l + gamma - 1)
+    if rootbit < 0.
+        pos_b
+    else
+        real_bplu = (2 * l + gamma - 1 + 2 * sqrt(rootbit)) / gamma
+        max(pos_b, real_bplu)
+    end
+end
+export fr3_beta1
+
+# Extras for debugging
+function fr3_beta1_comples(l, gamma)
+    b1 = (1 + gamma) / gamma
+    b2 = 1 / (1 - l)
+    pos_b = min(b1, b2)
+    @show b1 == pos_b
+
+    rootbit = l * (l + gamma - 1)
+    if rootbit < 0.
+        @printf "Seeing rootbit < 0\n"
+        return pos_b
+    else
+        real_bmin = (2 * l + gamma - 1 - 2 * sqrt(rootbit)) / gamma
+        real_bplu = (2 * l + gamma - 1 + 2 * sqrt(rootbit)) / gamma
+        @show real_bmin pos_b
+
+        if pos_b < real_bmin
+            @warn "Getting stuff that uses beta < beta_minus!!!"
+            return pos_b
+        else
+            return max(pos_b, real_bplu)
+        end
+    end
+end
+export fr3_beta1_complex
