@@ -184,6 +184,7 @@ function main2()
     tol = 1e-9
 
     save_step = 200
+    run_threads=8
 
     run_1_system_changing_p(
         "data1_better.jld2", gen_ps, ode_fs, ps,
@@ -192,7 +193,7 @@ function main2()
         save_step;
         tol=1e-9,
         maxtime=6 * 60 * 60,
-        run_threads=8,
+        run_threads,
         solver_threads=div(nthreads(), run_threads),
     )
 end
