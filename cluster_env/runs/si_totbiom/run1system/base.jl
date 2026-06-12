@@ -21,13 +21,11 @@ function main1()
     tol = 1e-9
     dx = L / sN
 
-    ps = 10 .^ range(0, -2, 2)
-    # ps = 10 .^ range(0, -2, 8)
+    ps = 10 .^ range(0, -2, 8)
 
     save_step = 500
 
-    maxtime = 5
-    # maxtime = 3 * 60 * 60
+    maxtime = 3 * 60 * 60
     run_threads=8
     solver_threads=16
 
@@ -78,8 +76,6 @@ function main1()
         );
         push!(pde_s_t, pde_s.t[end])
         push!(pde_s_u, pde_s.u[end])
-
-        @show pde_s_t pde_s.t
 
         params[i] = pde_ps
         sol_ts[i] = pde_s_t
