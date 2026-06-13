@@ -19,9 +19,10 @@ function main1()
     println("Starting")
     flush(stdout)
     prog = Progress(length(systems))
-    @tasks for (i, (gen_ps, ode_fs)) in enumerate(systems)
+    @tasks for i in 1:length(systems)
         @set ntasks = run_threads
 
+        gen_ps, ode_fs = systems[i]
         outfname = "./data1/r$i.jld2"
         run_1_system_changing_p(
             outfname, gen_ps, ode_fs, ps,
