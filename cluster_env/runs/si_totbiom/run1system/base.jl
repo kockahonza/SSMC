@@ -89,7 +89,7 @@ function run_1_system_changing_p(
         ps, params, retcodes, sol_ts, sol_us, maxresids
     )
 
-    jldsave("./data1.jld2"; df, metadata)
+    jldsave(outfname; df, metadata)
 end
 
 function main1()
