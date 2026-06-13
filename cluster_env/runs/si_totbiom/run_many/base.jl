@@ -13,7 +13,7 @@ function main1()
     save_step = 200
     run_threads = 8
 
-    f = jldopen("./systems1_24.jld2")
+    f = jldopen("./systems1_16.jld2")
     systems = f["systems"]
 
     println("Starting")
