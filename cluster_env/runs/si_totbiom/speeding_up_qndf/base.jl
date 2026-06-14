@@ -25,7 +25,7 @@ function main1()
         tol=1e-9,
         abstol=1e-7,
         maxtime=6 * 60 * 60,
-        run_threads=2
+        run_threads=2,
         solver_threads=16,
         solver=QNDF,
         do_printing=true,
