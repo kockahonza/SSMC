@@ -16,6 +16,9 @@ function run_1d_pde_sim(ps, u0, T, L, sN;
     maxtime=60,
     solver_threads=nothing,
     tol=100000 * eps(),
+    abstol=tol,
+    reltol=tol,
+    pde_solver=TRBDF2,
     kwargs...
 )
     dx = L / sN
@@ -28,12 +31,12 @@ function run_1d_pde_sim(ps, u0, T, L, sN;
     )
     sp = make_smmicrm_problem(sps, u0, T; jac_type=:sparse)
 
-    s = solve(sp, TRBDF2();
+    s = solve(sp, pde_solver();
         dense=false,
         save_everystep=false,
         calck=false,
-        abstol=tol,
-        reltol=tol,
+        abstol,
+        reltol,
         callback=CallbackSet(make_timer_callback(maxtime), PositiveDomain(copy(u0); save=false)),
         kwargs...
     )
@@ -225,5 +228,43 @@ function main2()
         T, L, sN, sp_epsilon;
         run_threads=16,
         pde_solve_maxtime=20 * 60 * 60,
+    )
+end
+
+"""
+Changing p right away, using larger abstol and QNDF!!
+"""
+function main3()
+    Klips_to_run = [
+        (10.0, 0.999, 1.),
+        (10.0, 0.999, 0.31622776601683794),
+        (10.0, 0.999, 0.1),
+        (10.0, 0.999, 0.03162277660168379),
+        (10.0, 0.999, 0.01),
+    ]
+
+    num_runs = 20
+    N = 20
+
+    DN = 1e-6
+
+    T = 1e8
+    L = 10
+    sN = 2000
+
+    sp_epsilon = 1e-3
+
+    run_v2(
+        "data3.jld2",
+        Klips_to_run, num_runs, N, N, DN,
+        T, L, sN, sp_epsilon;
+        #
+        run_threads=128,
+        solver_threads=1,
+        #
+        pde_solver=QNDF,
+        abstol=1e-7,
+        reltol=1e-9,
+        pde_solve_maxtime=10 * 60 * 60,
     )
 end
