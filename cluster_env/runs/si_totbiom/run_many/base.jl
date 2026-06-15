@@ -7,20 +7,19 @@ function main1()
 
     T = 1e8
     L = 5
-    sN = 1000
+    sN = 2000
     sp_epsilon = 1e-3
 
-    save_step = 200
-    run_threads = 8
+    save_step = 20
 
-    f = jldopen("./systems1_16.jld2")
+    f = jldopen("./systems1_100.jld2")
     systems = f["systems"]
 
     println("Starting")
     flush(stdout)
     prog = Progress(length(systems))
     @tasks for i in 1:length(systems)
-        @set ntasks = run_threads
+        @set ntasks = 16
 
         gen_ps, ode_fs = systems[i]
         outfname = "./data1/r$i.jld2"
@@ -30,10 +29,11 @@ function main1()
             sp_epsilon,
             save_step;
             tol=1e-9,
-            maxtime=8 * 60 * 60,
+            abstol=1e-7,
+            maxtime=4 * 60 * 60,
             run_threads=1,
-            solver_threads=div(nthreads(), run_threads),
-            solver=TRBDF2,
+            solver_threads=8,
+            solver=QNDF,
         )
 
         GC.gc()
