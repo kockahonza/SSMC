@@ -63,8 +63,6 @@ function run_1_system_changing_p(
     maxresids = Vector{Float64}(undef, length(ps))
     realtimes = Vector{Float64}(undef, length(ps))
 
-    start_time = time()
-
     @localize pde_u0 @tasks for i in 1:length(ps)
         @set ntasks = run_threads
         if do_printing
@@ -87,6 +85,7 @@ function run_1_system_changing_p(
         pde_s_t, pde_s_u, scb = make_stepped_saver_callback(pde_u0, save_step)
         push!(pde_s_t, 0.)
         push!(pde_s_u, pde_u0)
+        start_time = time()
         pde_s = solve(pde_p, solver();
             dense=false,
             save_everystep=false,

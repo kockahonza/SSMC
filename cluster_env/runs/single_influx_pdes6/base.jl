@@ -122,6 +122,7 @@ function run_v2(
     sp_retcodes = Vector{ReturnCode.T}(undef, total_num_runs)
     sp_final_states = Vector{Matrix{Float64}}(undef, total_num_runs)
     sp_final_Ts = Vector{Float64}(undef, total_num_runs)
+    sp_realtimes = Vector{Float64}(undef, total_num_runs)
 
     println("Starting PDE runs near ODE ss")
     flush(stdout)
@@ -133,6 +134,7 @@ function run_v2(
         u0_ = expand_u0_to_size((sN,), ode_ss)
         u0 = perturb_u0_uniform(N, M, u0_, sp_epsilon)
 
+        start_time = time()
         s = run_1d_pde_sim(params[ri], u0, T, L, sN;
             maxtime=pde_solve_maxtime,
             solver_threads,
@@ -142,6 +144,7 @@ function run_v2(
         sp_retcodes[ri] = s.retcode
         sp_final_states[ri] = s.u[end]
         sp_final_Ts[ri] = s.t[end]
+        sp_realtimes[ri] = time() - start_time
 
         s = nothing
         GC.gc()
@@ -164,6 +167,7 @@ function run_v2(
         sp_retcodes=reshape(sp_retcodes, num_runs, num_Klips),
         sp_final_states=reshape(sp_final_states, num_runs, num_Klips),
         sp_final_Ts=reshape(sp_final_Ts, num_runs, num_Klips),
+        sp_realtimes=reshape(sp_realtimes, num_runs, num_Klips),
     )
 
     jldsave(out_fname; results...)
@@ -267,4 +271,46 @@ function main3()
         reltol=1e-9,
         pde_solve_maxtime=10 * 60 * 60,
     )
+end
+
+"""
+Changing p right away, using larger abstol and QNDF!!
+"""
+function main4()
+    Klips_to_run = [
+        (15.0, 0.999, 1.),
+        (15.0, 0.999, 0.31622776601683794),
+        (15.0, 0.999, 0.1),
+        (15.0, 0.999, 0.03162277660168379),
+        (15.0, 0.999, 0.01),
+    ]
+
+    num_runs = 100
+    N = 20
+
+    DN = 1e-6
+
+    T = 1e8
+    L = 10
+    sN = 2000
+
+    sp_epsilon = 1e-3
+
+    results = run_v2(
+        "data4.jld2",
+        Klips_to_run, num_runs, N, N, DN,
+        T, L, sN, sp_epsilon;
+        #
+        run_threads=128,
+        solver_threads=1,
+        #
+        pde_solver=QNDF,
+        abstol=1e-7,
+        reltol=1e-9,
+        pde_solve_maxtime=15 * 60 * 60,
+    )
+    println("Real times:")
+    display(results.sp_realtimes)
+    println("final Ts:")
+    display(results.sp_final_Ts)
 end
