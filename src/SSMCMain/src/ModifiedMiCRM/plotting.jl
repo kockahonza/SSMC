@@ -750,6 +750,8 @@ export get_spatial_gridpoints_dx, get_spatial_gridpoints_L
 
 function plot_spatial_fs!(where, u, Ns, sN, dx, ss=nothing;
     axis=(;),
+    scolor=i -> Cycled(i),
+    rcolor=i -> Cycled(Ns + i),
 )
     Nr = size(u)[1] - Ns
     xs = get_spatial_gridpoints_dx(sN, dx)
@@ -763,22 +765,22 @@ function plot_spatial_fs!(where, u, Ns, sN, dx, ss=nothing;
     rowgap!(gl, 4.0)
 
     for i in 1:Ns
-        lines!(axs, xs, u[i, :]; color=Cycled(i))
+        lines!(axs, xs, u[i, :]; color=scolor(i))
     end
     for a in 1:Nr
-        lines!(axr, xs, u[Ns+a, :]; color=Cycled(Ns + a))
+        lines!(axr, xs, u[Ns+a, :]; color=rcolor(a))
     end
 
     if !isnothing(ss)
         for i in 1:Ns
             hlines!(axs, ss[i];
-                color=Cycled(i),
+                color=scolor(i),
                 linestyle=:dash
             )
         end
         for a in 1:Nr
             hlines!(axr, ss[Ns+a];
-                color=Cycled(Ns + a),
+                color=rcolor(a),
                 linestyle=:dash
             )
         end
@@ -791,7 +793,7 @@ function plot_spatial_fs(args...;
     kwargs...
 )
     fig = Figure(; figure...)
-    plot_spatial_fs!(fig[1,1], args...; kwargs...)
+    plot_spatial_fs!(fig[1, 1], args...; kwargs...)
 
     fig
 end
