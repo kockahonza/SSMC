@@ -314,3 +314,43 @@ function main4()
     println("final Ts:")
     display(results.sp_final_Ts)
 end
+
+"""Exactly as above just a different K"""
+function main5()
+    Klips_to_run = [
+        (10.0, 0.999, 1.),
+        (10.0, 0.999, 0.31622776601683794),
+        (10.0, 0.999, 0.1),
+        (10.0, 0.999, 0.03162277660168379),
+        (10.0, 0.999, 0.01),
+    ]
+
+    num_runs = 100
+    N = 20
+
+    DN = 1e-6
+
+    T = 1e8
+    L = 10
+    sN = 2500
+
+    sp_epsilon = 1e-3
+
+    results = run_v2(
+        "data5.jld2",
+        Klips_to_run, num_runs, N, N, DN,
+        T, L, sN, sp_epsilon;
+        #
+        run_threads=128,
+        solver_threads=1,
+        #
+        pde_solver=QNDF,
+        abstol=1e-7,
+        reltol=1e-9,
+        pde_solve_maxtime=30 * 60 * 60,
+    )
+    println("Real times:")
+    display(results.sp_realtimes)
+    println("final Ts:")
+    display(results.sp_final_Ts)
+end
