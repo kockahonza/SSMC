@@ -29,6 +29,10 @@ unstable1() = ColorSchemes.Greens[4]
 unstable2() = ColorSchemes.Greens[5]
 other() = ColorSchemes.Dark2_4[end]
 
+extinct() = colorant"#898989"
+stable() = colorant"#1b9e77"
+unstable() = colorant"#d95f02"
+
 function mma_coloring_full(code)
     map_ = Dict(
         0 => extinct1(),

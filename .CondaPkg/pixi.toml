@@ -1,19 +1,17 @@
 [dependencies]
-openssl = ">=3, <3.6, >=3, <3.6"
-jupyter_kernel_test = "*"
-libstdcxx-ng = ">=3.4,<=15.1"
-xarray = "*"
 cvxpy = "*"
 libstdcxx = ">=3.4,<=15.1"
+openssl = ">=3, <3.6, >=3, <3.6"
+libstdcxx-ng = ">=3.4,<=15.1"
 uv = ">=0.4"
-jupyter_client = "*"
+xarray = "*"
 numpy = "*"
 scikit-optimize = "*"
 
     [dependencies.python]
     channel = "conda-forge"
     build = "*cp*"
-    version = ">=3.9,<4"
+    version = ">=3.9,<4, 3.13.*"
 
 [project]
 name = ".CondaPkg"
