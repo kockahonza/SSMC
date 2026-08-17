@@ -323,6 +323,11 @@ function make_grid(n;
 end
 export make_grid
 
+function log10ticks(es)
+    (10.0 .^ es, [rich("10", superscript(string(e))) for e in es])
+end
+export log10ticks
+
 function plot_binom_sample!(ax, xs, ns, num_repeats;
     proportions=false,
     sl_kwargs=(;),
