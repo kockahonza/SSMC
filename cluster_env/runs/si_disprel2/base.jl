@@ -178,7 +178,7 @@ function main1()
         @printf("Running %d/%d: K=%.3f, l=%.3f, p=%.3f\n", gi, length(Klps_to_run), K, l, p)
         flush(stdout)
 
-        solve_si_odes("main1/gi$(gi).jld2", 20,
+        solve_si_odes("main1/gi$(gi).jld2", 25,
             K, l, p,
             1e8, 1e-9,
         )
