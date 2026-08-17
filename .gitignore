@@ -12,8 +12,9 @@ cluster_env/runs/**/.*
 .vscode
 .ipynb_checkpoints
 
-# JupyterLab real-time collaboration CRDT store, regenerable and grows huge
+# JupyterLab real-time collaboration state, regenerable and grows huge
 .jupyter_ystore.db
+.jupyter/collaboration_sessions.json
 
 # Don't track nested git repos
 latex_and_diagrams/overleaf_CRLS_git
