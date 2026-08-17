@@ -103,9 +103,19 @@ function fr2_Lmax(beta, l, p; roverD=1., s=+1)
 end
 export fr2_Lmax
 
+function fr2_lstar(p)
+    if p < 1.
+        p / (1 + p)
+    else
+        1 - (1 / (2 * p))
+    end
+end
+export fr2_lstar
+
 ################################################################################
 # FR analytics v3 where we consider DI=D and DR=p*D with p!=1 and d!=c !
 ################################################################################
+"""A simplified extline assuming some conditions"""
 function fr3_beta1(l, gamma)
     b1 = (1 + gamma) / gamma
     b2 = 1 / (1 - l)
