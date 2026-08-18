@@ -12,6 +12,9 @@ cluster_env/runs/**/.*
 .vscode
 .ipynb_checkpoints
 
+# jupyterlab-lsp mirrors of notebook code, regenerated on every notebook open
+.virtual_documents/
+
 # JupyterLab real-time collaboration state, regenerable and grows huge
 .jupyter_ystore.db
 .jupyter/collaboration_sessions.json
