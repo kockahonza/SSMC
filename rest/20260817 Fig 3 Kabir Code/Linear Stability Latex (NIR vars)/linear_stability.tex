@@ -1,0 +1,242 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage[hidelinks]{hyperref}
+
+\titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{1em}{}
+\renewcommand{\arraystretch}{1.3}
+
+\title{Linear Stability To Check}
+\date{2026-08-17}
+\author{}
+
+\begin{document}
+\maketitle
+
+\section*{Step 0: The model}
+
+\[
+\partial_t N = N\left(c(1-l)\,I + d R - m\right) + D_N \nabla^2 N
+\]
+
+\[
+\partial_t I = K - r\, I - c\, I\, N + D_I \nabla^2 I
+\]
+
+\[
+\partial_t R = c\, l\, I\, N - r\, R - d R N + D_R \nabla^2 R
+\]
+
+The story: cells consume $I$ at rate $c I N$. A fraction $l$ of that flux is leaked as the byproduct $R$; the remaining fraction $(1-l)$ becomes growth. The leaked byproduct is then re-consumed by the same population at rate $d R N$, also contributing to growth.
+
+\bigskip\hrule\bigskip
+
+\section*{Step 1: Homogeneous steady state}
+
+Set all time derivatives and all Laplacians to zero.
+
+\textbf{From the $I$ equation:}
+
+\[
+K = r I^* + c I^* N^* \quad\Longrightarrow\quad I^* = \frac{K}{r + c N^*}
+\]
+
+\textbf{From the $R$ equation:}
+
+\[
+c l\, I^* N^* = r R^* + d R^* N^* \quad\Longrightarrow\quad R^* = \frac{c l\, I^* N^*}{r + d N^*}
+\]
+
+These two denominators will appear everywhere, so name them now:
+
+\[
+\boxed{\;u \equiv r + c N^*, \qquad v \equiv r + d N^*\;}
+\]
+
+Each is a total removal rate: $u$ is the rate at which $I$ leaves the system (dilution $r$ plus consumption $cN^*$), and $v$ likewise for $R$. In these terms
+
+\[
+I^* = \frac{K}{u}, \qquad R^* = \frac{c l K N^*}{uv}
+\]
+
+\textbf{From the $N$ equation}, the bracket must vanish (taking $N^*\neq 0$):
+
+\[
+c(1-l)\, I^* + d R^* = m
+\]
+
+This is the equation that fixes $N^*$. We won't need to solve it explicitly --- but we \emph{will} use the fact that it holds, repeatedly.
+
+\bigskip\hrule\bigskip
+
+\section*{Step 2: Perturb}
+
+Write
+
+\[
+N = N^* + \nu\, e^{i\mathbf{k}\cdot\mathbf{x} + \lambda t}, \qquad I = I^* + \rho\, e^{i\mathbf{k}\cdot\mathbf{x}+\lambda t}, \qquad R = R^* + \sigma\, e^{i\mathbf{k}\cdot\mathbf{x}+\lambda t}
+\]
+
+with $\nu, \rho, \sigma$ infinitesimal. Since $\nabla^2 e^{i\mathbf{k}\cdot\mathbf{x}} = -k^2 e^{i\mathbf{k}\cdot\mathbf{x}}$, every Laplacian becomes multiplication by $-k^2$.
+
+\textbf{Quasi-steady-state assumption:} the resources equilibrate fast, so we set $\partial_t \rho = \partial_t\sigma = 0$ while keeping their diffusion. This is the key simplification: it lets us solve for $\rho$ and $\sigma$ in terms of $\nu$, and reduces a $3\times3$ eigenvalue problem to a single scalar equation.
+
+\bigskip\hrule\bigskip
+
+\section*{Step 3: Solve for $\rho$ (the external resource response)}
+
+Linearise the $I$ equation. The only nonlinear term is $-c I N$, which varies as $-c(I^*\nu + N^*\rho)$:
+
+\[
+0 = -r\rho - c\left(I^*\nu + N^*\rho\right) - D_Ik^2\rho
+\]
+
+Collect the $\rho$ terms:
+
+\[
+0 = -\underbrace{\left(r + cN^*\right)}_{=\,u}\rho - D_Ik^2\rho - cI^*\nu
+\]
+
+\[
+\boxed{\;\rho = -\frac{c\, I^*}{u + D_Ik^2}\;\nu\;}
+\]
+
+\textbf{Read it:} $\rho$ has the \emph{opposite} sign to $\nu$. More cells means less external resource. This is the inhibitory channel. Its magnitude is suppressed at large $k$ --- because rapid diffusion smooths out any local depletion, a short-wavelength bloom cannot dig itself a resource hole.
+
+\bigskip\hrule\bigskip
+
+\section*{Step 4: Solve for $\sigma$ (the byproduct response)}
+
+Linearise the $R$ equation. Two nonlinear terms: $+cl\, In \to cl(I^*\nu + N^*\rho)$, and $-d R N \to -d(R^*\nu + N^*\sigma)$:
+
+\[
+0 = cl\left(I^*\nu + N^*\rho\right) - r\sigma - d\left(R^*\nu + N^*\sigma\right) - D_R k^2 \sigma
+\]
+
+Collect the $\sigma$ terms, which give $-(r + d N^*)\sigma - D_R k^2\sigma = -(v + D_R k^2)\sigma$:
+
+\[
+\sigma = \frac{cl\, I^*\nu \;-\; d R^* \nu \;+\; cl\, N^*\rho}{v + D_R k^2}
+\]
+
+Now handle the first two terms. Using $R^* = clKN^*/(uv)$ and $I^*=K/u$:
+
+\[
+cl\,I^* - d R^* = \frac{clK}{u} - \frac{d clKN^*}{uv} = \frac{clK}{u}\left(1 - \frac{d N^*}{v}\right) = \frac{clK}{u}\cdot\frac{r}{v}
+\]
+
+using $v - d N^* = r$. So
+
+\[
+\boxed{\;\sigma = \frac{1}{v+D_R k^2}\left[\frac{clKr}{uv}\,\nu \;+\; cl\,N^*\rho\right]\;}
+\]
+
+\textbf{Read it:} two contributions.
+\begin{itemize}
+  \item The first is \textbf{positive}: more cells leak more byproduct. This is the activating channel.
+  \item The second inherits $\rho$, which is negative. More cells deplete $I$, so \emph{less} gets leaked into $R$. This is an inhibitory contribution travelling through the byproduct.
+\end{itemize}
+
+That second piece is the one that will matter most, so let's track it carefully.
+
+\bigskip\hrule\bigskip
+
+\section*{Step 5: The $N$ equation}
+
+Linearise. The perturbation $\nu$ multiplies the bracket --- but \textbf{the bracket vanishes at the fixed point} (Step 1). So that term dies, and only $N^*$ times the bracket's perturbation survives:
+
+\[
+\lambda\nu = N^*\left[c(1-l)\rho + d \sigma\right] - D_N k^2 \nu
+\]
+
+This is the crucial structural fact: \textbf{$N$ has no autonomous linear dynamics.} Its entire growth rate is inherited from the resource perturbations. Everything downstream follows from this.
+
+\bigskip\hrule\bigskip
+
+\section*{Step 6: Assemble}
+
+Substitute $\sigma$ from Step 4:
+
+\[
+\lambda = -D_Nk^2 + \frac{N^*}{\nu}\left[c(1-l)\rho + \frac{d}{v+D_R k^2}\left(\frac{clKr}{uv}\nu + cl\,N^*\rho\right)\right]
+\]
+
+Now substitute $\rho = -\dfrac{cK/u}{u+D_Ik^2}\nu$ in the two places it appears, and divide out $\nu$:
+
+\[
+\lambda = -D_Nk^2 \;\underbrace{-\; \frac{N^*c^2(1-l)K}{u\left(u+D_Ik^2\right)}}_{\text{direct competition}} \;\underbrace{+\; \frac{N^*d clKr}{uv\left(v+D_R k^2\right)}}_{\text{cross-feeding gain}} \;\underbrace{-\; \frac{N^{*2}d c^2 lK}{u\left(u+D_Ik^2\right)\left(v+D_R k^2\right)}}_{\text{indirect: depletion} \to \text{less leakage}}
+\]
+
+\bigskip\hrule\bigskip
+
+\section*{Step 7: Compact form}
+
+Factor each denominator to expose its structure. Define the two \textbf{screening lengths}
+
+\[
+\ell_I = \sqrt{\frac{D_I}{u}}, \qquad \ell_R = \sqrt{\frac{D_R}{v}}
+\]
+
+so that $u + D_Ik^2 = u\left(1+\ell_I^2k^2\right)$ and $v+D_R k^2 = v\left(1+\ell_R^2k^2\right)$. Then, defining
+
+\[
+A = \frac{N^*d clKr}{uv^2}, \qquad I_1 = \frac{N^*c^2(1-l)K}{u^2}, \qquad I_2 = \frac{N^{*2}d c^2lK}{u^2v}
+\]
+
+we arrive at
+
+\[
+\boxed{\;\lambda(k) = -D_Nk^2 \;+\; \frac{A}{1+\ell_R^2k^2} \;-\; \frac{I_1}{1+\ell_I^2k^2} \;-\; \frac{I_2}{\left(1+\ell_I^2k^2\right)\left(1+\ell_R^2k^2\right)}\;}
+\]
+
+All three of $A, I_1, I_2$ are \textbf{positive}. This is an activator--inhibitor dispersion relation: one gain term, two loss terms.
+
+\bigskip\hrule\bigskip
+
+\section*{Step 8: Sanity checks}
+
+\textbf{At $k=0$:} all Lorentzians equal $1$, so $\lambda(0) = A - I_1 - I_2$. This must be negative for the homogeneous state to be stable --- and indeed it equals $N^*G'(N^*)$, the well-mixed eigenvalue. Net feedback is inhibitory in bulk.
+
+\textbf{At $k\to\infty$ with $D_N=0$:} every term vanishes, $\lambda\to 0$. This is Step 5's consequence: screen out the resources and $N$ has nothing left to do.
+
+\bigskip\hrule\bigskip
+
+\section*{Step 9: What drives the instability}
+
+Since $\lambda(0)<0$ and $\lambda(\infty)=0$ (for $D_N=0$), instability is decided by \emph{how} zero is approached. Expand at large $k$:
+
+\[
+\frac{A}{1+\ell_R^2k^2} \sim \frac{A}{\ell_R^2k^2}, \qquad \frac{I_1}{1+\ell_I^2k^2}\sim\frac{I_1}{\ell_I^2k^2}, \qquad \frac{I_2}{(1+\ell_I^2k^2)(1+\ell_R^2k^2)} \sim \frac{I_2}{\ell_I^2\ell_R^2 k^4}
+\]
+
+\textbf{The key observation:} $I_2$ decays as $k^{-4}$, one power faster than the other two. It is a \emph{double} Lorentzian, because that inhibitory signal must pass through \textbf{two} screened resource fields in sequence --- depletion of $I$, propagated into $R$. In real space this means its range is $\sqrt{\ell_I^2 + \ell_R^2}$, strictly longer than the activator's $\ell_R$, \textbf{for any diffusivities whatsoever}.
+
+So the separation of scales here is \textbf{topological, not diffusive} --- it comes from path length through the metabolic chain, not from $D_I$ exceeding $D_R$. Dropping $I_2$ from the large-$k$ balance:
+
+\[
+\lambda(k) \approx \frac{1}{k^2}\left(\frac{A}{\ell_R^2} - \frac{I_1}{\ell_I^2}\right) = \frac{1}{k^2}\left(\frac{Av}{D_R} - \frac{I_1 u}{D_I}\right)
+\]
+
+Instability requires this to be positive. Substituting the definitions, $Av/D_R = \dfrac{N^*d clKr}{uvD_R}$ and $I_1u/D_I = \dfrac{N^*c^2(1-l)K}{uD_I}$, so the condition is
+
+\[
+\boxed{\;\frac{1}{D_R}\cdot\frac{d l\,r}{v} \;>\; \frac{1}{D_I}\cdot c(1-l)\;}
+\]
+
+For $D_I = D_R$ this reduces to the reaction-only condition $\dfrac{d lr}{r+d N^*} > c(1-l)$ --- strong leakage and weak direct competition --- with no diffusivity requirement, which is the case you checked against $Kc/(mr) < 1/(1-l)$.
+
+\textbf{Two necessary ingredients, distinct from each other:}
+
+\begin{enumerate}
+  \item \textbf{Sign:} the above inequality, which asks whether the net feedback flips positive once the resources are screened. Mostly a statement about reaction kinetics.
+  \item \textbf{Scale:} at least one $D>0$, so that screening actually happens as $k$ grows. If $D_I=D_R=0$ there is no $k$-dependence at all and $\lambda(k)\equiv\lambda_0<0$ everywhere.
+\end{enumerate}
+
+And $D_N$ must be small: it is the only term that \emph{damps} rather than merely screening, and a large enough $D_N$ kills the band regardless of everything else. With $D_N>0$ the unstable band is finite and a genuine wavelength is selected; with $D_N = 0$ the band extends to $k\to\infty$ and the selected scale must come from elsewhere.
+
+\end{document}

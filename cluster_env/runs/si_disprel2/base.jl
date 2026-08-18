@@ -1,5 +1,5 @@
 using Revise
-using SSMCMain.ModifiedMiCRM, SSMCMain.ModifiedMiCRM.MinimalModelV2
+using SSMCMain.ModifiedMiCRM, SSMCMain.ModifiedMiCRM.MinimalModelV3
 
 include("../../../scripts/single_influx.jl")
 
@@ -12,7 +12,7 @@ using DataFrames, DataFramesMeta
 using Optim
 
 ################################################################################
-# Stage 1: generate SI systems and find their well-mixed steady states
+# Cluster stage: generate SI systems and find their well-mixed steady states
 ################################################################################
 function solve_si_odes(
     outfname, num_runs,
@@ -76,96 +76,55 @@ function solve_si_odes(
 end
 
 ################################################################################
-# Stage 2: dispersion relations and fitting the MM d
+# Fitting the MM d
 ################################################################################
-function add_disprels!(df, ks; ls_threshold=1e-9)
-    df.ls_evals = tmap(eachrow(df)) do r
-        linstab_simple(r.params, r.Dss, r.final_states, ks; returnobj=:evals)
-    end
-    df.ls_revals = real(df.ls_evals)
-    df.mrls = map(df.ls_revals) do revals
-        getindex.(revals, 1)
-    end
-    df.mmrls = maximum.(df.mrls)
-    df.spatially_unstable = df.mmrls .> ls_threshold
-    df
-end
+"""
+    fit_mm_d(si_params, si_fs, si_Ds, K, l, p, ks, kweight=1e5)
 
-# peak location and height, refined by fitting a parabola around the grid maximum
-function peak_metrics(ks, mrls)
-    h, i = findmax(mrls)
-    if 1 < i < length(mrls)
-        x1, x2, x3 = ks[i-1], ks[i], ks[i+1]
-        y1, y2, y3 = mrls[i-1], mrls[i], mrls[i+1]
-        denom = (x2 - x1) * (y2 - y3) - (x2 - x3) * (y2 - y1)
-        if denom != 0.
-            k = x2 - 0.5 * ((x2 - x1)^2 * (y2 - y3) - (x2 - x3)^2 * (y2 - y1)) / denom
-            a = ((y1 - y2) / (x1 - x2) - (y2 - y3) / (x2 - x3)) / (x1 - x3)
-            return k, y2 - a * (x2 - k)^2
-        end
-    end
-    ks[i], h
-end
-
-function make_mm_disprel(K, l, p, d, ks; DN=0., test_threshold=1e-9)
-    mmp = MMParams(; K, l, m=1., c=1., d)
-    mmicrm_params = mmp_to_mmicrm(mmp; static=false)
-    mm_fs = get_mm_the_nonext_sol(mmp)
-    mresid = mmicrmmaxresid(mm_fs, mmicrm_params)
-    if (mresid > test_threshold) || (mm_fs[1] < test_threshold)
-        return nothing
-    end
-    linstab_simple(mmicrm_params, [DN, 1., p], mm_fs, ks)
-end
-
-function fit_ds!(df, ks, K, l, p;
-    DN=0.,
-    test_threshold=1e-9,
-    kweight=1.,
+Fit the MM d by matching its disprel peak to that of the given SI system, both peaks
+located numerically. Returns (; d, si_mrls, mmls, si_k, mm_k) with the disprels
+evaluated on the passed ks and si_k/mm_k the two peak locations, or nothing if the
+SI system is not spatially unstable.
+"""
+function fit_mm_d(si_params, si_fs, si_Ds, K, l, p, ks, kweight=1e5;
+    m=1., c=1., DN=0., DI=1., extinct_threshold=1e-9, logdlims=(-6., 5.),
 )
-    opt_rs = tmap(eachrow(df)) do r
-        si_k, si_h = peak_metrics(ks, r.mrls)
-        optimize([1.]) do u
-            mm_mrls = make_mm_disprel(K, l, p, u[1], ks; DN, test_threshold)
-            isnothing(mm_mrls) && return Inf
-            mm_k, mm_h = peak_metrics(ks, mm_mrls)
-            obj = abs(mm_h - si_h) / abs(si_h)
-            if si_k > 0.
-                obj += kweight * abs(mm_k - si_k) / si_k
-            end
-            obj
+    si_mrls = linstab_simple(si_params, si_Ds, si_fs, ks)
+    si_h0, i = findmax(si_mrls)
+    si_h0 <= 0. && return nothing
+
+    si_opt = optimize(log(ks[max(i-1, 1)]), log(ks[min(i+1, end)])) do logk
+        -linstab_simple(si_params, si_Ds, si_fs, [exp(logk)])[1]
+    end
+    si_k, si_h = exp(Optim.minimizer(si_opt)), -Optim.minimum(si_opt)
+
+    mm_peak = mmp -> begin
+        hss = mmv3_get_hss_unique(mmp)
+        (isempty(hss) || hss[1] < extinct_threshold) && return nothing
+        j = findmax(fr3_disprel_simple(mmp, DN, DI, p, hss[1], ks))[2]
+        mm_opt = optimize(log(ks[max(j-1, 1)]), log(ks[min(j+1, end)])) do logk
+            -fr3_disprel_simple(mmp, DN, DI, p, hss[1], [exp(logk)])[1]
         end
+        exp(Optim.minimizer(mm_opt)), -Optim.minimum(mm_opt)
     end
 
-    df.fit_opt_rs = opt_rs
-    df.fit_ds = map(opt_r -> opt_r.minimizer[1], opt_rs)
-    df.fit_quality = map(opt_r -> opt_r.minimum, opt_rs)
-    df.mm_mrls = tmap(df.fit_ds) do d
-        make_mm_disprel(K, l, p, d, ks; DN, test_threshold)
+    obj = logd -> begin
+        pk = mm_peak(MMParams(; K, l, m, c, d=10^logd))
+        isnothing(pk) && return Inf
+        mm_k, mm_h = pk
+        abs(mm_h - si_h) / abs(si_h) + kweight * abs(mm_k - si_k) / abs(si_k)
     end
-    df
-end
 
-get_naive_mm_mrls(ks, K, l, p; DN=0.) = make_mm_disprel(K, l, p, 1., ks; DN)
-
-# fit a saved stage 1 file, saving to <name><suffix>.jld2 (and returning the df)
-function fit_file(fname, ks; suffix="_fit", kwargs...)
-    metadata, df = load(fname, "metadata", "df")
-    add_disprels!(df, ks)
-    fit_ds!(df, ks, metadata.K, metadata.l, metadata.p; DN=metadata.DN, kwargs...)
-    jldsave(replace(fname, ".jld2" => "$(suffix).jld2"); metadata, ks, df)
-    df
-end
-
-function fit_dir(dir, ks; suffix="_fit", kwargs...)
-    fnames = filter(readdir(dir; join=true)) do f
-        endswith(f, ".jld2") && !endswith(f, "$(suffix).jld2")
+    opt_r = optimize(obj, logdlims...)
+    if opt_r.minimizer in logdlims
+        @warn "Hitting logdlims in optimization"
     end
-    for (i, fname) in enumerate(fnames)
-        @printf("Fitting %d/%d: %s\n", i, length(fnames), fname)
-        flush(stdout)
-        fit_file(fname, ks; suffix, kwargs...)
-    end
+    d = 10^Optim.minimizer(opt_r)
+
+    mmp = MMParams(; K, l, m, c, d)
+    mmls = fr3_disprel_simple(mmp, DN, DI, p, mmv3_get_hss_unique(mmp)[1], ks)
+    mm_k, _ = mm_peak(mmp)
+    (; d, si_mrls, mmls, si_k, mm_k)
 end
 
 ################################################################################
@@ -183,45 +142,4 @@ function main1()
             1e8, 1e-9,
         )
     end
-end
-
-fit_main1(ks=range(0.01, 100, 1000); kwargs...) = fit_dir("main1", ks; kwargs...)
-
-################################################################################
-# Plotting
-################################################################################
-function plot_fitted_disprels(df, ks, num_runs=1;
-    autoylims=true,
-    legend=false,
-    same_col=true,
-    figure=(;),
-    axis=(;),
-)
-    fig = Figure(; figure...)
-    ax = Axis(fig[1,1]; axis...)
-
-    iis = sample(1:nrow(df), num_runs; replace=false)
-
-    for (ci, ri) in enumerate(iis)
-        r = df[ri,:]
-        lines!(ax, ks, r.mrls;
-            color=Cycled(ci),
-            label=(@sprintf "ri=%d, fitted d=%.3g" ri r.fit_ds)
-        )
-        lines!(ax, ks, r.mm_mrls;
-            color=same_col ? Cycled(ci) : :black,
-            linestyle=:dash
-        )
-    end
-
-    if legend
-        axislegend(ax)
-    end
-
-    if autoylims
-        mm = abs(maximum(df[iis,:].mmrls))
-        ylims!(ax, -1.1mm, 1.1mm)
-    end
-
-    FigureAxisAnything(fig, ax, nothing)
 end

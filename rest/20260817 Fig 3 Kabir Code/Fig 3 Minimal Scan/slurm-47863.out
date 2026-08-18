@@ -1,0 +1,133 @@
+6 values of p x 10 replicate(s) = 60 runs on 36 process(es); t_max=1e+08, ssize=2048, n_peaks=100, K=5
+p = 0.05, 0.1, 0.25, 0.5, 1, 2
+  p=0.05    seed=1662359828       43.0s  k*= 4.972  peaks 100 -> 100
+    [1/60 done, checkpointed]
+  p=0.05    seed=3913617179       43.0s  k*= 4.972  peaks 100 -> 97
+    [2/60 done, checkpointed]
+  p=0.1     seed=3619921519       45.3s  k*= 4.512  peaks 100 -> 95
+    [3/60 done, checkpointed]
+  p=0.1     seed=3912659964       68.1s  k*= 4.512  peaks 100 -> 98
+    [4/60 done, checkpointed]
+  p=0.05    seed=1093169          71.9s  k*= 4.972  peaks 100 -> 100
+    [5/60 done, checkpointed]
+  p=0.1     seed=1883269505       72.2s  k*= 4.512  peaks 100 -> 93
+    [6/60 done, checkpointed]
+  p=0.05    seed=312284599        75.4s  k*= 4.972  peaks 100 -> 100
+    [7/60 done, checkpointed]
+  p=0.1     seed=1998106722       77.2s  k*= 4.512  peaks 100 -> 94
+    [8/60 done, checkpointed]
+  p=0.05    seed=244795643        84.0s  k*= 4.972  peaks 100 -> 98
+    [9/60 done, checkpointed]
+  p=0.05    seed=3980254083       96.0s  k*= 4.972  peaks 100 -> 100
+    [10/60 done, checkpointed]
+  p=0.05    seed=2372568038      103.3s  k*= 4.972  peaks 100 -> 101
+    [11/60 done, checkpointed]
+  p=0.1     seed=3313315431      107.7s  k*= 4.512  peaks 100 -> 96
+    [12/60 done, checkpointed]
+  p=0.05    seed=1169268843      132.3s  k*= 4.972  peaks 100 -> 101
+    [13/60 done, checkpointed]
+  p=0.1     seed=601377892       168.2s  k*= 4.512  peaks 100 -> 97
+    [14/60 done, checkpointed]
+  p=0.25    seed=1538744025      170.0s  k*= 3.992  peaks 100 -> 84
+    [15/60 done, checkpointed]
+  p=0.1     seed=2739347110      181.5s  k*= 4.512  peaks 100 -> 96
+    [16/60 done, checkpointed]
+  p=0.1     seed=716175793       205.7s  k*= 4.512  peaks 100 -> 97
+    [17/60 done, checkpointed]
+  p=0.05    seed=4015743687      207.9s  k*= 4.972  peaks 100 -> 101
+    [18/60 done, checkpointed]
+  p=0.05    seed=3471094346      283.7s  k*= 4.972  peaks 100 -> 101
+    [19/60 done, checkpointed]
+  p=0.5     seed=3277782655      339.3s  k*= 3.682  peaks 100 -> 60
+    [20/60 done, checkpointed]
+  p=0.25    seed=2612896316      394.7s  k*= 3.992  peaks 100 -> 85
+    [21/60 done, checkpointed]
+  p=0.25    seed=3858573207      399.5s  k*= 3.992  peaks 100 -> 87
+    [22/60 done, checkpointed]
+  p=0.25    seed=3880317060      400.3s  k*= 3.992  peaks 100 -> 85
+    [23/60 done, checkpointed]
+  p=0.25    seed=880206776       503.0s  k*= 3.992  peaks 100 -> 87
+    [24/60 done, checkpointed]
+  p=0.25    seed=2960903303      606.1s  k*= 3.992  peaks 100 -> 85
+    [25/60 done, checkpointed]
+  p=0.25    seed=1499730458      626.0s  k*= 3.992  peaks 100 -> 86
+    [26/60 done, checkpointed]
+  p=0.5     seed=3341929835      658.2s  k*= 3.682  peaks 100 -> 66
+    [27/60 done, checkpointed]
+  p=0.25    seed=254415435       718.1s  k*= 3.992  peaks 100 -> 85
+    [28/60 done, checkpointed]
+  p=2       seed=1839516222      588.5s  k*= 3.181  peaks 100 -> 7
+  p=0.1     seed=1070461548      758.5s  k*= 4.512  peaks 100 -> 98
+    [29/60 done, checkpointed]
+    [30/60 done, checkpointed]
+  p=0.25    seed=2073497389      813.7s  k*= 3.992  peaks 100 -> 87
+    [31/60 done, checkpointed]
+  p=2       seed=2258651132      652.3s  k*= 3.181  peaks 100 -> 6
+    [32/60 done, checkpointed]
+  p=0.1     seed=4105548731      881.6s  k*= 4.512  peaks 100 -> 97
+    [33/60 done, checkpointed]
+  p=1       seed=3569428512      835.3s  k*= 3.422  peaks 100 -> 10
+    [34/60 done, checkpointed]
+  p=1       seed=4247155308      827.3s  k*= 3.422  peaks 100 -> 9
+    [35/60 done, checkpointed]
+  p=0.5     seed=3975104325      891.5s  k*= 3.682  peaks 100 -> 63
+    [36/60 done, checkpointed]
+  p=0.25    seed=524874900       997.6s  k*= 3.992  peaks 100 -> 87
+    [37/60 done, checkpointed]
+  p=1       seed=538817841      1138.4s  k*= 3.422  peaks 100 -> 9
+    [38/60 done, checkpointed]
+  p=1       seed=1011793778     1211.0s  k*= 3.422  peaks 100 -> 8
+    [39/60 done, checkpointed]
+  p=2       seed=1457418804     1041.3s  k*= 3.181  peaks 100 -> 6
+    [40/60 done, checkpointed]
+  p=2       seed=3188622991      985.7s  k*= 3.181  peaks 100 -> 6
+    [41/60 done, checkpointed]
+  p=2       seed=4186005359     1147.4s  k*= 3.181  peaks 100 -> 6
+    [42/60 done, checkpointed]
+  p=2       seed=411459018       972.9s  k*= 3.181  peaks 100 -> 6
+    [43/60 done, checkpointed]
+  p=2       seed=1960179828     1204.5s  k*= 3.181  peaks 100 -> 7
+    [44/60 done, checkpointed]
+  p=2       seed=1315868500      987.7s  k*= 3.181  peaks 100 -> 7
+    [45/60 done, checkpointed]
+  p=0.5     seed=3504500428     1439.0s  k*= 3.682  peaks 100 -> 61
+    [46/60 done, checkpointed]
+  p=1       seed=2517674638     1317.8s  k*= 3.422  peaks 100 -> 10
+    [47/60 done, checkpointed]
+  p=2       seed=825710025      1138.2s  k*= 3.181  peaks 100 -> 7
+    [48/60 done, checkpointed]
+  p=0.5     seed=2826658106     1548.6s  k*= 3.682  peaks 100 -> 61
+    [49/60 done, checkpointed]
+  p=1       seed=1476230663     1491.4s  k*= 3.422  peaks 100 -> 9
+    [50/60 done, checkpointed]
+  p=0.5     seed=1194436847     1569.3s  k*= 3.682  peaks 100 -> 64
+    [51/60 done, checkpointed]
+  p=0.5     seed=1135721136     1521.8s  k*= 3.682  peaks 100 -> 63
+    [52/60 done, checkpointed]
+  p=0.5     seed=4224096298     1614.3s  k*= 3.682  peaks 100 -> 62
+    [53/60 done, checkpointed]
+  p=2       seed=3066948268     1122.3s  k*= 3.181  peaks 100 -> 7
+    [54/60 done, checkpointed]
+  p=0.5     seed=3893816074     1602.2s  k*= 3.682  peaks 100 -> 65
+    [55/60 done, checkpointed]
+  p=1       seed=865381205      1542.3s  k*= 3.422  peaks 100 -> 9
+    [56/60 done, checkpointed]
+  p=1       seed=826354127      1554.0s  k*= 3.422  peaks 100 -> 10
+    [57/60 done, checkpointed]
+  p=0.5     seed=1616428114     1687.4s  k*= 3.682  peaks 100 -> 62
+    [58/60 done, checkpointed]
+  p=1       seed=1456613100     1637.4s  k*= 3.422  peaks 100 -> 10
+    [59/60 done, checkpointed]
+  p=1       seed=2943108448     1640.9s  k*= 3.422  peaks 100 -> 9
+
+scan finished in 1713.1s; wrote /home/xucapusa/20260709 Spatial Ecology/Fig 3 Minimal Scan/20260727_fig3scan_peaks.npz
+wrote /home/xucapusa/20260709 Spatial Ecology/Fig 3 Minimal Scan/20260727_fig3scan_peaks.png and /home/xucapusa/20260709 Spatial Ecology/Fig 3 Minimal Scan/20260727_fig3scan_peaks.svg
+wrote /home/xucapusa/20260709 Spatial Ecology/Fig 3 Minimal Scan/20260727_fig3scan_final.png and /home/xucapusa/20260709 Spatial Ecology/Fig 3 Minimal Scan/20260727_fig3scan_final.svg
+
+      p      k*    growth   peaks at t_max (mean [min, max])
+   0.05   4.972   +0.1097     99.9 [97, 101]
+    0.1   4.512   +0.0853     96.1 [93, 98]
+   0.25   3.992   +0.0516     85.8 [84, 87]
+    0.5   3.682   +0.0296     62.7 [60, 66]
+      1   3.422   +0.0132      9.3 [8, 10]
+      2   3.181   +0.0029      6.5 [6, 7]
