@@ -82,9 +82,9 @@ end
     fit_mm_d(si_params, si_fs, si_Ds, K, l, p, ks, kweight=1e5)
 
 Fit the MM d by matching its disprel peak to that of the given SI system, both peaks
-located numerically. Returns (; d, si_mrls, mmls, si_k, mm_k) with the disprels
-evaluated on the passed ks and si_k/mm_k the two peak locations, or nothing if the
-SI system is not spatially unstable.
+located numerically. Returns (; fit_d, si_mrls, mmls, si_k, mm_k, si_h, mm_h) with the
+disprels evaluated on the passed ks and si_k/mm_k, si_h/mm_h the locations and heights
+of the two peaks, or nothing if the SI system is not spatially unstable.
 """
 function fit_mm_d(si_params, si_fs, si_Ds, K, l, p, ks, kweight=1e5;
     m=1., c=1., DN=0., DI=1., extinct_threshold=1e-9, logdlims=(-6., 5.),
@@ -123,8 +123,8 @@ function fit_mm_d(si_params, si_fs, si_Ds, K, l, p, ks, kweight=1e5;
 
     mmp = MMParams(; K, l, m, c, d)
     mmls = fr3_disprel_simple(mmp, DN, DI, p, mmv3_get_hss_unique(mmp)[1], ks)
-    mm_k, _ = mm_peak(mmp)
-    (; d, si_mrls, mmls, si_k, mm_k)
+    mm_k, mm_h = mm_peak(mmp)
+    (; fit_d=d, si_mrls, mmls, si_k, mm_k, si_h, mm_h)
 end
 
 ################################################################################
@@ -138,6 +138,20 @@ function main1()
         flush(stdout)
 
         solve_si_odes("main1/gi$(gi).jld2", 25,
+            K, l, p,
+            1e8, 1e-9,
+        )
+    end
+end
+
+function main2()
+    Klps_to_run = [(K, l, p) for p in [0.01, 0.1, 1.] for l in [0.75, 0.9, 0.99, 0.999] for K in range(10^0.5, 10^2, 5)]
+    mkpath("main2")
+    for (gi, (K, l, p)) in enumerate(Klps_to_run)
+        @printf("Running %d/%d: K=%.3f, l=%.3f, p=%.3f\n", gi, length(Klps_to_run), K, l, p)
+        flush(stdout)
+
+        solve_si_odes("main2/gi$(gi).jld2", 100,
             K, l, p,
             1e8, 1e-9,
         )

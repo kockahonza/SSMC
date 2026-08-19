@@ -4,4 +4,4 @@
 #$ -l h_rt=10:00:00
 #$ -pe smp 26
 
-time julia -t $NSLOTS --project -L base.jl -e 'main1(); fit_main1()'
+time julia -t $NSLOTS --project -L base.jl -e 'main2()'
