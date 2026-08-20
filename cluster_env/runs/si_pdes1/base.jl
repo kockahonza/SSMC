@@ -434,9 +434,9 @@ end
 # Runs
 ################################################################################
 """
-First PDE run off the notebook-made setup file. 9 rows (3 systems x 3 p) on a
-40 core node, so all 9 at once with 4 threads each - 36 of the 40 cores, the
-remainder being no use without a 10th row to put on them.
+First PDE run off the notebook-made setup file. 9 rows (3 systems x 3 p), all
+9 at once with 3 threads each. 27 cores rather than a whole node because BIOP
+nodes are only ever partly free - see job1.slurm.
 """
 function main1()
     run_pde_setup("pde_setup1.jld2", "main1";
@@ -444,6 +444,6 @@ function main1()
         reltol=1e-9,
         maxtime=10 * 60 * 60,
         run_threads=9,
-        solver_threads=4,
+        solver_threads=3,
     )
 end
