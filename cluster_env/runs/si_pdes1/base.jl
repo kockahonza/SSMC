@@ -286,20 +286,6 @@ end
 # PDE solving
 ################################################################################
 """
-    logt_save_grid(T; per_decade, t0)
-
-Log spaced times to save states at, `t0` to `T`. Log rather than linear because
-that is how the dynamics run: pattern formation happens over the first few
-decades and coarsening drags on over the rest, so a linear grid would spend
-everything it has on the settled end. 20 per decade over 1e-2 to 1e8 is 201
-states, and being a fixed grid every run gets the same one - the p runs of a
-system are then directly comparable frame by frame.
-"""
-function logt_save_grid(T; per_decade=20, t0=1e-2)
-    10 .^ range(log10(t0), log10(T), round(Int, per_decade * (log10(T) - log10(t0))) + 1)
-end
-
-"""
     run_si_pde(ps, Ds, u0, T, L; kwargs...)
 
 Solve one 1d SI PDE on a periodic domain of length `L` with `size(u0, 2)`
@@ -316,14 +302,14 @@ without the solver wandering negative, plus `PositiveDomain` on top of it. The
 tolerances are the knobs worth turning, so they are kwargs; `save=false` on
 `PositiveDomain` keeps it from saving every step it touches.
 
-States come back on the `save_ts` grid (`logt_save_grid` by default) so the
-coarsening can be watched, not just its endpoint. `saveat` reads them off the
-solver's interpolant, which is why pdes6's `calck=false` is not set here - it
-would throw the interpolant away. Unlike saving every nth step it cannot skip a
-save when the solver takes a huge late step, and the count is known up front:
-201 states of 40x2500 Float64 is 160MB per run. `save_end` is on top of the
-grid - without it a run that hits `maxtime` reports its last *grid* point as
-the final state rather than how far it actually got.
+Returns `(; s, saved_ts, saved_us)` - the solution plus a series of states over
+time for watching the coarsening, every `save_step`-th solver step via
+`make_stepped_saver_callback`, same as si_totbiom. Saving actual steps costs
+nothing and the states are exactly what the solver produced, `PositiveDomain`
+included. The price is an irregular time grid that differs between runs and a
+state count that rides on how many steps the solver takes: si_totbiom's runs
+gave anywhere from 17 to 344 at `save_step=200`. At 800KB a state here, budget
+for that - 1250 states would be a 1GB row file.
 """
 function run_si_pde(ps, Ds, u0, T, L;
     abstol=1e-7,
@@ -331,26 +317,33 @@ function run_si_pde(ps, Ds, u0, T, L;
     solver=QNDF,
     maxtime=60 * 60,
     solver_threads=nothing,
-    save_ts=nothing,
+    save_step=500,
     kwargs...
 )
-    save_ts = isnothing(save_ts) ? logt_save_grid(T) : save_ts
     sN = size(u0, 2)
     dx = L / sN
 
     sps = BSMMiCRMParams(ps, Ds, CartesianSpace{1,Tuple{Periodic}}(SA[dx]), solver_threads)
     sp = make_smmicrm_problem(sps, copy(u0), T; jac_type=:sparse)
 
-    solve(sp, solver();
+    saved_ts, saved_us, scb = make_stepped_saver_callback(u0, save_step)
+    push!(saved_ts, 0.0)
+    push!(saved_us, copy(u0))
+
+    s = solve(sp, solver();
         dense=false,
         save_everystep=false,
-        saveat=save_ts,  # note: no calck=false, saveat needs the interpolant
-        save_end=true,   # without it a timed out run ends on the last grid point
+        calck=false,
         abstol,
         reltol,
-        callback=CallbackSet(make_timer_callback(maxtime), PositiveDomain(copy(u0); save=false)),
+        callback=CallbackSet(make_timer_callback(maxtime), PositiveDomain(copy(u0); save=false), scb),
         kwargs...
     )
+
+    push!(saved_ts, s.t[end])
+    push!(saved_us, s.u[end])
+
+    (; s, saved_ts, saved_us)
 end
 
 """
@@ -408,7 +401,7 @@ function run_pde_setup(setup_fname, outdir;
         r = pde_df[i, :]
         try
             start_time = time()
-            s = run_si_pde(r.params, r.Ds, r.u0, r.T, r.L;
+            (; s, saved_ts, saved_us) = run_si_pde(r.params, r.Ds, r.u0, r.T, r.L;
                 abstol, reltol, solver, maxtime, solver_threads, kwargs...
             )
             realtime = time() - start_time
@@ -420,12 +413,12 @@ function run_pde_setup(setup_fname, outdir;
                 final_state=s.u[end],
                 final_T=s.t[end],
                 maxresid=smmicrmmaxresid(s),
-                num_saved=length(s.t),
+                num_saved=length(saved_ts),
                 realtime,
-                # the coarsening series, ~160MB of the file. Separate keys so
-                # collect_pde_runs can read the rest without pulling it in.
-                saved_ts=s.t,
-                saved_us=s.u,
+                # the coarsening series, nearly all of the file. Separate keys
+                # so collect_pde_runs can read the rest without pulling it in.
+                saved_ts,
+                saved_us,
                 settings,
             )
             s = nothing
@@ -450,7 +443,7 @@ Gather the per-row files `run_pde_setup` wrote into one dataframe, sorted by
 `pde_df_row`. The heavy `params`/`Ds`/`u0` stay in the setup file - join on
 `pde_df_row` when they are needed.
 
-The `saved_us` series is ~160MB a row, so it is left on disk unless you ask for
+The `saved_us` series is most of a row file, so it is left on disk unless you ask for
 `states=true`; `load_pde_states` gets one row's worth, which is what plotting
 actually wants. Reading is per-key so the rest of a row costs nothing.
 """
