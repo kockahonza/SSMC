@@ -2,14 +2,14 @@
 #$ -N si_pdes1
 #$ -cwd
 #$ -l h_rt=12:00:00
-#$ -pe smp 27
-#$ -l mem=2G
+#$ -pe smp 9
+#$ -l mem=6G
 
 # Myriad twin of job1.slurm. Note -l mem is per slot here, not per job as
-# Slurm's --mem is: 27 x 2G = 54G for the job, on 36 core/188G nodes.
+# Slurm's --mem is: 9 x 6G = 54G for the job, on 36 core/188G nodes.
 #
-# 27 slots because main1 runs its 9 rows at once with 3 solver threads each.
-# Asking for 27 rather than a whole node also places more easily - it fits any
-# node with 27 cores free, not just an idle one.
+# 9 slots because main1 runs its 9 rows at once with one thread each. ~27G of
+# the 54 is the solvers, the rest headroom for the saved state series, which
+# has no bound - 781K a state, one per 100 steps.
 
 time julia -t $NSLOTS --project -L base.jl -e 'main1()'
