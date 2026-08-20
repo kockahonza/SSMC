@@ -286,6 +286,20 @@ end
 # PDE solving
 ################################################################################
 """
+    logt_save_grid(T; per_decade, t0)
+
+Log spaced times to save states at, `t0` to `T`. Log rather than linear because
+that is how the dynamics run: pattern formation happens over the first few
+decades and coarsening drags on over the rest, so a linear grid would spend
+everything it has on the settled end. 20 per decade over 1e-2 to 1e8 is 201
+states, and being a fixed grid every run gets the same one - the p runs of a
+system are then directly comparable frame by frame.
+"""
+function logt_save_grid(T; per_decade=20, t0=1e-2)
+    10 .^ range(log10(t0), log10(T), round(Int, per_decade * (log10(T) - log10(t0))) + 1)
+end
+
+"""
     run_si_pde(ps, Ds, u0, T, L; kwargs...)
 
 Solve one 1d SI PDE on a periodic domain of length `L` with `size(u0, 2)`
@@ -301,6 +315,15 @@ that got these systems to their steady state in a sane amount of wall clock
 without the solver wandering negative, plus `PositiveDomain` on top of it. The
 tolerances are the knobs worth turning, so they are kwargs; `save=false` on
 `PositiveDomain` keeps it from saving every step it touches.
+
+States come back on the `save_ts` grid (`logt_save_grid` by default) so the
+coarsening can be watched, not just its endpoint. `saveat` reads them off the
+solver's interpolant, which is why pdes6's `calck=false` is not set here - it
+would throw the interpolant away. Unlike saving every nth step it cannot skip a
+save when the solver takes a huge late step, and the count is known up front:
+201 states of 40x2500 Float64 is 160MB per run. `save_end` is on top of the
+grid - without it a run that hits `maxtime` reports its last *grid* point as
+the final state rather than how far it actually got.
 """
 function run_si_pde(ps, Ds, u0, T, L;
     abstol=1e-7,
@@ -308,8 +331,10 @@ function run_si_pde(ps, Ds, u0, T, L;
     solver=QNDF,
     maxtime=60 * 60,
     solver_threads=nothing,
+    save_ts=nothing,
     kwargs...
 )
+    save_ts = isnothing(save_ts) ? logt_save_grid(T) : save_ts
     sN = size(u0, 2)
     dx = L / sN
 
@@ -319,7 +344,8 @@ function run_si_pde(ps, Ds, u0, T, L;
     solve(sp, solver();
         dense=false,
         save_everystep=false,
-        calck=false,
+        saveat=save_ts,  # note: no calck=false, saveat needs the interpolant
+        save_end=true,   # without it a timed out run ends on the last grid point
         abstol,
         reltol,
         callback=CallbackSet(make_timer_callback(maxtime), PositiveDomain(copy(u0); save=false)),
@@ -394,7 +420,12 @@ function run_pde_setup(setup_fname, outdir;
                 final_state=s.u[end],
                 final_T=s.t[end],
                 maxresid=smmicrmmaxresid(s),
+                num_saved=length(s.t),
                 realtime,
+                # the coarsening series, ~160MB of the file. Separate keys so
+                # collect_pde_runs can read the rest without pulling it in.
+                saved_ts=s.t,
+                saved_us=s.u,
                 settings,
             )
             s = nothing
@@ -413,21 +444,40 @@ function run_pde_setup(setup_fname, outdir;
 end
 
 """
-    collect_pde_runs(outdir)
+    collect_pde_runs(outdir; states=false)
 
 Gather the per-row files `run_pde_setup` wrote into one dataframe, sorted by
 `pde_df_row`. The heavy `params`/`Ds`/`u0` stay in the setup file - join on
 `pde_df_row` when they are needed.
+
+The `saved_us` series is ~160MB a row, so it is left on disk unless you ask for
+`states=true`; `load_pde_states` gets one row's worth, which is what plotting
+actually wants. Reading is per-key so the rest of a row costs nothing.
 """
-function collect_pde_runs(outdir)
+function collect_pde_runs(outdir; states=false)
     cols = ["pde_df_row", "gdf_row", "df_row", "p", "L", "sN", "T",
-        "retcode", "final_T", "maxresid", "realtime", "final_state"]
+        "retcode", "final_T", "maxresid", "num_saved", "realtime", "final_state"]
+    states && append!(cols, ["saved_ts", "saved_us"])
     fnames = sort(filter(f -> startswith(f, "row") && endswith(f, ".jld2"), readdir(outdir)))
     df = DataFrame(map(fnames) do f
-        d = load(joinpath(outdir, f))
-        (; (Symbol(c) => d[c] for c in cols)...)
+        jldopen(joinpath(outdir, f)) do d
+            (; (Symbol(c) => d[c] for c in cols)...)
+        end
     end)
     isempty(df) ? df : sort!(df, :pde_df_row)
+end
+
+"""
+    load_pde_states(outdir, i)
+
+The saved states of one row as `(; ts, us)`, `us[k]` being the full 40 x sN
+state at `ts[k]`. Row `i` is the `pde_df_row`, ie the index into the setup
+file's `pde_df`, not a position in `collect_pde_runs`.
+"""
+function load_pde_states(outdir, i)
+    jldopen(joinpath(outdir, @sprintf("row%04d.jld2", i))) do d
+        (; ts=d["saved_ts"], us=d["saved_us"])
+    end
 end
 
 ################################################################################
