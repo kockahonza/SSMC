@@ -490,3 +490,22 @@ function main1()
         solver_threads=3,
     )
 end
+
+"""
+main1 on 9 slots instead of 27, one thread per run - the split pdes6's runtimes
+were measured at, so the extra threads are a speedup rather than a requirement.
+Asking for 9 places far more easily than 27, which is the point of it.
+
+Its own outdir: this is meant to run alongside a queued main1, and two jobs
+writing the same row file at the same time is the one way the per-row scheme
+can bite. Separate dirs means the loser is just duplicated work.
+"""
+function main1_myriad2()
+    run_pde_setup("pde_setup1.jld2", "main1_myriad2";
+        abstol=1e-7,
+        reltol=1e-9,
+        maxtime=10 * 60 * 60,
+        run_threads=9,
+        solver_threads=nothing,
+    )
+end
