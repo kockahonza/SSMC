@@ -1,0 +1,467 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.6cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!45!black,citecolor=blue!45!black,
+            urlcolor=blue!45!black]{hyperref}
+
+\newcommand{\Ns}{N_{s}}
+\newcommand{\lI}{\ell_I}
+\newcommand{\lR}{\ell_R}
+\newcommand{\xj}{x_j}
+\newcommand{\muout}{\mu_{\mathrm{out}}}
+\newcommand{\dd}{\,\mathrm{d}}
+
+\theoremstyle{plain}
+\newtheorem{prop}{Proposition}
+\theoremstyle{remark}
+\newtheorem*{rem}{Remark}
+
+\title{Spike-interaction asymptotics for the minimal cross-feeding model:\\
+how to build the reduced dynamics, and what it says about arrest}
+\author{}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+A programme for reducing the three-component cross-feeding PDE to an ODE for
+the positions of the population spikes, in the regime $D_N \ll D_I, D_R$. The
+reduction has four steps: an outer problem in which each spike is a point sink
+of $I$ and a point source of $R$; an inner problem which --- because growth is
+linear in $N$ --- is a \emph{linear Schr\"odinger} eigenvalue problem in a well
+the spike digs itself, rather than the algebraic balance familiar from
+Gray--Scott; a self-consistency condition fixing the spike masses; and a
+solvability condition giving the drift law $\dot \xj \simeq x_0^2\,
+\partial_x\muout(\xj)$. Every step that can be checked against the arrested
+$29$-spike state at $p=1$ is checked here, and the outer problem and the
+inner virial identity both hold. The frozen-strength pair force does not: it
+predicts an attractive interaction with an $e$-folding time of $7.6\times10^3$
+for a run that sat still to $t=10^8$. That discrepancy localises the physics of
+arrest in the configuration-dependence of the spike masses, and suggests a
+cheap decisive numerical experiment.
+\end{abstract}
+
+\section{The model and the state we are trying to explain}
+
+With $k=0$ and unit energy weights the minimal model in one spatial dimension is
+\begin{align}
+\partial_t N &= D_N N_{xx} + N\,\mu(I,R), &
+\mu(I,R) &\equiv (1-l)cI + dR - m, \label{eq:N}\\
+\partial_t I &= D_I I_{xx} + K - rI - cNI, \label{eq:I}\\
+\partial_t R &= D_R R_{xx} + lcNI - rR - dNR, \label{eq:R}
+\end{align}
+on a ring of circumference $L$, with $D_R = p$ the scan parameter. Throughout,
+numbers come from \texttt{run4\_arrest\_check/state1.jld2}: the arrested
+$29$-spike state at $K=15$, $l=0.999$, $m=c=d=r=1$, $D_N=10^{-6}$, $D_I=1$,
+$p=1$. Table~\ref{tab:state} collects what that state actually looks like; all
+of it is reproduced by \texttt{verify\_spikes.jl} in this directory.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\toprule
+quantity & value & \\
+\midrule
+domain, spikes            & $L=35.4144$, $k=29$          & spacing $d = 1.2212$ \\
+spike amplitude, mass     & $A = 255.3$, $S=14.2598$     & identical across spikes to $6$ d.p. \\
+spike width               & $x_0 = 0.02204$              & 2nd moment; $= 0.02228$ from $S/A$ \\
+compare                   & $\sqrt{D_N/m} = 10^{-3}$     & $x_0/\sqrt{D_N/m} = 22$ \\
+$\mu$ at spike core       & $+1.856\times10^{-3}$        & $-0.1443$ at mid-gap \\
+$I$                       & $1.0270$ at core             & $3.1630$ at mid-gap \\
+$R$                       & $1.00083$ at core            & $0.85254$ at mid-gap \\
+resource ranges           & $\lI = \sqrt{D_I/r} = 1$     & $\lR = \sqrt{p/r} = 1$ \\
+\bottomrule
+\end{tabular}
+\caption{The arrested state. Note $R$ is \emph{elevated} at the spike and $I$
+\emph{depleted}: $R$ is the activator (self-produced food), $I$ the inhibitor
+(the thing competed for).}
+\label{tab:state}
+\end{table}
+
+Three lengths matter, and they order as
+\begin{equation}
+  x_0 = 0.022 \;\ll\; d = 1.22 \;\sim\; \lI = \lR = 1 .
+\end{equation}
+This is the \emph{semi-strong} interaction regime: spikes are narrow, but the
+fields that couple them vary on the scale of the spacing itself. In particular
+$d/\ell \approx 1.2$, so neighbours are \emph{not} exponentially far apart, and
+$e^{-d/\ell}\approx 0.3$ is not small. Whatever makes the coarsening slow here,
+it is not the smallness of $e^{-d/\ell}$.
+
+\begin{rem}
+$x_0 = 22\sqrt{D_N/m}$. The naive inner scale is wrong by a factor of $22$,
+and the reason is structural: \eqref{eq:N} is \emph{linear} in $N$, so there is
+no algebraic balance $D_N N'' \sim N^2$ to set a $\operatorname{sech}^2$ width.
+The localisation is a linear bound state, and its width is set by the curvature
+of the well, which lives on the outer scale. This is the one place where the
+calculation genuinely differs from Gray--Scott, and it makes the inner problem
+\emph{easier}, not harder.
+\end{rem}
+
+\section{Step 1: the outer problem --- spikes as point sources}
+
+Away from the spikes $N$ is negligible ($\sim 10^{-63}$ in the gaps of the
+measured state), so \eqref{eq:I}--\eqref{eq:R} linearise:
+\begin{equation}
+  D_I I_{xx} - rI = -K, \qquad D_R R_{xx} - rR = 0 ,
+\label{eq:outer}
+\end{equation}
+punctured at each $\xj$ by jump conditions obtained by integrating across the
+spike. Writing $\sigma^{I}_j, \sigma^{R}_j$ for the signed point-source
+strengths,
+\begin{equation}
+  D_I\big[I_x\big]_{\xj} = -\sigma^I_j = \int_{\text{spike}} \!\!(cNI - K + rI)\dd x,
+  \qquad
+  D_R\big[R_x\big]_{\xj} = -\sigma^R_j = -\!\!\int_{\text{spike}}\!\! (lcNI - dNR - rR)\dd x .
+\label{eq:jumps}
+\end{equation}
+Measured on the state, over a window of $\pm 0.085$ around a core, both hold to
+four figures:
+\[
+  \sigma^I = -12.926, \qquad \sigma^R = +0.93045, \qquad
+  \text{ratio (jump)/(integral)} = 1.0000 \text{ for both.}
+\]
+The linear terms in \eqref{eq:jumps} are \emph{not} optional: over that window
+$\int(K-rI) = 2.44$ against an uptake of $15.36$, so dropping them costs $16\%$.
+This is a symptom of $x_0/\ell$ not being very small; see \S\ref{sec:caveats}.
+
+On the ring the solution of \eqref{eq:outer} is a superposition of Green's
+functions,
+\begin{equation}
+  g_\ell(x) = \frac{\ell}{2D}\,
+  \frac{\cosh\!\big((L/2 - |x|)/\ell\big)}{\sinh\!\big(L/2\ell\big)},
+  \qquad D g_\ell'' - r g_\ell = -\delta(x),
+\end{equation}
+so that
+\begin{equation}
+  I(x) = \frac{K}{r} + \sum_k \sigma^I_k\, g_{\lI}(x - x_k),
+  \qquad
+  R(x) = \sum_k \sigma^R_k\, g_{\lR}(x - x_k).
+\label{eq:outerfields}
+\end{equation}
+This is exact up to the width of the spikes, and it is very accurate: fitting
+$I - K/r$ and $R$ over one gap to a single $\cosh$ with the \emph{predicted}
+$\lI = \lR = 1$, with only the amplitude free, gives relative residuals of
+$4.4\times10^{-4}$ for both fields. The outer half of the reduction is
+essentially exact for this state.
+
+\section{Step 2: the inner problem --- a self-dug potential well}
+
+Zoom in on one spike. On the inner scale $I$ and $R$ are quasi-static and
+\eqref{eq:N} reads
+\begin{equation}
+  D_N \Ns'' + \mu(x)\,\Ns = 0 ,
+\label{eq:inner}
+\end{equation}
+a zero-energy Schr\"odinger bound state in the potential $\mu$. Equivalently,
+$-D_N\psi'' + V\psi = E\psi$ with $V = -\mu$ and $E = 0$. Two consequences.
+
+\paragraph{The virial identity.} Multiplying \eqref{eq:inner} by $\Ns$ and
+integrating over a period,
+\begin{equation}
+  \boxed{\;D_N \int (\partial_x \Ns)^2 \dd x = \int \mu\,\Ns^2 \dd x\;}
+\label{eq:virial}
+\end{equation}
+exactly, for any spike steady state, whatever its shape. On the measured state
+the two sides are $2.5287$ and $2.6253$, a ratio of $0.963$ --- which for a
+quantity assembled from a numerical second derivative of a field spanning $65$
+orders of magnitude is a clean confirmation. This is the cheapest possible test
+that a candidate state really is a steady state of \eqref{eq:N}, and it is
+worth adding to the arrest-check battery: it is shape-free, so it cannot be
+satisfied by a grid-pinned artefact.
+
+\paragraph{Self-consistency fixes the mass.} Approximating the well
+harmonically, $\mu \approx \mu_0 - \tfrac12\kappa\,\xi^2$ with
+$\xi = x - \xj$, the ground state is a Gaussian $\Ns \propto
+e^{-\xi^2/2x_0^2}$ with
+\begin{equation}
+  x_0^2 = \sqrt{2D_N/\kappa}, \qquad \mu_0 = \sqrt{D_N\kappa/2}
+  \qquad\Longrightarrow\qquad \mu_0\,x_0^2 = D_N .
+\label{eq:selfcons}
+\end{equation}
+The second relation is the self-consistency condition: \emph{the growth rate at
+the spike core must sit exactly at the ground-state energy of the spike's own
+well}. Since the well is dug by the spike, this is what determines the mass
+$S_j$. The corollary $\mu_0 x_0^2 = D_N$ is parameter-free and testable:
+measured, $\mu_0 x_0^2 = 9.017\times10^{-7}$ against $D_N = 10^{-6}$, a ratio of
+$0.90$. The residual $10\%$ is the non-harmonicity of the well, discussed next.
+
+\paragraph{What the well actually looks like.} The point-source structure of
+\eqref{eq:outerfields} means both $I$ and $R$ have a \emph{cusp} at the spike,
+so on the inner scale $\mu \approx \mu_0 - \alpha|\xi| - \tfrac12\kappa\xi^2$
+with $\alpha = -\big[(1-l)c\,I_x + d\,R_x\big]$ evaluated just outside the
+spike. Measured: $\alpha = 0.463$, of which the $R$ part is $-0.4696$ and the
+$I$ part only $+0.0065$ --- the tent is dug by the byproduct. If one takes that
+tent as sharp, the ground state is an Airy function with
+\begin{equation}
+  x_0 \sim (D_N/\alpha)^{1/3} = 0.0129, \qquad
+  \mu_0 = |a_1'|\,(D_N\alpha^2)^{1/3} = 6.10\times10^{-3},
+\end{equation}
+against measured $0.0220$ and $1.86\times10^{-3}$: too narrow by $1.7\times$ and
+too deep by $3.3\times$. The reason is visible in the numbers --- the source is
+not narrow compared with the well it digs, $x_0/(D_N/\alpha)^{1/3} = 1.7$, so
+the tent is substantially rounded by the spike's own finite width. The honest
+inner problem is therefore the coupled system
+\begin{equation}
+  D_N \Ns'' + \big[(1-l)cI + dR - m\big]\Ns = 0, \quad
+  D_I I'' = cN I, \quad
+  D_R R'' = (dR - lcI)N,
+\label{eq:innerBVP}
+\end{equation}
+on $\xi \in (-\infty,\infty)$, with $\Ns \to 0$ and $I,R$ matching the outer
+slopes $\sigma^{I,R}/2D$ as $|\xi|\to\infty$. That is a small two-point BVP with
+one eigenvalue-like unknown (the mass), solvable by Newton in seconds. It is
+worth doing properly rather than harmonically, because it is what supplies the
+$O(1)$ constants everywhere downstream.
+
+\section{Step 3: closing the loop --- the $k$-spike quasi-equilibria}
+
+Steps 1 and 2 close on each other. Given positions $\{\xj\}$:
+\eqref{eq:outerfields} gives the local field values $(I_j, R_j)$ in terms of the
+strengths, \eqref{eq:innerBVP} gives the strengths in terms of $(I_j, R_j)$, and
+the fixed point is $k$ algebraic equations for $k$ masses. For equally spaced
+spikes symmetry collapses this to a single scalar equation, so the exact
+$k$-spike state is available in closed form for every $k$, at the cost of one
+Newton solve on one period --- no PDE integration, and no restriction to $k$
+that the dynamics happens to visit. This is the object whose Floquet spectrum
+gives the stable wavenumber band.
+
+\section{Step 4: motion --- the solvability condition}
+
+Now let the environment be slightly asymmetric. Write $\mu = \mu_s(\xi) +
+G_j\,\xi + O(\xi^2)$, where $\mu_s$ is the even part of the well and
+\begin{equation}
+  G_j \equiv \partial_x \muout(\xj)
+   = \sum_{k\neq j}\Big[(1-l)c\,\sigma^I_k\,g_{\lI}'(\xj - x_k)
+     + d\,\sigma^R_k\,g_{\lR}'(\xj - x_k)\Big]
+\label{eq:G}
+\end{equation}
+is the gradient of the field due to all \emph{other} spikes. Put
+$N = \Ns(x - X(t)) + \phi$ and linearise:
+\begin{equation}
+  -\dot X\, \Ns' = \mathcal{L}\phi + G\,\xi\,\Ns ,
+  \qquad \mathcal{L} \equiv D_N\partial_\xi^2 + \mu_s .
+\label{eq:solv}
+\end{equation}
+Here is the structural difference from Gray--Scott. The kernel of $\mathcal{L}$
+is $\Ns$ itself --- \eqref{eq:inner} says so --- and $\Ns$ is \emph{even}.
+Projecting \eqref{eq:solv} onto it gives $0 = 0$, because
+$\langle \Ns,\Ns'\rangle = 0$ and $\langle \Ns, \xi \Ns\rangle = 0$ by parity.
+The usual translation-mode solvability is degenerate, and the drift has to be
+extracted one level down, from the odd mode.
+
+Project instead onto the first excited state $\psi_1$, with
+$\mathcal{L}\psi_1 = -\omega\psi_1$ and $\omega = \sqrt{2D_N\kappa}$ the
+level spacing:
+\begin{equation}
+  -\dot X\,\langle \psi_1, \Ns'\rangle
+  = -\omega\,\langle\psi_1,\phi\rangle + G\,\langle \psi_1, \xi \Ns\rangle .
+\end{equation}
+Defining $X$ as the centroid removes the dipole content of $\phi$, so
+$\langle\psi_1,\phi\rangle = 0$, and for the Gaussian ground state
+$\psi_1 \propto \xi\Ns$ the two remaining brackets are $-\sqrt{\pi}/2$ and
+$x_0^2\sqrt{\pi}/2$, giving
+\begin{equation}
+  \boxed{\;\dot \xj \;=\; C\,x_0^2\, G_j, \qquad C = O(1),
+  \qquad x_0^2 = \sqrt{2D_N/\kappa} \;\propto\; \sqrt{D_N}\;}
+\label{eq:drift}
+\end{equation}
+with $C = 1$ in the harmonic/Gaussian reduction. The measured mobility is
+$x_0^2 = 4.86\times10^{-4}$.
+
+Two things to take from \eqref{eq:drift}. First, the spike climbs the gradient
+of its environment: it grows faster on the side where $\mu$ is larger, and the
+centroid follows. Second --- and this is the key point for the arrest
+question --- the mobility is $O(\sqrt{D_N})$, not $O(D_N)$ and \emph{not}
+exponentially small in anything. Combined with $G$ being an $O(1)$ function of
+$d/\ell$ rather than an exponentially small one, the reduced dynamics has no
+small parameter left with which to make coarsening take longer than $10^8$.
+
+\begin{rem}
+The step from \eqref{eq:solv} to \eqref{eq:drift} is a two-mode reduction, not a
+systematic expansion. A systematic version has to work with the full linearised
+operator including the feedback of $\phi$ on $\mu$ through
+\eqref{eq:I}--\eqref{eq:R}, whose kernel \emph{is} $\Ns'$ by translation
+invariance and which is not self-adjoint, so the projection is onto its adjoint
+null mode. That calculation could change $C$, and in principle could reveal a
+mobility much smaller than $x_0^2$; it is the main open point in this document.
+\end{rem}
+
+\section{What this predicts, and where it collides with the data}
+\label{sec:collide}
+
+\subsection{Sign and range of the interaction}
+
+From \eqref{eq:outerfields} the field of one neighbour contributes to $\mu$ at
+weight $(1-l)c\,\sigma^I$ through the $I$ channel and $d\,\sigma^R$ through the
+$R$ channel. With the measured strengths,
+\[
+  (1-l)c\,\sigma^I = -0.01293 \quad(\text{range } \lI = 1), \qquad
+  d\,\sigma^R = +0.9304 \quad(\text{range } \lR = \sqrt{p}).
+\]
+So $I$ mediates \textbf{repulsion} at range $\lI$ (moving towards a neighbour
+means moving into its depletion hole) and $R$ mediates \textbf{attraction} at
+range $\lR$ (moving towards a neighbour means moving into its byproduct plume).
+This is the physical content of the $p$ scan: $p$ sets $\lR/\lI = \sqrt p$, i.e.
+whether the attraction is shorter-ranged than the repulsion.
+
+Balancing the two channels, $\;(1-l)c|\sigma^I|e^{-s}/2 = \sigma^R
+e^{-s/\sqrt p}/2\sqrt p$, gives a crossover distance
+\begin{equation}
+  s^{*} = \frac{\sqrt p}{1-\sqrt p}\,
+          \log\!\frac{\sigma^R}{(1-l)c|\sigma^I|\sqrt p},
+\label{eq:crossover}
+\end{equation}
+inside which the net force is attractive and outside which it is repulsive ---
+so a lattice with $d > s^*$ is stable and one with $d < s^*$ coarsens, and
+$s^*(p)$ \emph{is} the predicted arrest spacing. Holding the $p=1$ strengths
+fixed (so this is the shape of the $p$ dependence, not a quantitative
+prediction away from $p=1$), $\sigma^R/((1-l)c|\sigma^I|) = 72$ and
+
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+$p$      & $0.01$ & $0.03$ & $0.1$ & $0.3$ & $1$ \\
+$s^*$    & $0.731$ & $1.263$ & $2.510$ & $5.908$ & --- (no crossover) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+At $p=1$ the ranges coincide, the $R$ channel wins by a factor of $72$ at every
+distance, and there is no stable spacing at all.
+
+\subsection{The collision}
+
+That last statement is contradicted by the data, and not marginally. Take the
+arrested state, displace one spike by $\delta$ towards its right neighbour, and
+evaluate \eqref{eq:G} and \eqref{eq:drift} with the strengths held fixed:
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+$\delta$ & $G$ & $v = x_0^2 G$ & $e$-folding time $\delta/v$ \\
+\midrule
+$0.0122$ ($1\%$ of $d$)  & $+3.30\times10^{-3}$ & $+1.61\times10^{-6}$ & $7.6\times10^{3}$ \\
+$0.1221$ ($10\%$ of $d$) & $+3.31\times10^{-2}$ & $+1.61\times10^{-5}$ & $7.6\times10^{3}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+The lattice is predicted to be linearly unstable with growth rate
+$1.3\times10^{-4}$. The run reached $t = 10^8$ without moving: that is
+$1.3\times10^{4}$ $e$-folding times. The frozen-strength reduction is wrong by
+an enormous margin, and the interesting question is which of its ingredients
+fails. The candidates, in the order I would test them:
+
+\begin{enumerate}
+\item \textbf{The strengths are not frozen} (most likely). $\sigma^I_k$ and
+      $\sigma^R_k$ are outputs of the self-consistency in \S3, and they depend on
+      the whole configuration. When spike $j$ moves right, its two neighbours
+      acquire \emph{different} masses, and the resulting asymmetry in
+      \eqref{eq:G} is a force channel that the frozen calculation discards
+      entirely. In Gierer--Meinhardt and Gray--Scott this is exactly the channel
+      that supplies the stabilising repulsion. Concretely: the positions and the
+      masses must be evolved as one coupled system, not positions in a fixed
+      landscape.
+\item \textbf{The mobility is much smaller than $x_0^2$}, because the systematic
+      version of \S4 (see the remark) produces a different projection. This
+      would need roughly four orders of magnitude, which seems a lot, but the
+      degeneracy of the leading solvability condition is exactly the kind of
+      structure that produces anomalously small mobilities.
+\item \textbf{The drift is real but sub-threshold in the diagnostics.} This one
+      is already close to excluded: $v \sim 10^{-5}$ is nine orders above the
+      $\sim 10^{-14}$ noise floor of \texttt{peak\_drift}, and the run would have
+      merged thousands of times over.
+\end{enumerate}
+
+\section{The other eigenvalue family}
+
+Position modes are only half the spectrum. Perturbing the \emph{masses},
+$S_j \to S_j + \epsilon\, e^{\lambda t + i q j}$, and solving the outer response
+produces a nonlocal term $\propto \int \phi$ in the inner eigenvalue problem ---
+a nonlocal eigenvalue problem (NLEP) of the standard type. Its $q \neq 0$ branch
+is the competition instability: one spike grows at its neighbour's expense and
+the neighbour dies. This family is
+\begin{itemize}
+\item $O(1)$ in $D_N$ rather than $O(\sqrt{D_N})$, so it acts first and fast;
+\item the natural explanation for a \emph{box-independent} arrest spacing, which
+      is what run1 ($10$ peaks) and run2 ($100$ peaks) show across a $10\times$
+      change of $L$;
+\item not obtainable from the position asymptotics at all.
+\end{itemize}
+If the arrest is really set by the competition threshold $k_c$, then the
+positions can be marginal or even weakly unstable without contradicting the
+observations --- provided the position instability is slow enough, which
+\S\ref{sec:collide} says it is not, on the frozen-strength estimate. Resolving
+that tension is the crux.
+
+\section{A numerical programme, cheapest first}
+
+\begin{enumerate}
+\item \textbf{Displace one spike and measure the drift.} Shift a single spike in
+      the arrested state by $10\%$ of the spacing, re-relax $I$ and $R$ (or just
+      evaluate the residual), and run \texttt{peak\_drift}. The prediction is
+      $v = +1.6\times10^{-5}$ towards the near neighbour. The \emph{sign} says
+      attraction or repulsion, i.e.\ unstable or stable lattice; the
+      \emph{magnitude} tests \eqref{eq:drift}. Both $\mu_x$ and $x_0$ are
+      measurable directly off the perturbed state, so this tests the drift law
+      with no asymptotics required to evaluate it. This is an afternoon's work
+      and it discriminates between the three candidate failures above.
+\item \textbf{Add the virial check \eqref{eq:virial} to the arrest battery.}
+      Shape-free, cheap, and it cannot be faked by grid pinning.
+\item \textbf{Solve the inner BVP \eqref{eq:innerBVP} by Newton.} Gives the
+      $O(1)$ constants and a spike profile to compare with the PDE state.
+\item \textbf{Build the $k$-spike quasi-equilibria (\S3) and their Floquet
+      spectrum.} Both eigenvalue families at once, for every $k$, without
+      integrating the PDE. This is the object that answers ``is the arrest
+      spacing at the edge of the stable band''.
+\item \textbf{Only then} the analytic NLEP, if the numerics says the competition
+      threshold is what matters.
+\end{enumerate}
+
+\section{Caveats}
+\label{sec:caveats}
+
+\begin{itemize}
+\item \textbf{$x_0/\ell$ is not very small.} $x_0/\ell = 0.022$ sounds
+      comfortable, but the effective expansion parameter keeps showing up as
+      something more like $x_0/(D_N/\alpha)^{1/3} = 1.7$ or the $16\%$ correction
+      in \eqref{eq:jumps}. Expect $O(1)$ constants to be genuinely $O(1)$, and
+      do not trust a factor of two from this calculation.
+\item \textbf{$l = 0.999$ is a near-singular limit.} $(1-l)cI \approx 10^{-3}$ is
+      negligible in the \emph{value} of $\mu$ but its gradient,
+      $(1-l)c\,\Delta I \approx 2\times10^{-3}$, is the same size as $\mu_0$
+      itself. The $I$ channel cannot be dropped as small; it is small in value
+      and $O(1)$ in effect.
+\item \textbf{No variational structure.} There is no free energy running
+      downhill here, so nothing forces coarsening to proceed, and a stable
+      multi-spike state is not anomalous. The intuition that it must coarsen is
+      imported from Cahn--Hilliard and does not apply.
+\item \textbf{Quasi-staticity of $I,R$ is safe.} The resources relax at $O(1)$
+      rates against a drift of $O(10^{-5})$, so the adiabatic elimination in \S1
+      is very well satisfied --- five orders of margin.
+\end{itemize}
+
+\section*{Literature}
+
+The closest templates: Doelman, Gardner \& Kaper and Kolokolnikov, Ward \& Wei
+for semi-strong interaction and competition/oscillation thresholds in
+Gray--Scott; Iron, Ward \& Wei for the Gierer--Meinhardt spike dynamics and the
+NLEP machinery; Ei, \emph{The motion of weakly interacting pulses}, for the
+projection method behind \S4; and Sherratt's Busse-balloon computations for the
+Klausmeier model, which is the closest structural analogue --- slowly diffusing
+organism plus fast resource, banded patterns, arrested coarsening --- and where
+the stable-wavenumber-band programme has been carried out end to end.
+
+\bigskip
+\noindent\emph{All numbers quoted here are produced by} \texttt{verify\_spikes.jl}
+\emph{in this directory; run it from the repository root with}
+\texttt{julia --project=. rest/more\_ai\_derivations/verify\_spikes.jl}.
+
+\end{document}

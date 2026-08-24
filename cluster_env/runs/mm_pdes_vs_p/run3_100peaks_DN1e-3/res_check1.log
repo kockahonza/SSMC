@@ -1,0 +1,5 @@
+res_check1: p=0.01 rep=1, L=104.0351, sNs=[2500, 5000, 10000, 20000]
+  sN=2500 done: Success, 17s
+  sN=5000 done: Success, 20s
+  sN=20000 done: Success, 52s
+  sN=10000 done: Success, 76s

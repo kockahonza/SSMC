@@ -25,12 +25,13 @@ function solve_si_odes(
     si_u0=[fill(1., N); fill(0., M)],
     solver=TRBDF2,
     maxtime=30.,
-    surv_threshold=1e-9,
+    extinction_threshold=abstol,
 )
     rsg = get_si_sampler_for_paper(K, l, DN; DR=p, N, M)
     N = rsg.Ns
     metadata = (;
-        num_runs, K, l, p, T, abstol, reltol, DN, N, M, si_u0, solver, maxtime, surv_threshold,
+        num_runs, K, l, p, T, abstol, reltol, DN, N, M, si_u0, solver, maxtime,
+        extinction_threshold,
         rsg,
     )
 
@@ -38,6 +39,7 @@ function solve_si_odes(
     Dss = Vector{Vector{Float64}}(undef, num_runs)
     retcodes = Vector{ReturnCode.T}(undef, num_runs)
     final_states = Vector{Vector{Float64}}(undef, num_runs)
+    final_Ts = Vector{Float64}(undef, num_runs)
     maxresids = Vector{Float64}(undef, num_runs)
     num_surv = Vector{Int}(undef, num_runs)
 
@@ -47,11 +49,11 @@ function solve_si_odes(
         si_ps = gen_ps.mmicrm_params
         si_Ds = gen_ps.Ds
 
-        si_p = make_mmicrm_problem(si_ps, si_u0, T)
+        si_p = make_mmicrm_problem(si_ps, copy(si_u0), T)
         si_s = solve(si_p, solver();
             dense=false,
             save_everystep=false,
-            callback=CallbackSet(make_timer_callback(maxtime), make_ode_extinction_exit_callback(N, abstol / 10), PositiveDomain(si_u0)),
+            callback=CallbackSet(make_timer_callback(maxtime), make_ode_extinction_exit_callback(N, extinction_threshold), PositiveDomain(copy(si_u0); save=false)),
             abstol=abstol,
             reltol=reltol,
         )
@@ -61,8 +63,9 @@ function solve_si_odes(
         Dss[i] = si_Ds
         retcodes[i] = si_s.retcode
         final_states[i] = si_fs
+        final_Ts[i] = si_s.t[end]
         maxresids[i] = mmicrmmaxresid(si_s)
-        num_surv[i] = count(>(surv_threshold), si_fs[1:N])
+        num_surv[i] = count(>(extinction_threshold), si_fs[1:N])
 
         next!(prog)
         flush(stdout)
@@ -70,7 +73,7 @@ function solve_si_odes(
     finish!(prog)
     flush(stdout)
 
-    df = DataFrame(; params, Dss, retcodes, final_states, maxresids, num_surv)
+    df = DataFrame(; params, Dss, retcodes, final_states, final_Ts, maxresids, num_surv)
     jldsave(outfname; metadata, df)
     df
 end

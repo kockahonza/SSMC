@@ -1,0 +1,17 @@
+#!/bin/bash -l
+#$ -N single_influx2
+#$ -cwd
+#$ -l h_rt=48:00:00
+#$ -pe smp 36
+#$ -l mem=4G
+
+# Myriad twin of job1.slurm. 36 slots not 40 - that is a whole standard Myriad
+# node, they have 36 cores each.
+#
+# -l mem is per slot here, not per job as Slurm's --mem is: 36 x 4G = 144G on a
+# 188G node. gendata1 (B=3, 40 threads) peaked at 29G, so that is plenty of
+# headroom for B=5.
+#
+# h_rt is generous - gendata1 took 2h35m on 40 threads.
+
+time julia -t $NSLOTS --project -L base.jl -e 'gendata2()'

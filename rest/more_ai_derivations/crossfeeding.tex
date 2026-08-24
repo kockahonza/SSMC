@@ -1,0 +1,542 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.6cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!45!black,citecolor=blue!45!black,
+            urlcolor=blue!45!black]{hyperref}
+
+\newcommand{\Ns}{N^{*}}
+\newcommand{\Is}{I^{*}}
+\newcommand{\Rs}{R^{*}}
+\newcommand{\Ai}{\mathcal{A}}
+\newcommand{\Ione}{\mathcal{I}_1}
+\newcommand{\Itwo}{\mathcal{I}_2}
+\newcommand{\lI}{\ell_I}
+\newcommand{\lR}{\ell_R}
+
+\theoremstyle{plain}
+\newtheorem{prop}{Proposition}
+\theoremstyle{remark}
+\newtheorem*{rem}{Remark}
+
+\title{Pattern formation in a minimal cross-feeding model:\\
+steady states and linear stability}
+\author{}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+A population consumes an external resource, leaks a fixed fraction of the
+consumed flux as a byproduct, and re-consumes that byproduct. We characterise
+the homogeneous steady states (existence, positivity, stability) and then carry
+out a linear stability analysis in space under a quasi-steady-state assumption
+for both resources. The dispersion relation is an activator--inhibitor form with
+one gain term and two loss terms, the second of which is doubly screened. We
+show that the unstable set is always a single connected band, and reduce the
+instability criterion to a closed-form window
+$\beta_{\min}\le\beta<\beta_c(p,\gamma,l)$ together with an upper bound on $p$.
+That bound is piecewise: which branch applies is decided by $l(1+\gamma)$
+against $1$, and only on the upper branch can $p$ exceed unity.
+\end{abstract}
+
+\section{Model and notation}
+
+The model is
+\begin{align}
+\partial_t N &= N\bigl(c(1-l)I + dR - m\bigr) + D_N\nabla^2 N, \label{eq:N}\\
+\partial_t I &= K - rI - cNI + D_I\nabla^2 I, \label{eq:I}\\
+\partial_t R &= c\,l\,NI - rR - dNR + D_R\nabla^2 R, \label{eq:R}
+\end{align}
+with $N$ the population, $I$ the externally supplied resource and $R$ the leaked
+byproduct. Cells consume $I$ at rate $cNI$; a fraction $l$ of that flux is
+leaked as $R$ and the remaining fraction $1-l$ becomes growth. The byproduct is
+re-consumed by the same population at rate $dNR$, also contributing to growth.
+Both resources are supplied or removed at dilution rate $r$, and $K$ is the
+external supply.
+
+Throughout we use
+\begin{equation}
+\gamma \equiv \frac{d}{c},\qquad
+p \equiv \frac{D_R}{D_I},\qquad
+\beta \equiv \frac{Kc}{mr},
+\end{equation}
+so $d=\gamma c$ and $D_R = pD_I$. Here $\gamma$ compares the two uptake rates,
+$p$ the two resource diffusivities, and $\beta$ is a supply-to-maintenance
+ratio: $K/r$ is the resource level in the absence of cells, $cK/r$ the resulting
+per-capita gross growth rate, and $\beta$ measures that against the death rate
+$m$.
+
+Two combinations recur constantly and are worth naming immediately:
+\begin{equation}
+u \equiv r + cN, \qquad v \equiv r + dN.
+\label{eq:uv}
+\end{equation}
+Each is a total removal rate --- $u$ is the rate at which $I$ leaves the system
+(dilution plus consumption) and $v$ likewise for $R$.
+
+\section{Homogeneous steady states}
+
+\subsection{The steady state condition}
+
+Setting all time derivatives and Laplacians to zero, \eqref{eq:I} and
+\eqref{eq:R} give
+\begin{equation}
+\Is = \frac{K}{u},\qquad
+\Rs = \frac{c\,l\,K\Ns}{uv},
+\label{eq:IRstar}
+\end{equation}
+with $u,v$ evaluated at $\Ns$. Equation \eqref{eq:N} with $\Ns\ne 0$ requires
+the bracket to vanish,
+\begin{equation}
+G(\Ns) \equiv c(1-l)\Is + d\Rs - m = 0.
+\label{eq:fixedpoint}
+\end{equation}
+Writing $G(N) = -F(N)/(uv)$ with
+\begin{equation}
+F(N) = mcd\,N^2 + \bigl(mr(c+d) - Kcd\bigr)N + mr^2 - Kcr(1-l),
+\label{eq:Fquad}
+\end{equation}
+the positive steady states are the positive roots of the quadratic $F$. In terms
+of the scaled variable $cN/r$ this is
+\begin{equation}
+\gamma\Bigl(\frac{cN}{r}\Bigr)^{\!2}
++ \underbrace{(1+\gamma-\beta\gamma)}_{\textstyle b/r}\,\frac{cN}{r}
++ \bigl(1-\beta(1-l)\bigr) = 0 .
+\label{eq:quadscaled}
+\end{equation}
+
+\subsection{The reduced variable \texorpdfstring{$V$}{V}}
+
+It is convenient to work with the scaled byproduct removal rate
+\begin{equation}
+V \equiv \frac{v}{r} = 1 + \gamma\,\frac{cN}{r} \;\ge\; 1 ,
+\label{eq:Vdef}
+\end{equation}
+in terms of which $u/r = (V+\gamma-1)/\gamma$ and \eqref{eq:quadscaled} becomes
+the monic quadratic
+\begin{equation}
+\boxed{\;V^2 - (1+\beta\gamma-\gamma)\,V + \beta\gamma l = 0\;}
+\label{eq:Vquad}
+\end{equation}
+(this is $\gamma^{-1}$ times \eqref{eq:quadscaled} after substitution). The
+single most useful consequence is that \eqref{eq:Vquad} can be solved for
+$\beta$ explicitly:
+\begin{equation}
+\beta(V) = \frac{V(V+\gamma-1)}{\gamma\,(V-l)} .
+\label{eq:betaofV}
+\end{equation}
+So rather than solving a quadratic for $V$ and substituting, one can parametrise
+the steady-state branch by $V$ and read off the corresponding $\beta$. Every
+condition below is first derived as an inequality on $V$ and then converted
+through \eqref{eq:betaofV}.
+
+Differentiating \eqref{eq:betaofV},
+\begin{equation}
+\frac{d\beta}{dV} \;\propto\; V^2 - 2lV - (\gamma-1)l ,
+\label{eq:dbetadV}
+\end{equation}
+whose positive root is exactly the fold identified in
+Section~\ref{sec:existence}. Hence $\beta$ is strictly increasing along the
+upper branch, and inequalities may be transferred between $V$ and $\beta$
+without changing direction.
+
+\subsection{Existence and positivity}
+\label{sec:existence}
+
+Two separate questions arise: when are the roots of \eqref{eq:Vquad} real, and
+when do they correspond to $N>0$, i.e.\ $V>1$.
+
+\paragraph{Reality.} The discriminant of \eqref{eq:quadscaled} is
+\begin{equation}
+\mathcal{D} = r^2\Bigl[\gamma^2\beta^2 + 2\gamma(1-\gamma-2l)\beta + (1-\gamma)^2\Bigr],
+\end{equation}
+a quadratic in $\beta$ whose own discriminant is
+\begin{equation}
+\mathcal{D}' = 16\gamma^2 l\,(l+\gamma-1).
+\end{equation}
+If $l+\gamma<1$ then $\mathcal{D}'<0$ and the roots are real for every $\beta$.
+Otherwise $\mathcal{D}<0$ precisely for $\beta$ strictly between
+\begin{equation}
+\beta_\pm = \frac{2l+\gamma-1 \pm 2\sqrt{l(l+\gamma-1)}}{\gamma}
+= \frac{\bigl(\sqrt{l}\pm\sqrt{l+\gamma-1}\bigr)^{2}}{\gamma}.
+\label{eq:betapm}
+\end{equation}
+
+\paragraph{Positivity.} Evaluating the left-hand side of \eqref{eq:Vquad} at
+$V=1$ gives $\gamma^{-1}$ times $\gamma\bigl[1-\beta(1-l)\bigr]$, so
+\begin{equation}
+\beta > \frac{1}{1-l}
+\;\Longleftrightarrow\;
+\text{exactly one root has } V>1 .
+\label{eq:transcritical}
+\end{equation}
+Below that threshold the two roots lie on the same side of $1$, and both exceed
+$1$ only if the vertex does, i.e.\ if $\beta > (1+\gamma)/\gamma$.
+
+\begin{prop}[Ordering]
+\label{prop:ordering}
+If $l(1+\gamma)>1$ then
+\begin{equation}
+\beta_- \;<\; \frac{1+\gamma}{\gamma} \;<\; \beta_+ \;\le\; \frac{1}{1-l}.
+\end{equation}
+If $l(1+\gamma)<1$ the interval $\bigl((1+\gamma)/\gamma,\,1/(1-l)\bigr)$ is
+empty, and no positive pair exists below the transcritical threshold.
+\end{prop}
+
+\begin{proof}
+At $\beta=(1+\gamma)/\gamma$ the linear coefficient $b$ of
+\eqref{eq:quadscaled} vanishes, so there
+$\mathcal{D} = -4\gamma r^2\bigl(1-\beta(1-l)\bigr)$, which is negative exactly
+when $\beta<1/(1-l)$, i.e.\ when $l(1+\gamma)>1$. A negative discriminant means
+$(1+\gamma)/\gamma$ lies strictly between $\beta_-$ and $\beta_+$, giving the
+first two inequalities. At $\beta=1/(1-l)$ the constant term vanishes and
+$\mathcal{D}=b^2\ge 0$, so $1/(1-l)$ never lies strictly inside
+$(\beta_-,\beta_+)$; since it exceeds $(1+\gamma)/\gamma$, which is inside, it
+must be at least $\beta_+$. The second statement is the reverse inequality
+$(1+\gamma)/\gamma > 1/(1-l)$.
+\end{proof}
+
+Proposition~\ref{prop:ordering} disposes of the branch $\beta<\beta_-$: it lies
+below $(1+\gamma)/\gamma$, where the vertex of \eqref{eq:quadscaled} is at
+negative $N$, so both roots are negative and no positive steady state exists
+there. Only $\beta>\beta_+$ is relevant.
+
+\paragraph{Existence threshold.} Collecting the two mechanisms --- emergence at
+a fold versus emergence transcritically from $N=0$ --- the lowest $\beta$
+admitting a positive steady state is
+\begin{equation}
+\boxed{\;
+\beta_{\min} =
+\begin{cases}
+\dfrac{1}{1-l}, & l(1+\gamma)\le 1 \quad\text{(regime A)},\\[2.2ex]
+\dfrac{\bigl(\sqrt{l}+\sqrt{l+\gamma-1}\bigr)^{2}}{\gamma}\;=\;\beta_+,
+& l(1+\gamma)>1 \quad\text{(regime B)} .
+\end{cases}}
+\label{eq:betamin}
+\end{equation}
+The two branches agree at $l(1+\gamma)=1$, so $\beta_{\min}$ is continuous with
+a kink there. The corresponding value of $V$ at onset is
+\begin{equation}
+V_{\min} =
+\begin{cases}
+1, & \text{regime A},\\[1ex]
+\sqrt{l}\bigl(\sqrt{l}+\sqrt{l+\gamma-1}\bigr), & \text{regime B},
+\end{cases}
+\label{eq:Vmin}
+\end{equation}
+the regime-B value being the double root $(1+\beta_+\gamma-\gamma)/2$ of
+\eqref{eq:Vquad}. Note that $V_{\min}$ is precisely the positive root of
+\eqref{eq:dbetadV}, confirming the monotonicity claim made there.
+
+\subsection{Stability without space}
+
+Since $G(N)=-F(N)/(uv)$ and $G(\Ns)=0$, the well-mixed eigenvalue is
+\begin{equation}
+\lambda_0 = \Ns G'(\Ns) = -\frac{\Ns F'(\Ns)}{u v},
+\end{equation}
+so a positive steady state is stable iff $F'(\Ns)>0$, i.e.\ iff it is the
+\emph{larger} root. The extinction state $N=0$ has eigenvalue
+$G(0) = c(1-l)K/r - m$, so it is stable iff $\beta(1-l)<1$. The resulting
+picture is summarised in Table~\ref{tab:phases}.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{lll}
+\toprule
+Range of $\beta$ & States & Stability \\
+\midrule
+$\beta<\beta_{\min}$ & $N=0$ only & extinction \\
+$\beta_+\le\beta<\frac{1}{1-l}$ (regime B only) & $0,\;N_-,\;N_+$ &
+bistable: $0$ and $N_+$ stable, $N_-$ unstable \\
+$\beta>\frac{1}{1-l}$ & $0,\;N_+$ & $N_+$ stable, $0$ unstable \\
+\bottomrule
+\end{tabular}
+\caption{Well-mixed phase structure. In regime A the middle row is empty and
+the positive state appears transcritically at $\beta=1/(1-l)$.}
+\label{tab:phases}
+\end{table}
+
+\begin{rem}
+In regime B the pattern-forming state coexists with a stable extinction state.
+The linear analysis below says nothing about which basin the system occupies;
+that must be settled separately.
+\end{rem}
+
+\section{Linear stability in space}
+
+\subsection{Setup and the quasi-steady-state reduction}
+
+Perturb about the homogeneous state,
+\begin{equation}
+N = \Ns + \nu\,e^{i\mathbf{k}\cdot\mathbf{x}+\lambda t},\quad
+I = \Is + \rho\,e^{i\mathbf{k}\cdot\mathbf{x}+\lambda t},\quad
+R = \Rs + \sigma\,e^{i\mathbf{k}\cdot\mathbf{x}+\lambda t},
+\end{equation}
+so that each Laplacian becomes multiplication by $-k^2$. We assume the
+resources equilibrate fast and set $\partial_t\rho=\partial_t\sigma=0$ while
+retaining their diffusion. This reduces a $3\times3$ eigenvalue problem to a
+scalar equation.
+
+Linearising \eqref{eq:I} gives
+\begin{equation}
+\rho = -\frac{c\,\Is}{u + D_Ik^2}\,\nu ,
+\label{eq:rho}
+\end{equation}
+which has the opposite sign to $\nu$: more cells means less external resource.
+This is the \emph{inhibitory} channel, and it is suppressed at large $k$ because
+rapid diffusion smooths out any local depletion.
+
+Linearising \eqref{eq:R}, and using
+$c\,l\,\Is - d\,\Rs = (c\,l\,K/u)(r/v)$, which follows from \eqref{eq:IRstar}
+and $v-dN^*=r$,
+\begin{equation}
+\sigma = \frac{1}{v+D_Rk^2}\left[\frac{c\,l\,K\,r}{uv}\,\nu + c\,l\,\Ns\rho\right].
+\label{eq:sigma}
+\end{equation}
+The first term is positive --- more cells leak more byproduct, the
+\emph{activating} channel --- while the second inherits the negative $\rho$ and
+is a second inhibitory contribution, this one routed through the byproduct.
+
+Finally, in \eqref{eq:N} the perturbation $\nu$ multiplies the bracket, which
+vanishes at the fixed point by \eqref{eq:fixedpoint}. Only $\Ns$ times the
+bracket's perturbation survives:
+\begin{equation}
+\lambda\nu = \Ns\bigl[c(1-l)\rho + d\,\sigma\bigr] - D_Nk^2\nu .
+\label{eq:Neq}
+\end{equation}
+This is the key structural fact: $N$ has no autonomous linear dynamics, and its
+entire growth rate is inherited from the resource perturbations.
+
+\subsection{The dispersion relation}
+
+Substituting \eqref{eq:rho} and \eqref{eq:sigma} into \eqref{eq:Neq} and
+dividing by $\nu$, then factoring each denominator using the screening lengths
+\begin{equation}
+\lI = \sqrt{\frac{D_I}{u}}, \qquad \lR = \sqrt{\frac{D_R}{v}},
+\end{equation}
+gives
+\begin{equation}
+\boxed{\;
+\lambda(k) = -D_Nk^2
++ \frac{\Ai}{1+\lR^2k^2}
+- \frac{\Ione}{1+\lI^2k^2}
+- \frac{\Itwo}{\bigl(1+\lI^2k^2\bigr)\bigl(1+\lR^2k^2\bigr)}\;}
+\label{eq:dispersion}
+\end{equation}
+with all three coefficients positive:
+\begin{equation}
+\Ai = \frac{\Ns d\,c\,l\,K\,r}{u v^2},\qquad
+\Ione = \frac{\Ns c^2(1-l)K}{u^2},\qquad
+\Itwo = \frac{N^{*2} d\,c^2 l K}{u^2 v}.
+\label{eq:coeffs}
+\end{equation}
+(The calligraphic $\Ione,\Itwo$ are loss coefficients and are not to be confused
+with the resource $I$.) This is an activator--inhibitor form: one gain term, two
+loss terms.
+
+\paragraph{Checks.} At $k=0$ all three fractions equal unity and
+$\lambda(0)=\Ai-\Ione-\Itwo$, which equals $\Ns G'(\Ns)$, the well-mixed
+eigenvalue; on the stable branch it is negative. At $k\to\infty$ with $D_N=0$
+every term vanishes and $\lambda\to0$, which is the consequence of
+\eqref{eq:Neq}: screen out the resources and $N$ has nothing left to do.
+
+\paragraph{Why $\Itwo$ is different.} At large $k$ the first two terms decay as
+$k^{-2}$ while $\Itwo$ decays as $k^{-4}$, because that inhibitory signal passes
+through two screened resource fields in sequence. Its second moment in real
+space corresponds to a width $\sqrt{\lI^2+\lR^2}$, longer than the activator's
+$\lR$ for \emph{any} diffusivities. The separation of scales here therefore
+comes from path length through the metabolic chain rather than from a
+diffusivity ratio. (Its exponential tail, by contrast, is set by
+$\max(\lI,\lR)$, so the statement is one about widths, not tails.)
+
+\subsection{How many unstable bands?}
+
+Both Lorentzian denominators are strictly positive, so multiplying through by
+them preserves the sign of $\lambda$. With $s=k^2$ define
+\begin{equation}
+P(s) \equiv \bigl(1+\lI^2s\bigr)\bigl(1+\lR^2s\bigr)\lambda(s),
+\qquad \operatorname{sign}\lambda = \operatorname{sign}P .
+\end{equation}
+
+\begin{prop}[$D_N=0$: at most one crossing]
+For $D_N=0$,
+\begin{equation}
+P(s) = \underbrace{(\Ai-\Ione-\Itwo)}_{=\lambda(0)<0}
+\;+\; \bigl(\Ai\lI^2 - \Ione\lR^2\bigr)\,s ,
+\label{eq:Plinear}
+\end{equation}
+which is linear in $s$. Hence $\lambda$ changes sign at most once, and does so
+iff $\Ai\lI^2>\Ione\lR^2$, at
+$s_* = (\Ione+\Itwo-\Ai)/(\Ai\lI^2-\Ione\lR^2)$.
+\end{prop}
+
+The cancellation is exact because $\Ai$ picks up only the factor
+$(1+\lI^2s)$, $\Ione$ only $(1+\lR^2 s)$, and $\Itwo$ --- being doubly screened
+--- picks up neither. Two consequences follow. First, the large-$k$ balance is
+not merely an asymptotic heuristic: it decides the sign of $\lambda$ everywhere,
+so the condition $\Ai\lI^2>\Ione\lR^2$ is necessary as well as sufficient.
+Second, $\Itwo$ never appears in the slope, so it can only shift the band edge
+$s_*$, never open or close a band.
+
+\begin{prop}[$D_N>0$: a single connected band]
+For $D_N>0$,
+\begin{equation}
+P(s) = -D_N\lI^2\lR^2 s^3 - D_N(\lI^2+\lR^2)s^2 + c_1 s + (\Ai-\Ione-\Itwo),
+\qquad c_1 \equiv \Ai\lI^2-\Ione\lR^2-D_N,
+\end{equation}
+and $P'(s) = -3D_N\lI^2\lR^2s^2 - 2D_N(\lI^2+\lR^2)s + c_1$ has exactly one
+positive root when $c_1>0$ and none when $c_1\le0$. Therefore $P$ either
+decreases monotonically on $s>0$, or rises once and then falls. Starting from
+$P(0)<0$, it has either no positive roots or exactly two: the unstable set is
+always a single interval $[k_-,k_+]$, never two disjoint bands.
+\end{prop}
+
+In particular $c_1>0$, that is
+\begin{equation}
+D_N < \Ai\lI^2 - \Ione\lR^2 ,
+\label{eq:DNbound}
+\end{equation}
+is necessary for instability, though not sufficient --- the band must also
+actually open, which requires $P>0$ at the unique turning point. As
+$D_N\to0^+$ the upper edge $k_+\to\infty$ and the half-line of the previous
+proposition is recovered. Uniqueness of the band also means the fastest-growing
+mode is unique, so wavelength selection is well posed.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_dispersion.pdf}
+\caption{Dispersion relations from \eqref{eq:dispersion} with $c=r=m=1$,
+$\gamma=1$, $l=0.6$, $D_I=1$. \emph{Left:} $D_N=0$; decreasing $p$ moves the
+system across the threshold, and once unstable the band extends to
+$k\to\infty$. \emph{Right:} nonzero $D_N$ closes the band from above, selecting
+a finite wavelength; large enough $D_N$ suppresses it entirely.}
+\label{fig:dispersion}
+\end{figure}
+
+\subsection{The instability condition}
+
+Write out $\Ai\lI^2>\Ione\lR^2$ using \eqref{eq:coeffs}. The common factor
+$\Ns cK/u^2$ cancels from both sides, leaving
+$d\,l\,r\,D_I/v^2 > c(1-l)D_R/v$, i.e.
+\begin{equation}
+d\,l\,r\,D_I > c(1-l)\,D_R\,v .
+\end{equation}
+Substituting $d=\gamma c$, $D_R=pD_I$ and dividing by $crD_I$ gives a bound on
+$V$ alone:
+\begin{equation}
+\boxed{\;V < V_c \equiv \frac{\gamma}{p}\cdot\frac{l}{1-l}\;}
+\label{eq:Vc}
+\end{equation}
+Every parameter enters only through this comparison. The interpretation is
+direct: $V=v/r$ measures how fast the byproduct is removed relative to
+dilution, and a large $V$ means the byproduct is consumed before it can diffuse
+anywhere, destroying the activation. Patterning therefore requires a
+\emph{sparse} population.
+
+Converting \eqref{eq:Vc} through $\beta(V)$ from \eqref{eq:betaofV}, and using
+the monotonicity established after \eqref{eq:dbetadV}, gives the upper edge of
+the window in closed form:
+\begin{equation}
+\boxed{\;
+\beta_c = \beta(V_c)
+= \frac{\gamma l + p(\gamma-1)(1-l)}{p\,(1-l)\bigl(\gamma - p(1-l)\bigr)}\;}
+\label{eq:betac}
+\end{equation}
+At $p=1$ the numerator reduces to $\gamma-1+l$ and the denominator to
+$(1-l)(\gamma-1+l)$, so $\beta_c = 1/(1-l)$: with equal diffusivities the
+condition is exactly $\beta<1/(1-l)$, i.e.\ the population must be unable to
+survive on the external resource alone and must be propped up by its own
+byproduct.
+
+\subsection{The bound on \texorpdfstring{$p$}{p}}
+
+The window $\beta_{\min}\le\beta<\beta_c$ is non-empty iff $V_c > V_{\min}$,
+with $V_{\min}$ from \eqref{eq:Vmin}. This is also the condition under which
+\eqref{eq:betac} is meaningful at all: $\beta(V)$ is monotonic only above the
+fold, so evaluating it at a $V_c$ below $V_{\min}$ returns a number that is not
+a threshold. The primitive statement is always \eqref{eq:Vc}. Requiring
+$V_c>V_{\min}$ gives the piecewise bound
+\begin{equation}
+\boxed{\;
+p \;<\; \frac{\gamma\,l}{(1-l)\,V_{\min}} =
+\begin{cases}
+\dfrac{\gamma l}{1-l}, & l(1+\gamma)\le1 \quad\text{(regime A)},\\[2.4ex]
+\dfrac{\gamma\sqrt{l}}{(1-l)\bigl(\sqrt{l}+\sqrt{l+\gamma-1}\bigr)},
+& l(1+\gamma)>1 \quad\text{(regime B)} .
+\end{cases}}
+\label{eq:pbound}
+\end{equation}
+The distinction matters. In regime A the condition $l(1+\gamma)\le1$ rearranges
+to $\gamma l/(1-l)\le 1$, so the bound on $p$ can never exceed unity: with a
+transcritical onset the byproduct must diffuse no faster than the external
+resource. Only in regime B, where the state is born at a fold, can $p>1$ be
+admissible. Using the regime-A expression outside its range overestimates the
+bound; at $\gamma=1$, $l=0.6$ it gives $p<1.5$ where the correct value is
+$p<1.25$.
+
+At $\gamma=1$ the regimes divide at $l=\tfrac12$ and \eqref{eq:pbound} reads
+\begin{equation}
+p < \frac{l}{1-l}\quad\bigl(l\le\tfrac12\bigr),
+\qquad
+p < \frac{1}{2(1-l)}\quad\bigl(l>\tfrac12\bigr),
+\end{equation}
+the two meeting at $p<1$ when $l=\tfrac12$.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_regions.pdf}
+\caption{\emph{Left:} the bound \eqref{eq:pbound} in the $(l,p)$ plane for three
+values of $\gamma$; patterning is possible below each curve. Dotted lines
+continue the regime-A expression beyond its range of validity, and markers show
+the kink at $l(1+\gamma)=1$, which is also where the curve crosses $p=1$.
+\emph{Right:} the window $\beta_{\min}\le\beta<\beta_c(p)$ at $\gamma=1$,
+$l=0.6$, closing at $p=1.25$.}
+\label{fig:regions}
+\end{figure}
+
+\section{Summary}
+
+For $D_N=0$, the homogeneous state is unstable to spatial perturbations iff
+\begin{equation}
+p < \frac{\gamma l}{(1-l)V_{\min}}
+\qquad\text{and}\qquad
+\beta_{\min} \le \beta < \beta_c ,
+\end{equation}
+with $V_{\min}$, $\beta_{\min}$, $\beta_c$ given by \eqref{eq:Vmin},
+\eqref{eq:betamin}, \eqref{eq:betac}. The unstable set is then a single interval
+extending to $k\to\infty$. For $D_N>0$ the band is finite and a wavelength is
+selected; \eqref{eq:DNbound} is necessary, and sufficiency requires $P>0$ at its
+turning point. If $D_I=D_R=0$ then $\lambda$ is $k$-independent and no
+instability is possible at any $k$.
+
+Three ingredients are therefore distinct and all required: a sign condition
+\eqref{eq:Vc} that is mostly a statement about reaction kinetics; a screening
+condition, at least one $D>0$, so that the sign flip actually happens as $k$
+grows; and a smallness condition on $D_N$, which alone damps rather than merely
+screening.
+
+\appendix
+\section{Numerical verification}
+
+The following were checked against direct numerics over several hundred random
+parameter draws spanning several decades in each rate and diffusivity:
+the dispersion relation \eqref{eq:dispersion} against a direct solve of the
+quasi-steady-state linear system (agreement to $2\times10^{-14}$ relative);
+the identity $\lambda(0)=\Ns G'(\Ns)$ against finite differences of $G$;
+the equivalence of $\Ai\lI^2>\Ione\lR^2$, of $V<V_c$, and of the numerically
+observed sign of $\max_k\lambda$ (no mismatches);
+the closed form \eqref{eq:betac} against $\beta(V_c)$;
+the piecewise $\beta_{\min}$ \eqref{eq:betamin} against a bisection for the
+lowest $\beta$ admitting a positive stable state;
+the ordering of Proposition~\ref{prop:ordering};
+the identification of $V_{\min}$ with the root of \eqref{eq:dbetadV}; and the
+claim that $\lambda$ never changes sign more than twice when $D_N>0$.
+
+\end{document}

@@ -310,6 +310,9 @@ included. The price is an irregular time grid that differs between runs and a
 state count that rides on how many steps the solver takes: si_totbiom's runs
 gave anywhere from 17 to 344 at `save_step=200`. At 800KB a state here, budget
 for that - 1250 states would be a 1GB row file.
+
+`save_step=nothing` drops the saver callback entirely and returns empty
+`saved_ts`/`saved_us`, for runs where only the final state is wanted.
 """
 function run_si_pde(ps, Ds, u0, T, L;
     abstol=1e-7,
@@ -326,9 +329,14 @@ function run_si_pde(ps, Ds, u0, T, L;
     sps = BSMMiCRMParams(ps, Ds, CartesianSpace{1,Tuple{Periodic}}(SA[dx]), solver_threads)
     sp = make_smmicrm_problem(sps, copy(u0), T; jac_type=:sparse)
 
-    saved_ts, saved_us, scb = make_stepped_saver_callback(u0, save_step)
-    push!(saved_ts, 0.0)
-    push!(saved_us, copy(u0))
+    if isnothing(save_step)
+        saved_ts, saved_us, save_cbs = Float64[], typeof(u0)[], ()
+    else
+        saved_ts, saved_us, scb = make_stepped_saver_callback(u0, save_step)
+        push!(saved_ts, 0.0)
+        push!(saved_us, copy(u0))
+        save_cbs = (scb,)
+    end
 
     s = solve(sp, solver();
         dense=false,
@@ -336,12 +344,14 @@ function run_si_pde(ps, Ds, u0, T, L;
         calck=false,
         abstol,
         reltol,
-        callback=CallbackSet(make_timer_callback(maxtime), PositiveDomain(copy(u0); save=false), scb),
+        callback=CallbackSet(make_timer_callback(maxtime), PositiveDomain(copy(u0); save=false), save_cbs...),
         kwargs...
     )
 
-    push!(saved_ts, s.t[end])
-    push!(saved_us, s.u[end])
+    if !isnothing(save_step)
+        push!(saved_ts, s.t[end])
+        push!(saved_us, s.u[end])
+    end
 
     (; s, saved_ts, saved_us)
 end

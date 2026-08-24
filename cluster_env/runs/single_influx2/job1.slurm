@@ -3,4 +3,4 @@
 #SBATCH --time 72:00:00
 #SBATCH --cpus-per-task=40
 
-time julia -t $SLURM_CPUS_PER_TASK --project -L base.jl -e 'gendata1()'
+time julia -t $SLURM_CPUS_PER_TASK --project -L base.jl -e 'gendata2()'

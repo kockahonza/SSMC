@@ -1,0 +1,27 @@
+#!/bin/bash -l
+#$ -N mm_run6
+#$ -cwd
+#$ -j y
+#$ -o logs/
+#$ -l h_rt=7:00:00
+#$ -l mem=8G
+#$ -t 1-60
+
+# Myriad (SGE). One row per task, one core per task.
+#
+# An array of 60 single-core tasks rather than one big parallel job: single
+# core tasks backfill into whatever is free, so they start almost immediately
+# instead of waiting for a whole node. Each row is independent and writes its
+# own file, so tasks finishing at different times costs nothing.
+#
+# h_rt is 7h against a 6h maxtime in main1_row. Most rows are minutes; the p=2
+# rows (tasks 51-60) are the ones that need the headroom.
+#
+# mem is per slot. The solver itself is small (15000 unknowns); the 8G is for
+# julia's JIT, which aborts at 2G on some nodes, plus the saved state series.
+#
+# Rows that already have a file are skipped, so resubmitting the whole array
+# picks up only what is missing.
+
+mkdir -p logs
+time julia -t 1 --project -L base.jl -e "main1_row($SGE_TASK_ID)"
