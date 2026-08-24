@@ -160,3 +160,17 @@ function main2()
         )
     end
 end
+
+function main3()
+    Klps_to_run = [(K, l, p) for p in [0.01, 0.1, 1.] for l in [0.999] for K in [10.]]
+    mkpath("main3_one_Kl_point")
+    for (gi, (K, l, p)) in enumerate(Klps_to_run)
+        @printf("Running %d/%d: K=%.3f, l=%.3f, p=%.3f\n", gi, length(Klps_to_run), K, l, p)
+        flush(stdout)
+
+        solve_si_odes("main2/gi$(gi).jld2", 100,
+            K, l, p,
+            1e8, 1e-9,
+        )
+    end
+end
