@@ -17,7 +17,7 @@ include("base.jl")
 function bench_solver_threads(setup_fname="systems1.jld2";
     nrows=10,
     maxtime=5 * 60,
-    solver_threadss=(nothing, 2, 4),
+    solver_threadss=(nothing, 4),
     abstol=1e-7,
     reltol=1e-9,
 )
