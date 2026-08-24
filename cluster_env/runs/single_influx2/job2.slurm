@@ -1,16 +1,27 @@
 #!/bin/bash
 #SBATCH -p BIOP
-#SBATCH --time 24:00:00
-#SBATCH --cpus-per-task=34
-#SBATCH --mem=44G
+#SBATCH --time 72:00:00
+#SBATCH --cpus-per-task=40
+#SBATCH --mem=94G
 
-# Reduced-footprint twin of job1.slurm, sized to start immediately while
-# xucapusa's re_fig5 array (53149) is still draining off the partition.
+# Whole-node twin of job1.slurm, sized to fill compute-0-6 (40 cores,
+# RealMemory=96293M). 94G = 96256M leaves the node's 37M slack, so this takes
+# all the cores and effectively all the memory.
 #
-# Memory is the binding constraint, not cores - the array's tasks each reserve
-# 8G. 44G fits on compute-0-7 today, 48G does not. gendata1 (B=3, 40 threads)
-# peaked at 29.4G, so this leaves ~1.5x headroom for B=5.
+# Supersedes the 34-core/44G sizing, which was a deliberate squeeze to start
+# alongside xucapusa's re_fig5 array while it drained. That cap is what killed
+# job 53887: it finished the compute and then died in jldsave with
+# "SystemError: mmap: Cannot allocate memory" - JLD2's MmapIO has to map the
+# growing output file on top of the ~28G of raw_dfs still resident.
 #
-# --time is generous: gendata1 took 2h35m on 40 threads.
+# Sizing is uncertain, not comfortable. base.jl now runs the full 30 leakage
+# values (the lis = [1., 0.999, ...] override is gone), so this is ~6x the work
+# and ~6x the output of 53887. The closest completed reference is single_influx
+# gd5: same 30 x 50 x 100 shape at B=3, which peaked at 68.7G and wrote 11G.
+# This is B=5, so 94G may still not be enough. compute-0-4/5 (512G) are DOWN,
+# so 94G is the most dias can offer today.
+#
+# --time raised 24h -> 72h for the same reason: gendata1's 2h35m is no longer a
+# useful reference. gd5 took 7h45m on 102 cores; this has 40.
 
 time julia -t $SLURM_CPUS_PER_TASK --project -L base.jl -e 'gendata2()'
