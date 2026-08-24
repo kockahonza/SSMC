@@ -1,0 +1,156 @@
+long_T           sN=5000   atol=1e-07    rtol=1e-09    pos=true  T=1e+12    pert=0        | Success  peaks  29 ->  29  resid  1.48e-10 ->  2.08e-11  186s
+perturb_1e-6     sN=5000   atol=1e-07    rtol=1e-09    pos=true  T=1e+08    pert=1e-06    | Success  peaks  29 ->  29  resid      0.23 ->  1.69e-11  1s
+perturb_1e-3     sN=5000   atol=1e-07    rtol=1e-09    pos=true  T=1e+08    pert=0.001    | Success  peaks  29 ->  29  resid       230 ->  1.72e-11  2s
+nopos            sN=5000   atol=1e-07    rtol=1e-09    pos=false T=1e+08    pert=0        | Success  peaks  29 ->  29  resid  1.48e-10 ->  1.94e-11  2s
+fine_long        sN=20000  atol=1e-07    rtol=1e-09    pos=true  T=1e+12    pert=0        | Success  peaks  29 ->  29  resid      2.35 ->  2.71e-10  2885s
+
+[838374] signal (15): Terminated
+in expression starting at /home/honza/UCLOneDrive/SpatialStructureInMicrobialCommunities/SSMCCode/cluster_env/runs/mm_pdes_vs_p/run4_arrest_check/go_rest.jl:11
+unknown function (ip: 0x7f1d0faa0950)
+unknown function (ip: 0x7f1d0fa94cd8)
+pthread_cond_wait at /usr/lib/libc.so.6 (unknown line)
+uv_cond_wait at /workspace/srcdir/libuv/src/unix/thread.c:883
+jl_gc_mark_threadfun at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/partr.c:139
+unknown function (ip: 0x7f1d0fa980a1)
+unknown function (ip: 0x7f1d0fb2080b)
+unknown function (ip: (nil))
+unknown function (ip: 0x7f1d0faa0950)
+unknown function (ip: 0x7f1d0fa94cd8)
+pthread_cond_wait at /usr/lib/libc.so.6 (unknown line)
+uv_cond_wait at /workspace/srcdir/libuv/src/unix/thread.c:883
+ijl_task_get_next at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/partr.c:517
+poptask at ./task.jl:999
+wait at ./task.jl:1008
+task_done_hook at ./task.jl:682
+jfptr_task_done_hook_75412.1 at /home/honza/.julia/juliaup/julia-1.10.10+0.x64.linux.gnu/lib/julia/sys.so (unknown line)
+_jl_invoke at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:2895 [inlined]
+ijl_apply_generic at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:3077
+jl_apply at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/julia.h:1982 [inlined]
+jl_finish_task at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/task.c:327
+jl_threadfun at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/partr.c:199
+unknown function (ip: 0x7f1d0fa980a1)
+unknown function (ip: 0x7f1d0fb2080b)
+unknown function (ip: (nil))
+unknown function (ip: 0x7f1d0faa0950)
+unknown function (ip: 0x7f1d0fa94cd8)
+pthread_cond_wait at /usr/lib/libc.so.6 (unknown line)
+uv_cond_wait at /workspace/srcdir/libuv/src/unix/thread.c:883
+ijl_task_get_next at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/partr.c:517
+poptask at ./task.jl:999
+wait at ./task.jl:1008
+#wait#647 at ./condition.jl:130
+wait at ./condition.jl:125 [inlined]
+#138 at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/usr/share/julia/stdlib/v1.10/Distributed/src/remotecall.jl:281 [inlined]
+lock at ./lock.jl:229
+lock at ./condition.jl:78 [inlined]
+#137 at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/usr/share/julia/stdlib/v1.10/Distributed/src/remotecall.jl:279
+unknown function (ip: 0x7f1d09500f02)
+_jl_invoke at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:2895 [inlined]
+ijl_apply_generic at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:3077
+jl_apply at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/julia.h:1982 [inlined]
+start_task at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/task.c:1256
+unknown function (ip: (nil))
+unknown function (ip: 0x7f1d0faa0950)
+unknown function (ip: 0x7f1d0fa94cd8)
+pthread_cond_wait at /usr/lib/libc.so.6 (unknown line)
+uv_cond_wait at /workspace/srcdir/libuv/src/unix/thread.c:883
+ijl_task_get_next at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/partr.c:517
+poptask at ./task.jl:999
+wait at ./task.jl:1008
+#wait#647 at ./condition.jl:130
+wait at ./condition.jl:125 [inlined]
+_trywait at ./asyncevent.jl:142
+wait at ./asyncevent.jl:159 [inlined]
+profile_printing_listener at ./Base.jl:572
+#1058 at ./Base.jl:608
+jfptr_YY.1058_85333.1 at /home/honza/.julia/juliaup/julia-1.10.10+0.x64.linux.gnu/lib/julia/sys.so (unknown line)
+_jl_invoke at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:2895 [inlined]
+ijl_apply_generic at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:3077
+jl_apply at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/julia.h:1982 [inlined]
+start_task at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/task.c:1256
+unknown function (ip: (nil))
+umfdl_assemble_fixq at /home/honza/.julia/juliaup/julia-1.10.10+0.x64.linux.gnu/bin/../lib/julia/libumfpack.so.6 (unknown line)
+umfdl_kernel at /home/honza/.julia/juliaup/julia-1.10.10+0.x64.linux.gnu/bin/../lib/julia/libumfpack.so.6 (unknown line)
+umfpack_dl_numeric at /home/honza/.julia/juliaup/julia-1.10.10+0.x64.linux.gnu/bin/../lib/julia/libumfpack.so.6 (unknown line)
+umfpack_dl_numeric at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/usr/share/julia/stdlib/v1.10/SparseArrays/src/solvers/lib/x86_64-linux-gnu.jl:2251
+macro expansion at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/usr/share/julia/stdlib/v1.10/SparseArrays/src/solvers/umfpack.jl:622 [inlined]
+macro expansion at ./lock.jl:267 [inlined]
+#umfpack_numeric!#19 at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/usr/share/julia/stdlib/v1.10/SparseArrays/src/solvers/umfpack.jl:616
+umfpack_numeric! at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/usr/share/julia/stdlib/v1.10/SparseArrays/src/solvers/umfpack.jl:615 [inlined]
+#lu!#14 at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/usr/share/julia/stdlib/v1.10/SparseArrays/src/solvers/umfpack.jl:479
+lu! at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/usr/share/julia/stdlib/v1.10/SparseArrays/src/solvers/umfpack.jl:475 [inlined]
+#lu!#13 at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/usr/share/julia/stdlib/v1.10/SparseArrays/src/solvers/umfpack.jl:472
+lu! at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/usr/share/julia/stdlib/v1.10/SparseArrays/src/solvers/umfpack.jl:446 [inlined]
+#solve!#1 at /home/honza/.julia/packages/LinearSolve/ZgNCX/ext/LinearSolveSparseArraysExt.jl:209
+solve! at /home/honza/.julia/packages/LinearSolve/ZgNCX/ext/LinearSolveSparseArraysExt.jl:195 [inlined]
+macro expansion at /home/honza/.julia/packages/LinearSolve/ZgNCX/src/default.jl:615 [inlined]
+#solve!#159 at /home/honza/.julia/packages/LinearSolve/ZgNCX/src/default.jl:503
+solve! at /home/honza/.julia/packages/LinearSolve/ZgNCX/src/default.jl:503 [inlined]
+#solve!#23 at /home/honza/.julia/packages/LinearSolve/ZgNCX/src/common.jl:441 [inlined]
+solve! at /home/honza/.julia/packages/LinearSolve/ZgNCX/src/common.jl:440 [inlined]
+#dolinsolve#2 at /home/honza/.julia/packages/OrdinaryDiffEqDifferentiation/TKWRC/src/linsolve_utils.jl:30 [inlined]
+dolinsolve at /home/honza/.julia/packages/OrdinaryDiffEqDifferentiation/TKWRC/src/linsolve_utils.jl:5 [inlined]
+compute_step! at /home/honza/.julia/packages/OrdinaryDiffEqNonlinearSolve/EABtI/src/newton.jl:256
+nlsolve! at /home/honza/.julia/packages/OrdinaryDiffEqNonlinearSolve/EABtI/src/nlsolve.jl:52
+perform_step! at /home/honza/.julia/packages/OrdinaryDiffEqBDF/SNDvS/src/bdf_perform_step.jl:910
+perform_step! at /home/honza/.julia/packages/OrdinaryDiffEqBDF/SNDvS/src/bdf_perform_step.jl:844 [inlined]
+solve! at /home/honza/.julia/packages/OrdinaryDiffEqCore/GMkz9/src/solve.jl:611
+unknown function (ip: 0x7f1d095a9eb1)
+_jl_invoke at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:2895 [inlined]
+ijl_apply_generic at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:3077
+#__solve#60 at /home/honza/.julia/packages/OrdinaryDiffEqCore/GMkz9/src/solve.jl:7
+__solve at /home/honza/.julia/packages/OrdinaryDiffEqCore/GMkz9/src/solve.jl:1 [inlined]
+#solve_call#33 at /home/honza/.julia/packages/DiffEqBase/p82Yh/src/solve.jl:127
+solve_call at /home/honza/.julia/packages/DiffEqBase/p82Yh/src/solve.jl:84 [inlined]
+#solve_up#39 at /home/honza/.julia/packages/DiffEqBase/p82Yh/src/solve.jl:563 [inlined]
+solve_up at /home/honza/.julia/packages/DiffEqBase/p82Yh/src/solve.jl:540 [inlined]
+#solve#38 at /home/honza/.julia/packages/DiffEqBase/p82Yh/src/solve.jl:530 [inlined]
+solve at /home/honza/.julia/packages/DiffEqBase/p82Yh/src/solve.jl:520
+unknown function (ip: 0x7f1d0956c370)
+_jl_invoke at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:2895 [inlined]
+ijl_apply_generic at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:3077
+#run_mm_pde2#58 at /home/honza/UCLOneDrive/SpatialStructureInMicrobialCommunities/SSMCCode/cluster_env/runs/mm_pdes_vs_p/run4_arrest_check/base.jl:113
+run_mm_pde2 at /home/honza/UCLOneDrive/SpatialStructureInMicrobialCommunities/SSMCCode/cluster_env/runs/mm_pdes_vs_p/run4_arrest_check/base.jl:88
+unknown function (ip: 0x7f1d0954dc44)
+_jl_invoke at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:2895 [inlined]
+ijl_apply_generic at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:3077
+#run_restart#60 at /home/honza/UCLOneDrive/SpatialStructureInMicrobialCommunities/SSMCCode/cluster_env/runs/mm_pdes_vs_p/run4_arrest_check/base.jl:234
+unknown function (ip: 0x7f1d095398b4)
+_jl_invoke at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:2895 [inlined]
+ijl_apply_generic at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:3077
+run_restart at /home/honza/UCLOneDrive/SpatialStructureInMicrobialCommunities/SSMCCode/cluster_env/runs/mm_pdes_vs_p/run4_arrest_check/base.jl:215
+unknown function (ip: 0x7f1d095e4fd0)
+_jl_invoke at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:2895 [inlined]
+ijl_apply_generic at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:3077
+jl_apply at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/julia.h:1982 [inlined]
+do_call at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/interpreter.c:126
+eval_value at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/interpreter.c:223
+eval_stmt_value at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/interpreter.c:174 [inlined]
+eval_body at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/interpreter.c:617
+jl_interpret_toplevel_thunk at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/interpreter.c:775
+jl_toplevel_eval_flex at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/toplevel.c:934
+jl_toplevel_eval_flex at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/toplevel.c:877
+ijl_toplevel_eval_in at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/toplevel.c:985
+eval at ./boot.jl:385 [inlined]
+include_string at ./loading.jl:2146
+_jl_invoke at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:2895 [inlined]
+ijl_apply_generic at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:3077
+_include at ./loading.jl:2206
+include at ./Base.jl:495
+jfptr_include_46653.1 at /home/honza/.julia/juliaup/julia-1.10.10+0.x64.linux.gnu/lib/julia/sys.so (unknown line)
+_jl_invoke at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:2895 [inlined]
+ijl_apply_generic at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:3077
+exec_options at ./client.jl:323
+_start at ./client.jl:557
+jfptr__start_83114.1 at /home/honza/.julia/juliaup/julia-1.10.10+0.x64.linux.gnu/lib/julia/sys.so (unknown line)
+_jl_invoke at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:2895 [inlined]
+ijl_apply_generic at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/gf.c:3077
+jl_apply at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/julia.h:1982 [inlined]
+true_main at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/jlapi.c:582
+jl_repl_entrypoint at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/src/jlapi.c:731
+main at /cache/build/builder-amdci5-7/julialang/julia-release-1-dot-10/cli/loader_exe.c:58
+unknown function (ip: 0x7f1d0fa27780)
+__libc_start_main at /usr/lib/libc.so.6 (unknown line)
+unknown function (ip: 0x4010b8)
+unknown function (ip: (nil))
+Allocations: 50494102 (Pool: 50448197; Big: 45905); GC: 11239

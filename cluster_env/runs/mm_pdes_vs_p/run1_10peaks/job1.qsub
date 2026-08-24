@@ -1,0 +1,15 @@
+#!/bin/bash -l
+#$ -N mm_pdes_vs_p
+#$ -cwd
+#$ -l h_rt=02:00:00
+#$ -pe smp 25
+#$ -l mem=2G
+
+# Myriad twin of job1.slurm. Note -l mem is per slot here, not per job as
+# Slurm's --mem is: 25 x 2G = 50G for the job, comfortably inside a standard
+# 36 core/188G node.
+#
+# 25 slots for 50 rows, one thread each, two waves. See job1.slurm for the
+# measurements behind the sizing - a full-resolution row is ~10s and ~8M.
+
+time julia -t $NSLOTS --project -L base.jl -e 'main1()'
