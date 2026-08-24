@@ -258,6 +258,14 @@ check of what it returned cannot disagree about a factor of 2pi.
 num_peaks_in(L, k) = L * k / (2pi)
 
 """
+    choose_L(k, num_peaks)
+
+Inverse of [`num_peaks_in`](@ref): the domain length that fits exactly
+`num_peaks` peaks of wavenumber `k`.
+"""
+choose_L(k, num_peaks) = 2pi * num_peaks / k
+
+"""
     choose_Ls(peak_ks, min_peaks)
 
 Pick one domain size per system from its peak wavenumbers across the ps, big
@@ -277,7 +285,7 @@ function choose_Ls(peak_ks, min_peaks)
     for i in axes(peak_ks, 1)
         pks = collect(skipmissing(peak_ks[i, :]))
         num_unstable[i] = length(pks)
-        Ls[i] = isempty(pks) ? missing : 2pi * min_peaks / minimum(pks)
+        Ls[i] = isempty(pks) ? missing : choose_L(minimum(pks), min_peaks)
     end
     (; Ls, num_unstable)
 end
