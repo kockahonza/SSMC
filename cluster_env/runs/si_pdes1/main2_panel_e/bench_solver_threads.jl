@@ -26,6 +26,23 @@ function bench_solver_threads(setup_fname="systems1.jld2";
     @printf("%d rows at a time, %ds cap each, sN=%d\n", length(rows), maxtime, pde_df.sN[1])
     flush(stdout)
 
+    # The maxtime clock starts at integrator init, so anything still compiling
+    # eats into the measured window, and solver_threads=nothing vs an Int are
+    # different BSMMiCRMParams types with separately compiled solve paths -
+    # without this the first wave of each type pays for the compile and the
+    # later ones do not, which flatters solver_threads. One short solve per
+    # variant up front puts every wave on the same footing.
+    for st in unique(typeof.(solver_threadss))
+        st_val = solver_threadss[findfirst(x -> typeof(x) === st, solver_threadss)]
+        r = pde_df[rows[1], :]
+        run_si_pde(r.params, r.Ds, r.u0, r.T, r.L;
+            abstol, reltol, maxtime=20, solver_threads=st_val, save_step=nothing,
+        )
+    end
+    GC.gc()
+    println("warmed up")
+    flush(stdout)
+
     results = []
     for st in solver_threadss
         reached = zeros(length(rows))
