@@ -150,7 +150,8 @@ end
 The same as gendata1 but B=5 to see how this affects things.
 """
 function gendata2(; DN=0.0, DR=1.0)
-    fname = joinpath("./gd2_B5_" * timestamp() * ".jld2")
+    dname = joinpath("./gd2_B5_" * timestamp())
+    mkpath(dname)
 
     N = 20
     M = N
@@ -165,9 +166,9 @@ function gendata2(; DN=0.0, DR=1.0)
     num_repeats = 100
     lsks = 10 .^ range(-5, 3, 2000)
 
-    raw_dfs = []
-    all_rsgs = []
-    for li in lis
+    rowname(i) = joinpath(dname, "row" * lpad(i, 4, '0') * ".jld2")
+
+    for (i, li) in enumerate(lis)
         @show li
         flush(stdout)
         df, cms, rsgs = do_df_run_paper(Ks, li;
@@ -176,15 +177,31 @@ function gendata2(; DN=0.0, DR=1.0)
             num_repeats,
             lsks,
         )
-        push!(raw_dfs, df)
-        push!(all_rsgs, rsgs)
+        jldsave(rowname(i); li, df, rsgs)
         flush(stdout)
     end
 
-    jldsave(fname;
-        N, M, B, DN, DR, num_repeats, lsks,
-        lis, Ks, raw_dfs, all_rsgs
-    )
+    # Best-effort merge of the per-li rows back into the single-file layout the
+    # rest of the analysis code expects. This holds everything in memory at once,
+    # which is what the 94G cap could not take before, so it is allowed to fail -
+    # the rows above are the real output and the merge can be redone anywhere.
+    fname = dname * ".jld2"
+    try
+        raw_dfs = []
+        all_rsgs = []
+        for i in eachindex(lis)
+            row = JLD2.load(rowname(i))
+            push!(raw_dfs, row["df"])
+            push!(all_rsgs, row["rsgs"])
+        end
+        jldsave(fname;
+            N, M, B, DN, DR, num_repeats, lsks,
+            lis, Ks, raw_dfs, all_rsgs
+        )
+        @info "merged rows into $fname"
+    catch e
+        @error "merge failed, per-li rows in $dname are intact" exception = (e, catch_backtrace())
+    end
 
-    fname
+    dname
 end
