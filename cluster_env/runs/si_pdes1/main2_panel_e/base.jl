@@ -52,10 +52,16 @@ function main1()
 end
 
 # main2/main3 are main1 split over two nodes: half the systems each, 10 rows at a
-# time instead of 18, and the node's remaining cores handed to the solvers. 10
-# rows in ~60G is 6G a row, above the 5.3G a row that main1_test_DN1e-6 actually
-# used; the 18-at-a-time main1 gave each row 3.4G and lost them to
-# OutOfMemoryError.
+# time instead of 18. 10 rows in ~60G is 6G a row, above the 5.3G a row that
+# main1_test_DN1e-6 actually used; the 18-at-a-time main1 gave each row 3.4G and
+# lost them to OutOfMemoryError.
+#
+# solver_threads stays off despite there being spare cores. Measured on these
+# systems at sN=2500, warming the compile out of the timed window first,
+# solver_threads=4 was worth ~9% (2.147 -> 2.333 simulated t/s) and OOMed inside
+# umfpack_numeric! in one of the two runs at exactly this 10 rows in 60G - and
+# that was with save_step=nothing, ie without the saved state series the real
+# runs carry. Memory is the binding constraint here, not cores.
 function main2()
     run_pde_setup("systems1.jld2", "data1";
         save_step=100,
@@ -63,7 +69,7 @@ function main2()
         reltol=1e-9,
         maxtime=10 * 60 * 60,
         run_threads=10,
-        solver_threads=4,
+        solver_threads=nothing,
     )
 end
 
@@ -74,6 +80,6 @@ function main3()
         reltol=1e-9,
         maxtime=10 * 60 * 60,
         run_threads=10,
-        solver_threads=4,
+        solver_threads=nothing,
     )
 end
