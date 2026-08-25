@@ -56,3 +56,13 @@ function main4_part3()
         common_params()...
     )
 end
+
+# Same rows as main4_part1, but each of the 10 solvers gets 4 threads, ie the
+# full 40 cores of a node, and a separate `data_st4` so the two can be compared
+# row for row against main4_part1's single-threaded timings.
+function main4_part1_st4()
+    run_pde_setup("systems.jld2", "data_st4";
+        rows=part_rows("systems.jld2", 1, 3),
+        merge(common_params(), (; solver_threads=4))...
+    )
+end
