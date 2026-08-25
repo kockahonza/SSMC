@@ -19,8 +19,10 @@
 # solver_threads is the only threading being tested rather than being read off
 # against OpenBLAS contention.
 #
-# 60 rows 10 at a time is 6 waves; 48h covers them at the couple of hours a slow
-# row took even before the BLAS fix. Finished rows are written individually and a
-# resubmit skips them, so overrunning only loses what is in flight.
+# 60 rows 10 at a time is 6 waves, and maxtime is cut to 5h for this run, so 48h
+# covers the worst case of 6 full waves with slack - the slowest row took a
+# couple of hours even before the BLAS fix, so it should not come close. Finished
+# rows are written individually and a resubmit skips them, so overrunning only
+# loses what is in flight.
 
 time julia -t $SLURM_CPUS_PER_TASK --project -L base.jl -e 'main4_all_st4()'

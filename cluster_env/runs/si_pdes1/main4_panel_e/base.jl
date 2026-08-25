@@ -73,8 +73,12 @@ end
 # threads is exactly its 40 cores. BLAS is pinned to one thread by the call at
 # the top of this file, so those 4 are the only threading left in play, unlike
 # the earlier data_st4 pass which ran before that fix.
+#
+# maxtime is cut to 5h for this run only - the production parts keep the 10h of
+# common_params. A row that hits it stops at whatever t it reached and is still
+# written out, so the cap only bounds how long one row can hold a slot.
 function main4_all_st4()
     run_pde_setup("systems.jld2", "data_st4_all";
-        merge(common_params(), (; solver_threads=4))...
+        merge(common_params(), (; solver_threads=4, maxtime=5 * 60 * 60))...
     )
 end
