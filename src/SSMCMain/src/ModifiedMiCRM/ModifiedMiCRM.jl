@@ -298,6 +298,16 @@ etox(e) = -log(e / (1 - e))
 exticks(es) = (etox.(es), [@sprintf("%.2f", e) for e in es])
 lxticks(ls) = (ltox.(ls), [@sprintf("%.2f", l) for l in ls])
 
+"""
+`n` minor ticks between each pair of neighbouring major ticks, spaced linearly in
+leakage so they bunch up where the scale compresses, showing how it distorts
+space. Pass the same values used for the major ticks, along with
+`yminorticksvisible=true`, eg `yminorticks=LeakageScale.lxminorticks(lticks, 4)`.
+"""
+lxminorticks(ls, n=9) = [ltox(x) for (lo, hi) in zip(ls[1:(end-1)], ls[2:end])
+                         for x in range(lo, hi, n + 2)[2:(end-1)]]
+exminorticks(es, n=9) = lxminorticks(1 .- es, n)
+
 function lxrange(lmin, lmax, n)
     l.(range(ltox(lmin), ltox(lmax), n))
 end
