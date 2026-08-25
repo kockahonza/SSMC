@@ -414,6 +414,7 @@ function run_pde_setup(setup_fname, outdir;
 
     prog = Progress(length(todo))
     @tasks for i in todo
+        @set scheduler = :greedy
         @set ntasks = run_threads
 
         r = pde_df[i, :]
