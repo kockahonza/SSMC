@@ -68,12 +68,13 @@ function main4_part3()
     )
 end
 
-# Same rows as main4_part1, but each of the 10 solvers gets 4 threads, ie the
-# full 40 cores of a node, and a separate `data_st4` so the two can be compared
-# row for row against main4_part1's single-threaded timings.
-function main4_part1_st4()
-    run_pde_setup("systems.jld2", "data_st4";
-        rows=part_rows("systems.jld2", 1, 3),
+# The whole 60 row set at solver_threads=4 - no `rows`, so run_pde_setup takes
+# all of pde_df - into its own data_st4_all, on a whole 96G node: 10 rows x 4
+# threads is exactly its 40 cores. BLAS is pinned to one thread by the call at
+# the top of this file, so those 4 are the only threading left in play, unlike
+# the earlier data_st4 pass which ran before that fix.
+function main4_all_st4()
+    run_pde_setup("systems.jld2", "data_st4_all";
         merge(common_params(), (; solver_threads=4))...
     )
 end
