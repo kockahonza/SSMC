@@ -59,6 +59,32 @@ function start_state()
 end
 
 """
+    progress_cb(name, interval, t0)
+
+Print where a run has got to every `interval` seconds of wall clock. Goes in
+`run_si_pde`'s `extra_callbacks` - passing it as `callback` would replace the
+timer, PositiveDomain and saver rather than join them.
+
+Time based rather than step based so the output volume is predictable however
+fast or slow the run turns out to be: at 300s that is ~240 lines over a 20h run.
+"""
+function progress_cb(name, interval, t0)
+    last = Ref(t0)
+    DiscreteCallback(
+        (u, t, integ) -> (time() - last[]) >= interval,
+        integ -> begin
+            now = time()
+            last[] = now
+            @printf("[%-10s] t = %11.6g  dt = %9.3g  %6d steps  %6.1f min  %5.2f steps/s\n",
+                name, integ.t, integ.dt, integ.stats.naccept, (now - t0) / 60,
+                integ.stats.naccept / (now - t0))
+            flush(stdout)
+        end;
+        save_positions=(false, false),
+    )
+end
+
+"""
     configs()
 
 One entry per run. `name` is also the output filename.
@@ -81,10 +107,12 @@ add `t_start` (~30.5) to line it up with ../data.
 """
 function main1(;
     outdir="results",
-    T=1e5,                    # past the t ~ 8e3 onset and past where ../data stopped
-    save_step=20,
+    T=1e8,                    # the production T; maxtime is what will actually stop these
+    save_step=50,             # 640K a state, and 20h at the measured rate is ~360k steps,
+                              # so this is ~4.6G of saved series per run on a 64G node
     maxtime=20 * 60 * 60,
     solver_threads=13,        # 3 configs x 13 fills a 40 core node
+    report_every=300,         # seconds between progress lines, per config
 )
     mkpath(outdir)
     st = start_state()
@@ -92,8 +120,8 @@ function main1(;
 
     @printf("row %d: picked up save %d at t = %.6g, sN %d -> %d (dx %.5g -> %.5g), L = %.5g\n",
         ROW, st.k, st.t, size(st.u0, 2) ÷ 2, st.sN, sr.L / (st.sN ÷ 2), sr.L / st.sN, sr.L)
-    @printf("%d configs, %d solver threads each, T = %.3g, save_step = %d, maxtime = %.3gh\n",
-        length(configs()), solver_threads, T, save_step, maxtime / 3600)
+    @printf("%d configs, %d solver threads each, T = %.3g, save_step = %d, maxtime = %.3gh, progress every %ds\n",
+        length(configs()), solver_threads, T, save_step, maxtime / 3600, report_every)
     flush(stdout)
 
     @sync for cfg in configs()
@@ -103,6 +131,7 @@ function main1(;
                 (; s, saved_ts, saved_us) = run_si_pde(sr.params, sr.Ds, st.u0, T, sr.L;
                     abstol=cfg.abstol, reltol=cfg.reltol, solver=cfg.solver,
                     maxtime, solver_threads, save_step,
+                    extra_callbacks=(progress_cb(cfg.name, report_every, start),),
                 )
                 realtime = time() - start
                 jldsave(joinpath(outdir, cfg.name * ".jld2");
