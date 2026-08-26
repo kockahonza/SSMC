@@ -332,6 +332,11 @@ for that - 1250 states would be a 1GB row file.
 
 `save_step=nothing` drops the saver callback entirely and returns empty
 `saved_ts`/`saved_us`, for runs where only the final state is wanted.
+
+`extra_callbacks` are appended to the set. Pass progress reporting and the like
+through here rather than as a `callback` kwarg - `kwargs...` is splatted into
+`solve` after the internal `callback=`, so a `callback` passed that way silently
+replaces the timer, `PositiveDomain` and the saver instead of adding to them.
 """
 function run_si_pde(ps, Ds, u0, T, L;
     abstol=1e-7,
@@ -340,6 +345,7 @@ function run_si_pde(ps, Ds, u0, T, L;
     maxtime=60 * 60,
     solver_threads=nothing,
     save_step=500,
+    extra_callbacks=(),
     kwargs...
 )
     sN = size(u0, 2)
@@ -363,7 +369,8 @@ function run_si_pde(ps, Ds, u0, T, L;
         calck=false,
         abstol,
         reltol,
-        callback=CallbackSet(make_timer_callback(maxtime), PositiveDomain(copy(u0); save=false), save_cbs...),
+        callback=CallbackSet(make_timer_callback(maxtime), PositiveDomain(copy(u0); save=false),
+            save_cbs..., extra_callbacks...),
         kwargs...
     )
 
