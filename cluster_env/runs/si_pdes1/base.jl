@@ -9,6 +9,17 @@ using ProgressMeter
 using JLD2, Geppetto
 using Random, Distributions
 using DataFrames, DataFramesMeta
+using LinearAlgebra
+
+# OpenBLAS picks 20 threads on the BIOP nodes, and run_pde_setup already runs
+# run_threads solvers at once, so every one of them pulling a 20 thread pool
+# inside a --cpus-per-task cgroup is pure contention - the spin-waiting kind.
+# Measured on an idle compute-0-6 at the production config (12 cpus, 10 rows,
+# solver_threads=nothing), 30s per arm after warming the compile, both orders:
+# 1162/1183 accepted steps at 1 thread against 251/260 at 20, ie 4.6x/4.55x.
+# UMFPACK's own factorization is single threaded anyway, so nothing here wants
+# a BLAS pool.
+BLAS.set_num_threads(1)
 
 ################################################################################
 # ODE solving
