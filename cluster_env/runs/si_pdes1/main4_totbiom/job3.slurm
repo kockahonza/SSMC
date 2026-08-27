@@ -15,7 +15,7 @@
 # cpu, and at 60G of 64G it still keeps anyone else off the node even though the
 # cpu request no longer does.
 #
-# 12 cpus, not the 40 the main2_panel_e jobs took: BIOP sets no TRESBillingWeights,
+# 12 cpus, not the 40 the main2_totbiom jobs took: BIOP sets no TRESBillingWeights,
 # so fairshare is billed on *allocated* cpus whether or not they are used, and
 # with run_threads=10 the other 28 were pure waste - job 53892 was charged 42 days
 # of CPUTime for at most 10 days of real work. PriorityWeightFairShare is 10000,
@@ -25,7 +25,7 @@
 # (Julia 1.10 defaults gcthreads to half of -t), which these allocation-heavy
 # solvers do use.
 #
-# 60G is deliberate over-provision: the equivalent main2_panel_e job (53892, also
+# 60G is deliberate over-provision: the equivalent main2_totbiom job (53892, also
 # 10 rows at a time but at sN=2500) peaked at 24G RSS, and these run at sN=1000.
 # The one thing that grew is save_step=10, 10x the saved states of that job - at
 # 0.3M a state and its worst row's 39k steps that is ~1.2G for a bad row, so
