@@ -13,3 +13,15 @@ function main1()
         solver_threads=nothing,
     )
 end
+
+function solve_more_si_odes()
+    K = 10.
+    l = 0.999
+    T = 1e8
+    tol = 1e-9
+    @time df = solve_si_odes("test2.jld2", 10000,
+        K, l,
+        T, tol,
+    );
+    @show count(df.good), nrow(df)
+end
