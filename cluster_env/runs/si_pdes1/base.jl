@@ -501,7 +501,11 @@ function run_pde_setup(setup_fname, outdir;
             realtime = time() - start_time
 
             jldsave(joinpath(outdir, @sprintf("row%04d.jld2", i));
-                pde_df_row=i, gdf_row=r.gdf_row, df_row=r.df_row, p=r.p,
+                pde_df_row=i,
+                # main6 onwards names this column sys_i, earlier setups gdf_row;
+                # both are the index of the system this row solves.
+                gdf_row=hasproperty(r, :gdf_row) ? r.gdf_row : r.sys_i,
+                df_row=r.df_row, p=r.p,
                 L=r.L, sN=r.sN, T=r.T,
                 retcode=s.retcode,
                 final_state=s.u[end],
