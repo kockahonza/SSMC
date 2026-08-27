@@ -18,7 +18,7 @@
 # tenth, and the solver's memory (sparse Jacobian plus its factorisation) is
 # linear in sN, so ~0.25G a row; and save_step=nothing drops the saved state
 # series entirely, which was the unbounded part and what took job1 of
-# main2_panel_e to 55.8G. That puts the real figure near 12G. Even pricing every
+# main2_totbiom to 55.8G. That puts the real figure near 12G. Even pricing every
 # row at the full sN=2500 cost and ignoring both savings gives ~90G, which still
 # fits.
 #
