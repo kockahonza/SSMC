@@ -316,6 +316,132 @@ lxrange(deltal, n) = lxrange(deltal, 1 - deltal, n)
 end
 export LeakageScale
 
+module CustomSymlogScale
+using Makie
+using Printf
+
+"""
+    scale(linthresh)
+
+Symlog-style Makie scale, `y -> sign(y) * log10(1 + |y|/linthresh)`, so both signs
+and many decades of magnitude fit on one axis. Note this is one smooth function
+rather than a piecewise linear-then-log join, so it is only *asymptotically*
+linear below `linthresh` and *asymptotically* one unit of axis space per factor of
+10 above it: at `linthresh=1` the core `0 -> 1` spans 0.301 units with its ends
+stretched 1.9x relative to each other, and the decades above it get 0.740, 0.963,
+0.996, 0.9996 units. Pair with `ticks`/`MinorTicks` (or just use `kwargs`) -
+Makie's automatic ticks fall back to linearly spaced values for any non-log scale,
+which is what makes a bare symlog axis look wrong.
+"""
+function scale(linthresh)
+    t = float(linthresh)
+    t > 0. || throw(ArgumentError("linthresh must be positive"))
+    forward = y -> sign(y) * log10(1. + abs(y) / t)
+    inverse = z -> sign(z) * t * (exp10(abs(z)) - 1.)
+    Makie.ReversibleScale(forward, inverse; limits=(-3f0, 3f0), name=:symlog10)
+end
+
+"""
+    ticklabel(v)
+
+`0` as itself, powers of 10 as `10^n`, anything else as a plain `%.3g` number.
+"""
+function ticklabel(v)
+    v == 0. && return rich("0")
+    sgn = v < 0. ? Makie.MINUS_SIGN : ""
+    e = log10(abs(v))
+    isapprox(e, round(e); atol=1e-9) || return rich(sgn * (@sprintf "%.3g" abs(v)))
+    rich(sgn * "10", superscript(replace(string(round(Int, e)), "-" => Makie.MINUS_SIGN);
+        offset=Vec2f(0.1, 0.)))
+end
+
+"""
+    ticks(vals)
+
+Major ticks at exactly `vals`, labelled by `ticklabel`. Use when you want them
+somewhere the `linthresh` method cannot reach - it steps whole decades, so it
+never places more than one tick per decade.
+"""
+ticks(vals::AbstractVector) = (vals, ticklabel.(vals))
+
+"""
+    ticks(linthresh; max_ticks=11, trim=0.)
+
+Ticks at 0 and ±10^n from `linthresh` up, thinned to at most `max_ticks`. Nonzero
+ticks with `|v| <= trim * linthresh` are dropped, for when the ones closest to the
+linear region crowd each other.
+"""
+function ticks(linthresh::Real; max_ticks=11, trim=0.)
+    e0 = round(Int, log10(float(linthresh)))
+    (vmin, vmax) -> begin
+        hi = max(abs(vmin), abs(vmax))
+        emax = max(hi > 0. ? floor(Int, log10(hi)) : e0, e0)
+        estep = max(1, cld(2 * (emax - e0 + 1) + 1, max_ticks))
+        vals = [0.]
+        for e in e0:estep:emax
+            push!(vals, 10.0^e, -10.0^e)
+        end
+        sort!(vals)
+        filter!(v -> (vmin <= v <= vmax) && ((v == 0.) || (abs(v) > trim * linthresh)), vals)
+        vals, ticklabel.(vals)
+    end
+end
+
+"""
+    MinorTicks(n=9)
+
+`n` minor ticks between every pair of neighbouring major ticks, evenly spaced in
+data space - so the step is constant within each major tick interval, and how much
+they bunch up in the plot shows how far the scale distorts data space there. Use as
+`yminorticks=CustomSymlogScale.MinorTicks(4)` along with `yminorticksvisible=true`,
+or via `kwargs`. Takes the major ticks as Makie computes them, so it follows
+`max_ticks` and `trim` - the wider apart those leave the majors, the more extreme
+the bunching.
+"""
+struct MinorTicks
+    n::Int
+end
+MinorTicks() = MinorTicks(9)
+function Makie.get_minor_tickvalues(mt::MinorTicks, _, tickvalues, vmin, vmax)
+    vs = Float64[]
+    for (lo, hi) in zip(tickvalues[1:(end-1)], tickvalues[2:end])
+        append!(vs, range(lo, hi, mt.n + 2)[2:(end-1)])
+    end
+    filter!(v -> vmin <= v <= vmax, vs)
+end
+
+"""
+    guess_linthresh(vals...; floor_frac=1e-6)
+
+Pick a linthresh for `vals`: the nearest decade to the smallest nonzero magnitude,
+but never more than `floor_frac` below the largest one.
+"""
+function guess_linthresh(vals...; floor_frac=1e-6)
+    as = filter(>(0.), abs.(reduce(vcat, map(collect, vals))))
+    isempty(as) && return 1.
+    10.0^round(Int, log10(max(minimum(as), floor_frac * maximum(as))))
+end
+
+"""
+    kwargs(linthresh; dim=:y, kwargs...)
+
+All the `Axis` kwargs needed for a symlog `dim` axis at once, e.g.
+`Axis(fig[1,1]; CustomSymlogScale.kwargs(1e-6)...)`.
+"""
+function kwargs(linthresh; dim=:y, max_ticks=11, trim=0., nminor=9, minorgrid=false)
+    kws = (;
+        scale=scale(linthresh),
+        ticks=ticks(linthresh; max_ticks, trim),
+        minorticks=MinorTicks(nminor),
+        minorticksvisible=true,
+        minorgridvisible=minorgrid,
+    )
+    NamedTuple(Symbol(dim, k) => v for (k, v) in pairs(kws)) # prefix each key with dim
+end
+
+end
+export CustomSymlogScale
+
 ################################################################################
 # Sub/optional bits that come in submodules
 ################################################################################

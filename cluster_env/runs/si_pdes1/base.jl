@@ -116,6 +116,8 @@ function solve_si_odes(
 
     prog = Progress(num_runs)
     @tasks for i in 1:num_runs
+        @set scheduler = :greedy
+        # @set ntasks = run_threads
         si_ps = rsg().mmicrm_params
 
         si_p = make_mmicrm_problem(si_ps, copy(si_u0), T)
