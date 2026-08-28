@@ -1,24 +1,24 @@
 ################################################################################
-# run3_100peaks_DN1e-3 - can a 1000x larger strain diffusion unstick the arrest?
+# run7_final_100peaks_DN1e-3 - the final version of the 100 peak DN=1e-3 sweep
 #
-# 100 peaks like run2, but with DN raised from 1e-6 to 1e-3 and K lowered from
-# 15 to 5. Everything else - l=0.999, m=c=d=1, DI=1, the same 5 log spaced p,
-# 10 repeats, sN=2500, the same perturbation size and solver settings - is
-# unchanged.
+# run3 with K raised from 5 to 10, sN doubled to 5000, 12 reps instead of 10 and
+# p=2 added on top of the 5 log spaced p in [0.1, 1]. l=0.999, m=c=d=1, DN=1e-3,
+# DI=1, 100 peaks and the same perturbation size and solver settings are as they
+# were.
 #
-# Why the two changes go together: DN is the one parameter that can plausibly
-# unstick the coarsening arrest run1 and run2 found, since it is what lets
-# biomass move between peaks rather than only through the resource fields. But
-# at K=15 the instability dies somewhere around DN ~ 8e-5 (p=0.01) to 5e-6
-# (p=1), so DN=1e-3 there sits 1-2 decades inside the stable region and there
-# is no pattern to coarsen at all. Dropping K to 5 takes the well-mixed steady
-# state from N*=12.92 to 2.62, which raises the gain and lengthens the
-# diffusion lengths enough to reopen the unstable band at this DN.
+# DN=1e-3 is the point of the whole family: it is the one parameter that can
+# plausibly unstick the coarsening arrest run1 and run2 found, since it is what
+# lets biomass move between peaks rather than only through the resource fields.
+# K is what has to move with it - at K=15 the instability dies around DN ~ 8e-5
+# (p=0.01) to 5e-6 (p=1), so DN=1e-3 sits 1-2 decades inside the stable region
+# and there is no pattern to coarsen at all. Lowering K lowers the well-mixed N*,
+# which raises the gain and lengthens the diffusion lengths enough to reopen the
+# band. run3 used K=5; K=10 is as high as this sweep goes while keeping every p
+# up to 2 unstable.
 #
-# THE CATCH, deliberately left in: sN is still 2500, but the peak k is roughly
-# 4x smaller here, so L is ~4x bigger and dx ~4x coarser than run2's - and
-# run2's was already short of its own convergence test. How much that costs is
-# one of the things this run is meant to measure; see res_check1.
+# sN=5000 is the other fix. run3 kept run2's sN=2500 on a ~4x larger domain, so
+# its dx was ~4x coarser than run2's, which was itself short of its own
+# convergence test; res_check1 there measured the cost. Doubling sN halves dx.
 #
 # All the machinery lives in ../base.jl; this file is only this sweep's
 # parameters.
@@ -29,12 +29,13 @@ include("../base.jl")
     make_setup1()
 
 Write `setup1.jld2`, the run plan: the well-mixed steady state, the disprel
-peak and domain size for each p, and the 50 perturbed initial conditions.
+peak and domain size for each p, and the 72 perturbed initial conditions.
 
-`K=5` and `DN=1e-3` are what make this run different from run2 - see the header
-for why they have to move together. `make_setup` refuses to write a setup whose
-ps are not all spatially unstable, so running this is also the cheap test of
-whether K=5 really does reopen the band at this DN.
+`K=10` and `DN=1e-3` are the pair that has to move together - see the header.
+`make_setup` refuses to write a setup whose ps are not all spatially unstable,
+so running this is also the cheap test of whether K=10 still leaves the band
+open at this DN. p=10 was in the sweep and is not any more - it came back
+STABLE, so the band closes somewhere between p=2 and p=10.
 
 The `seed` differs from run2's on purpose. sN and epsilon are unchanged, so
 reusing run2's seed would have handed every rep the byte-identical noise field
@@ -42,9 +43,9 @@ laid on a different steady state - a paired comparison rather than an
 independent one.
 """
 make_setup1() = make_setup("setup1.jld2";
-    K=5.0, l=0.999, m=1.0, c=1.0, d=1.0,
+    K=10.0, l=0.999, m=1.0, c=1.0, d=1.0,
     DN=1e-3, DI=1.0,
-    ps=[10 .^ range(-1, 0, 5); 2; 10],
+    ps=[10 .^ range(-1, 0, 5); 2],
     num_reps=12,
     sN=5000,
     min_peaks=100,
@@ -57,7 +58,7 @@ make_setup1() = make_setup("setup1.jld2";
 """
     main1()
 
-The full run: all 50 rows of `setup1.jld2`, one thread each, into `main1/`.
+The full run: all 72 rows of `setup1.jld2`, one thread each, into `main1/`.
 
 Same solver settings as run1. Coarsening from 100 peaks takes many more merge
 events than from 10, so these runs are longer; `maxtime` caps a row at 1h and
@@ -81,7 +82,7 @@ end
 Is the arrested peak count converged in `dx`, or an artifact of the grid?
 
 Re-solves one (p, rep) of `setup1.jld2` at several `sNs` on the same domain, so
-the only thing changing is the grid. Defaults to `p_i=1` (p=0.01), which has
+the only thing changing is the grid. Defaults to `p_i=1` (p=0.1), which has
 the shortest byproduct diffusion length sqrt(DR/v) and so the tightest
 structure in gridpoints - the worst case.
 
