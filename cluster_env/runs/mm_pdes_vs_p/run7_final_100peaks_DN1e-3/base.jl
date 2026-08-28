@@ -1,10 +1,9 @@
 ################################################################################
 # run7_final_100peaks_DN1e-3 - the final version of the 100 peak DN=1e-3 sweep
 #
-# run3 with K raised from 5 to 10, sN doubled to 5000, 12 reps instead of 10 and
-# p=2 added on top of the 5 log spaced p in [0.1, 1]. l=0.999, m=c=d=1, DN=1e-3,
-# DI=1, 100 peaks and the same perturbation size and solver settings are as they
-# were.
+# run3 with sN doubled to 5000, 12 reps instead of 10, and p=2 added on top of
+# the 5 log spaced p in [0.1, 1]. K=5, l=0.999, m=c=d=1, DN=1e-3, DI=1, 100 peaks
+# and the same perturbation size and solver settings are as they were.
 #
 # DN=1e-3 is the point of the whole family: it is the one parameter that can
 # plausibly unstick the coarsening arrest run1 and run2 found, since it is what
@@ -13,8 +12,9 @@
 # (p=0.01) to 5e-6 (p=1), so DN=1e-3 sits 1-2 decades inside the stable region
 # and there is no pattern to coarsen at all. Lowering K lowers the well-mixed N*,
 # which raises the gain and lengthens the diffusion lengths enough to reopen the
-# band. run3 used K=5; K=10 is as high as this sweep goes while keeping every p
-# up to 2 unstable.
+# band, and it is a narrow window: at DN=1e-3 every p up to 2 is unstable only
+# for K between ~3 (below which N*=0 and there is no biomass) and ~5.x. K=6
+# already loses p>=0.56 and K=10 is stable everywhere. Hence K=5, as in run3.
 #
 # sN=5000 is the other fix. run3 kept run2's sN=2500 on a ~4x larger domain, so
 # its dx was ~4x coarser than run2's, which was itself short of its own
@@ -31,11 +31,11 @@ include("../base.jl")
 Write `setup1.jld2`, the run plan: the well-mixed steady state, the disprel
 peak and domain size for each p, and the 72 perturbed initial conditions.
 
-`K=10` and `DN=1e-3` are the pair that has to move together - see the header.
+`K=5` and `DN=1e-3` are the pair that has to move together - see the header.
 `make_setup` refuses to write a setup whose ps are not all spatially unstable,
-so running this is also the cheap test of whether K=10 still leaves the band
-open at this DN. p=10 was in the sweep and is not any more - it came back
-STABLE, so the band closes somewhere between p=2 and p=10.
+and that guard is what set both ends of the p range: p=10 and p=3 come back
+STABLE at this K and DN, so p=2 (peak_h=0.0026, 33x weaker than p=0.1) is the
+last one in.
 
 The `seed` differs from run2's on purpose. sN and epsilon are unchanged, so
 reusing run2's seed would have handed every rep the byte-identical noise field
@@ -43,7 +43,7 @@ laid on a different steady state - a paired comparison rather than an
 independent one.
 """
 make_setup1() = make_setup("setup1.jld2";
-    K=10.0, l=0.999, m=1.0, c=1.0, d=1.0,
+    K=5.0, l=0.999, m=1.0, c=1.0, d=1.0,
     DN=1e-3, DI=1.0,
     ps=[10 .^ range(-1, 0, 5); 2],
     num_reps=12,
