@@ -4,4 +4,4 @@
 #SBATCH --cpus-per-task=40
 #SBATCH --mem=94G
 
-time julia -t $SLURM_CPUS_PER_TASK --project -L base.jl -e 'main1()'
+time julia -t $SLURM_CPUS_PER_TASK --project -L base.jl -e 'main2()'
