@@ -25,6 +25,19 @@
 ################################################################################
 include("../base.jl")
 
+# Every parameter of the sweep except T, which is the only thing setup2 changes.
+const SWEEP = (;
+    K=5.0, l=0.999, m=1.0, c=1.0, d=1.0,
+    DN=1e-3, DI=1.0,
+    ps=[10 .^ range(-1, 0, 5); 2],
+    num_reps=12,
+    sN=5000,
+    min_peaks=100,
+    epsilon=1e-3,
+    ks=10 .^ range(-5, 3, 20000),
+    seed=20260823,
+)
+
 """
     make_setup1()
 
@@ -42,23 +55,30 @@ reusing run2's seed would have handed every rep the byte-identical noise field
 laid on a different steady state - a paired comparison rather than an
 independent one.
 """
-make_setup1() = make_setup("setup1.jld2";
-    K=5.0, l=0.999, m=1.0, c=1.0, d=1.0,
-    DN=1e-3, DI=1.0,
-    ps=[10 .^ range(-1, 0, 5); 2],
-    num_reps=12,
-    sN=5000,
-    min_peaks=100,
-    epsilon=1e-3,
-    T=1e12,
-    ks=10 .^ range(-5, 3, 20000),
-    seed=20260823,
-)
+make_setup1() = make_setup("setup1.jld2"; SWEEP..., T=1e12)
+
+"""
+    make_setup2()
+
+`setup1.jld2` stopped 5 decades earlier: `setup2.jld2` is the same sweep with
+`T=1e7`.
+
+Everything else, `seed` included, is the shared `SWEEP`, so `make_setup`
+redraws the byte-identical u0s and row i of setup2 is row i of setup1 - the
+same trajectory, just cut short. That makes main2 a prefix of main1 rather than
+an independent run, so the two can be compared row by row.
+
+T is not a `run_pde_setup` argument - it is carried per row in the setup's
+`pde_df` - which is why changing it needs a second setup file rather than a
+second main.
+"""
+make_setup2() = make_setup("setup2.jld2"; SWEEP..., T=1e7)
 
 """
     main1()
 
-The full run: all 72 rows of `setup1.jld2`, one thread each, into `main1/`.
+The full run: all 72 rows of `setup1.jld2` to T=1e12, one thread each, into
+`main1/`.
 
 Same solver settings as run1. Coarsening from 100 peaks takes many more merge
 events than from 10, so these runs are longer; `maxtime` caps a row at 1h and
@@ -67,6 +87,29 @@ marks it `retcode == MaxTime`, which a plain rerun will skip - pass
 """
 function main1()
     run_pde_setup("setup1.jld2", "main1";
+        save_step=20,
+        abstol=1e-7,
+        reltol=1e-9,
+        maxtime=60 * 60,
+        run_threads=nthreads(),
+        solver_threads=nothing,
+    )
+end
+
+"""
+    main2()
+
+The same 72 rows to T=1e7 instead of 1e12, into `main2/`.
+
+Separate output directory and separate setup file, so this can run alongside
+main1 on another node without either touching the other's files.
+
+Solver settings are main1's unchanged. `maxtime` stays at 1h even though these
+rows should come nowhere near it: at T=1e7 the cost is set by how far the
+integration gets, and the whole point is that it stops early.
+"""
+function main2()
+    run_pde_setup("setup2.jld2", "main2";
         save_step=20,
         abstol=1e-7,
         reltol=1e-9,
