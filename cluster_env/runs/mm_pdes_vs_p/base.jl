@@ -7,6 +7,9 @@ using ProgressMeter
 using JLD2
 using Random
 using DataFrames, DataFramesMeta
+using LinearAlgebra
+
+BLAS.set_num_threads(1)
 
 ################################################################################
 # Stage 1: the setup - homogeneous steady state, linstab, L and the u0s
