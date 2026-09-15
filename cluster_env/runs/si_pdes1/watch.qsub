@@ -1,0 +1,21 @@
+#!/bin/bash -l
+#$ -N si_watch
+#$ -cwd
+#$ -l h_rt=13:00:00
+#$ -l mem=1G
+
+EMAIL=kockahonza@gmail.com
+D=$HOME/SSMC/cluster_env/runs/si_pdes1/main1
+JOB=182920
+for i in $(seq 1 13); do
+  sleep 3600
+  N=$(ls $D 2>/dev/null | grep -c "^row")
+  if qstat -j $JOB >/dev/null 2>&1; then ST=running; else ST=FINISHED; fi
+  {
+    echo "time:  $(date)"; echo "job $JOB: $ST"; echo "rows:  $N/9"; echo
+    ls -la $D 2>/dev/null
+    echo; echo "--- stdout tail ---"
+    tail -5 $HOME/SSMC/cluster_env/runs/si_pdes1/si_pdes1.o$JOB 2>/dev/null | tr '\r' '\n' | grep -v "^Progress" | tail -3
+  } | mail -s "Myriad si_pdes1: $N/9 rows, $ST" $EMAIL
+  [ "$ST" = "FINISHED" ] && break
+done

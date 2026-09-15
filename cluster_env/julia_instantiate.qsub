@@ -1,0 +1,8 @@
+#!/bin/bash -l
+#$ -N julia_instantiate
+#$ -cwd
+
+#$ -l h_rt=0:30:00
+#$ -pe smp 4
+
+time julia -t $NSLOTS --project -e 'using Pkg; Pkg.instantiate(), Pkg.precompile()'
