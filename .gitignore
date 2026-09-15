@@ -32,6 +32,3 @@ __pycache__/
 
 # Don't track nested git repos
 latex_and_diagrams/overleaf_CRLS_git
-
-# rest/ scratch area - kept locally only
-/rest/
