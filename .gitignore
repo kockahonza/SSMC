@@ -7,6 +7,10 @@ cluster_env/runs/**/*.jld2
 cluster_env/runs/**/*.out
 cluster_env/runs/**/.*
 
+# SGE job logs on Myriad (<jobname>.e<jobid> / .o<jobid>)
+cluster_env/**/*.e[0-9]*
+cluster_env/**/*.o[0-9]*
+
 notebooks/**/*.jld2
 notebooks/**/*.h5
 
