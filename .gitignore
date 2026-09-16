@@ -14,6 +14,14 @@ cluster_env/**/*.o[0-9]*
 notebooks/**/*.jld2
 notebooks/**/*.h5
 
+# Vendored third-party clones in rest/ - large data kept on disk only.
+# See rest/microbiome-patterns/README.md for how to re-download or regenerate each.
+rest/microbiome-patterns/data/
+rest/microbiome-patterns/env1/
+rest/microbiome-patterns/micrm_params_used/
+rest/**/*.egg-info/
+rest/**/.jupyter/
+
 # Python bytecode caches
 __pycache__/
 *.pyc
