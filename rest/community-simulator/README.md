@@ -1,5 +1,18 @@
 # community-simulator
 
+> **Vendored into the SSMC repo — this block is an SSMC note, not part of upstream.**
+>
+> Upstream: <https://github.com/Emergent-Behaviors-in-Biology/community-simulator>
+> at commit `92e50d1b4a44c521a1d5e321f70d25c228d4e4b8` ("Fix errors from updating from
+> pandas 2.0 to 3.0", 2024-10-31), the upstream tip when this copy was taken. Contents
+> are pristine upstream - nothing here was modified. The clone's own `.git` was deleted:
+> no updates are taken and nothing is pushed back.
+>
+> **There are deliberately two copies of this package in `rest/`, do not deduplicate
+> them.** This one is the current upstream tip, used with a modern Python. The other,
+> `rest/microbiome-patterns/community-simulator`, is pinned four years earlier at
+> `3c10480` to match that paper's Python 3.6 environment.
+
 ## Introduction
 This package is designed for simulating batch culture experiments on complex microbial communities. The architecture is based on the standard protocol for these experiments:
 - Add media to each of the wells in a 96-well plate. It could be the same media for all wells, or different media for each well, depending on what the experimenter is trying to test.
