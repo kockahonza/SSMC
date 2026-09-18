@@ -135,6 +135,52 @@ end
 export fr3_beta1_complex
 
 ################################################################################
+# FR instability condition, full and final
+################################################################################
+function fr3_lstar(p, gamma)
+    if p < 1
+        p / (p + gamma)
+    else
+        S2 = gamma^2 + 4 * p * gamma * (p - 1)
+        @assert S2 > 0
+        S = sqrt(S2)
+        (2 * p - gamma + S) / (2 * p + gamma + S)
+    end
+end
+export fr3_lstar
+
+function fr3_beta_viable(l, gamma)
+    if l < (1 / (1 + gamma))
+        1 / (1 - l)
+    else
+        (sqrt(l) + sqrt(l + gamma - 1))^2 / gamma
+    end
+end
+export fr3_beta_viable
+
+function fr3_beta_c(l, gamma, p)
+    xx = gamma - p * (1 - l)
+    (gamma * l + p * (1 - l) * (gamma - 1)) / (p * (1 - l) * xx)
+end
+export fr3_beta_c
+
+function fr3_beta_c_qualified(l, gamma, p)
+    lstar = fr3_lstar(p, gamma)
+    if l > lstar
+        fr3_beta_c(l, gamma, p)
+    else
+        missing
+    end
+end
+export fr3_beta_c_qualified
+
+"""In the limit of gamma >> p(1-l)"""
+function fr3_beta_c_approx1(l, p)
+    1 + l / (p * (1 - l))
+end
+export fr3_beta_c_approx1
+
+################################################################################
 # FR dispersion relation
 ################################################################################
 function fr3_disprel_simple(mmp::MMParams, DN, DI, DR, Nss, ks)

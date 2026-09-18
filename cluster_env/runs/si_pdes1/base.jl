@@ -22,38 +22,6 @@ using LinearAlgebra
 BLAS.set_num_threads(1)
 
 ################################################################################
-# ODE solving
-################################################################################
-"""
-    make_stagnation_callback(ps, resid_floor; check_every, t_start)
-
-Terminate with `ReturnCode.Stalled` once the residual stops falling. Every
-`check_every` steps we track the smallest `max|du|` seen so far and each time `t`
-crosses another decade we give up if that minimum has not dropped 10x and is
-still above `resid_floor`. Comparing across decades of `t` rather than fixed
-windows keeps slow transients from tripping it, and gating on `resid_floor`
-means it can never cut short a run whose residual is already good enough.
-Holds mutable state, so make a fresh one per run.
-"""
-function make_stagnation_callback(ps, resid_floor; check_every=1000, t_start=10.)
-    du = zeros(sum(get_Ns(ps)))
-    n, tnext, rmin, rprev = 0, t_start, Inf, Inf
-    DiscreteCallback(
-        function (u, t, _)
-            ((n += 1) % check_every == 0 && t > t_start) || return false
-            mmicrmfunc!(du, u, ps)
-            rmin = min(rmin, maximum(abs, du))
-            t < tnext && return false
-            stalled = (rmin > 0.1 * rprev) && (rmin > resid_floor)
-            rprev, rmin, tnext = rmin, Inf, 10 * tnext
-            stalled
-        end,
-        i -> terminate!(i, ReturnCode.Stalled);
-        save_positions=(false, false),
-    )
-end
-
-################################################################################
 # Cluster stage: generate SI systems and find their well-mixed steady states
 ################################################################################
 """

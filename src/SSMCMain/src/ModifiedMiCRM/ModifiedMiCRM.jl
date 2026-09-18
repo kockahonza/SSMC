@@ -295,8 +295,8 @@ l(x) = 1 - e(x)
 ltox(l) = log(l / (1 - l))
 etox(e) = -log(e / (1 - e))
 
-exticks(es) = (etox.(es), [@sprintf("%.2f", e) for e in es])
-lxticks(ls) = (ltox.(ls), [@sprintf("%.2f", l) for l in ls])
+exticks(es; fmt="%.2f") = (etox.(es), [Printf.format(Printf.Format(fmt), e) for e in es])
+lxticks(ls; fmt="%.2f") = (ltox.(ls), [Printf.format(Printf.Format(fmt), l) for l in ls])
 
 """
 `n` minor ticks between each pair of neighbouring major ticks, spaced linearly in

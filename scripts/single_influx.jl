@@ -138,42 +138,6 @@ function do_df_run2(Ks, N, B;
     )
 end
 
-function gendata1()
-    fname = joinpath("./gd1_" * timestamp() * ".jld2")
-
-    N = 10
-    M = N
-    B = 3
-
-    # lis = 1.0:-0.02:0.8
-    # lis = [1., 0.99, 0.9, 0.8]
-    lis = [1.0, 0.9]
-    Ks = 10 .^ range(-0.5, 4.0, 10)
-
-    raw_dfs = []
-    counts_dfs = []
-    for li in lis
-        @show li
-        flush(stdout)
-        df, cms = do_df_run(Ks, N;
-            M, pei=1.0,
-            linflux=li,
-            cinflux=1.0, pe=(B / M),
-            l=0.0,
-            c=1.0, num_byproducts=B, num_repeats=50,
-            lsks=10 .^ range(-5, 3, 2000),
-        )
-        push!(raw_dfs, df)
-        push!(counts_dfs, make_counts_df(df))
-    end
-
-    jldsave(fname;
-        N, M, B, lis, Ks, raw_dfs, counts_dfs
-    )
-
-    fname
-end
-
 ################################################################################
 # Processing data
 ################################################################################
