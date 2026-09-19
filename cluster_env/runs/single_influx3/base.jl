@@ -12,7 +12,7 @@ function do_Kli_run(Ks, lis, num_repeats;
     abstol=100 * tol,
     reltol=tol,
     maxtime=30.,
-    extinction_threshold=10 * abstol,
+    extinction_threshold=abstol,
     maxresid_threshold=10 * abstol,
     save_all_ps=false,
     # linear stability ks/qs to test at
@@ -86,6 +86,7 @@ function do_Kli_run(Ks, lis, num_repeats;
                     -1
                 elseif maxresids[row_i] > maxresid_threshold
                     save_ps = true
+                    @printf "Bad converged, max strain biomass: %.5g, extinction_threshold is %.5g\n" maximum(ss[1:N]) extinction_threshold
                     -3
                 elseif maximum(ss[1:N]) < extinction_threshold
                     1
