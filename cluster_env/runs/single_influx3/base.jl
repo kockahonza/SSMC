@@ -12,7 +12,8 @@ function do_Kli_run(Ks, lis, num_repeats;
     abstol=100 * tol,
     reltol=tol,
     maxtime=30.,
-    extinction_threshold=abstol,
+    extinction_threshold=10 * abstol,
+    maxresid_threshold=10 * abstol,
     save_all_ps=false,
     # linear stability ks/qs to test at
     ls_threshold=tol,
@@ -28,7 +29,7 @@ function do_Kli_run(Ks, lis, num_repeats;
         Ks, lis, num_repeats,
         DN, rsg_kwargs,
         N, M, u0,
-        T, solver, tol, abstol, reltol, maxtime, extinction_threshold, save_all_ps,
+        T, solver, tol, abstol, reltol, maxtime, extinction_threshold, maxresid_threshold, save_all_ps,
         lsks
     )
 
@@ -48,6 +49,7 @@ function do_Kli_run(Ks, lis, num_repeats;
     codes = Vector{Int}(undef, num_runs)
 
     row_i_ = 1
+    prog = Progress(num_runs, length(Ks) * length(lis))
     for Ki in 1:length(Ks)
         for lii in 1:length(lis)
             K = Ks[Ki]
@@ -83,6 +85,9 @@ function do_Kli_run(Ks, lis, num_repeats;
                 code = if sol.retcode != ReturnCode.Success
                     save_ps = true
                     -1
+                elseif maxresids[row_i] > maxresid_threshold
+                    save_ps = true
+                    -3
                 elseif maximum(ss[1:N]) < extinction_threshold
                     1
                 else # do linear stability analysis
@@ -109,8 +114,12 @@ function do_Kli_run(Ks, lis, num_repeats;
             end
 
             row_i_ += num_repeats
+            next!(prog)
+            flush(stdout)
         end
     end
+    finish!(prog)
+    flush(stdout)
 
     df = DataFrame(;
         Kis,
@@ -132,7 +141,9 @@ function main1()
     leak_xs = range(0.0, LeakageScale.ltox(0.999), 30)
     lis = LeakageScale.l.(leak_xs)
 
-    df, metadata = do_Kli_run(Ks, lis, 110
+    df, metadata = do_Kli_run(Ks, lis, 110;
+        T=1e6,
+        maxtime=120,
     )
     jldsave("./main1.jld2"; df, metadata)
 end
