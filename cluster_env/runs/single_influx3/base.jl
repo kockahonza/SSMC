@@ -12,7 +12,8 @@ function do_Kli_run(Ks, lis, num_repeats;
     abstol=100 * tol,
     reltol=tol,
     maxtime=30.,
-    extinction_threshold=abstol,
+    use_extinction_callback=false,
+    extinction_threshold=10 * abstol,
     maxresid_threshold=10 * abstol,
     save_all_ps=false,
     # linear stability ks/qs to test at
@@ -29,7 +30,7 @@ function do_Kli_run(Ks, lis, num_repeats;
         Ks, lis, num_repeats,
         DN, rsg_kwargs,
         N, M, u0,
-        T, solver, tol, abstol, reltol, maxtime, extinction_threshold, maxresid_threshold, save_all_ps,
+        T, solver, tol, abstol, reltol, maxtime, use_extinction_callback, extinction_threshold, maxresid_threshold, save_all_ps,
         lsks
     )
 
@@ -67,8 +68,8 @@ function do_Kli_run(Ks, lis, num_repeats;
                     save_everystep=false,
                     callback=CallbackSet(
                         make_timer_callback(maxtime),
-                        make_ode_extinction_exit_callback(N, extinction_threshold),
                         PositiveDomain(copy(u0); save=false),
+                        use_extinction_callback ? make_ode_extinction_exit_callback(N, extinction_threshold) : nothing,
                     ),
                     abstol=abstol,
                     reltol=reltol,
@@ -86,7 +87,7 @@ function do_Kli_run(Ks, lis, num_repeats;
                     -1
                 elseif maxresids[row_i] > maxresid_threshold
                     save_ps = true
-                    @printf "Bad converged, max strain biomass: %.5g, extinction_threshold is %.5g\n" maximum(ss[1:N]) extinction_threshold
+                    @printf "Bad convergence, max strain biomass: %.5g, extinction_threshold is %.5g\n" maximum(ss[1:N]) extinction_threshold
                     -3
                 elseif maximum(ss[1:N]) < extinction_threshold
                     1
@@ -141,7 +142,7 @@ function main1()
     lis = LeakageScale.l.(leak_xs)
 
     df, metadata = do_Kli_run(Ks, lis, 120;
-        T=1e7,
+        T=1e6,
         maxtime=120,
     )
     jldsave("./main1.jld2"; df, metadata)
