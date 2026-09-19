@@ -49,7 +49,7 @@ function do_Kli_run(Ks, lis, num_repeats;
     codes = Vector{Int}(undef, num_runs)
 
     row_i_ = 1
-    prog = Progress(num_runs, length(Ks) * length(lis))
+    prog = Progress(length(Ks) * length(lis))
     for Ki in 1:length(Ks)
         for lii in 1:length(lis)
             K = Ks[Ki]
