@@ -49,7 +49,6 @@ function do_Kli_run(Ks, lis, num_repeats;
     codes = Vector{Int}(undef, num_runs)
 
     row_i_ = 1
-    prog = Progress(length(Ks) * length(lis))
     for Ki in 1:length(Ks)
         for lii in 1:length(lis)
             K = Ks[Ki]
@@ -113,13 +112,12 @@ function do_Kli_run(Ks, lis, num_repeats;
                 codes[row_i] = code
             end
 
-            row_i_ += num_repeats
-            next!(prog)
+            @show countmap(codes[rows])
             flush(stdout)
+
+            row_i_ += num_repeats
         end
     end
-    finish!(prog)
-    flush(stdout)
 
     df = DataFrame(;
         Kis,
