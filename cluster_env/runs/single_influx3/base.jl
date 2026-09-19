@@ -112,7 +112,7 @@ function do_Kli_run(Ks, lis, num_repeats;
                 codes[row_i] = code
             end
 
-            @show countmap(codes[rows])
+            @show (K, li, countmap(codes[rows]))
             flush(stdout)
 
             row_i_ += num_repeats
@@ -139,8 +139,8 @@ function main1()
     leak_xs = range(0.0, LeakageScale.ltox(0.999), 30)
     lis = LeakageScale.l.(leak_xs)
 
-    df, metadata = do_Kli_run(Ks, lis, 110;
-        T=1e6,
+    df, metadata = do_Kli_run(Ks, lis, 120;
+        T=1e7,
         maxtime=120,
     )
     jldsave("./main1.jld2"; df, metadata)
