@@ -87,7 +87,6 @@ function do_Kli_run(Ks, lis, num_repeats;
                     -1
                 elseif maxresids[row_i] > maxresid_threshold
                     save_ps = true
-                    @printf "Bad convergence, max strain biomass: %.5g, extinction_threshold is %.5g\n" maximum(ss[1:N]) extinction_threshold
                     -3
                 elseif maximum(ss[1:N]) < extinction_threshold
                     1
@@ -136,6 +135,25 @@ function do_Kli_run(Ks, lis, num_repeats;
     df, metadata
 end
 
+function make_count_matrices(df)
+    Kis = 1:maximum(df.Kis)
+    numKs = length(Kis)
+    liis = 1:maximum(df.liis)
+    numlis = length(liis)
+
+    codes = sort(unique(df.codes))
+    matrices = Dict{Int,Matrix{Int}}()
+    for code in codes
+        mat = matrices[code] = zeros(Int, numKs, numlis)
+        for r in eachrow(df)
+            if r.codes == code
+                mat[r.Kis, r.liis] += 1
+            end
+        end
+    end
+    matrices
+end
+
 function main1()
     Ks = 10 .^ range(-0.5, 4.0, 50)
     leak_xs = range(0.0, LeakageScale.ltox(0.999), 30)
@@ -172,4 +190,17 @@ function main3_NM10()
         rsg_kwargs=(; N=10, M=10)
     )
     jldsave("./main3_NM10.jld2"; df, metadata)
+end
+
+function main4_NM50()
+    Ks = 10 .^ range(0., 3.5, 20)
+    leak_xs = range(0.0, LeakageScale.ltox(0.999), 10)
+    lis = LeakageScale.l.(leak_xs)
+
+    df, metadata = do_Kli_run(Ks, lis, 120;
+        T=1e6,
+        maxtime=120,
+        rsg_kwargs=(; N=50, M=50)
+    )
+    jldsave("./main4_NM50.jld2"; df, metadata)
 end
