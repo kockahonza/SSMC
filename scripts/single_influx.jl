@@ -193,7 +193,7 @@ function make_Kli_matrix(f)
     lis = f["lis"]
     rdfs = f["raw_dfs"]
 
-    rslt = Matrix{@NamedTuple{extinct::Int64, nonext_stable::Int64, nonext_unstable::Int64, bad_ss::Int64, good_ss_bad_ls::Int64, num_runs::Int64}}(undef, length(Ks), length(lis))
+    rslt = Matrix{@NamedTuple{extinct::Int64,nonext_stable::Int64,nonext_unstable::Int64,bad_ss::Int64,good_ss_bad_ls::Int64,num_runs::Int64}}(undef, length(Ks), length(lis))
     pb = Progress(length(rslt))
     for j in 1:length(lis)
         li = lis[j]
@@ -266,7 +266,7 @@ function make_Kli_matrix_raw(f)
             end
 
             num_runs = nrow(sdf)
-            
+
             data = map(eachrow(sdf)) do r
                 linstab_outcome = if r.sscode == 1
                     if r.lscode == 1
@@ -309,6 +309,7 @@ function get_si_sampler_for_paper(K, li, DN=0.;
     m=base10_lognormal(0.0, 0.001),
     c=base10_lognormal(0.0, 0.001),
     cinflux=base10_lognormal(0.0, 0.001),
+    overrides=(;),
 )
     JansSampler3(N, M;
         K,
@@ -324,5 +325,6 @@ function get_si_sampler_for_paper(K, li, DN=0.;
         Ds=DN,
         Dr=DR,
         Drinflux=1.0,
+        overrides...
     )
 end
