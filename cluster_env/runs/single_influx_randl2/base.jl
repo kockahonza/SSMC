@@ -11,6 +11,9 @@ function beta_from_mean_std(mu, sigma)
     nu = mu * (1 - mu) / sigma^2 - 1  # alpha + beta
     Beta(mu * nu, (1 - mu) * nu)
 end
+function beta_from_mean_sigmaf(mu, sigmaf)
+    ldist = beta_from_mean_std(mu, max_sigma_not_bimodal(mu) * sigmaf)
+end
 
 max_allowable_sigma(mu) = sqrt(mu * (1 - mu))
 function max_sigma_for_unimodal(mu)
@@ -40,7 +43,8 @@ function do_run_Klrand2(Ks, lmeans, lsigmafs, num_repeats;
     ls_threshold=tol,
     lsks=10 .^ range(-5, 3, 2000),
 )
-    num_runs = length(Ks) * length(lmeans) * length(lsigmafs) * num_repeats
+    numKs, numlmeans, numlsigmafs = length(Ks), length(lmeans), length(lsigmafs)
+    num_runs = numKs * numlmeans * numlsigmafs * num_repeats
 
     N = haskey(rsg_kwargs, :N) ? rsg_kwargs[:N] : 20
     M = haskey(rsg_kwargs, :M) ? rsg_kwargs[:M] : N
@@ -70,83 +74,79 @@ function do_run_Klrand2(Ks, lmeans, lsigmafs, num_repeats;
     # outcome code
     codes = Vector{Int}(undef, num_runs)
 
-    row_i_ = 1
-    for Ki in 1:length(Ks)
-        for lmeani in 1:length(lmeans)
-            for lsigmafi in 1:length(lsigmafs)
-                K = Ks[Ki]
-                lmean = lmeans[lmeani]
-                lsigmaf = lsigmafs[lsigmafi]
+    rsgs = Array{JansSampler3}(undef, numKs, numlmeans, numlsigmafs)
+    for Ki in 1:numKs, lmeani in 1:numlmeans, lsigmafi in 1:numlsigmafs
+        ldist = beta_from_mean_sigmaf(lmeans[lmeani], lsigmafs[lsigmafi])
+        rsgs[Ki, lmeani, lsigmafi] = get_si_sampler_for_paper(Ks[Ki], ldist, DN; rsg_kwargs...)
+    end
 
-                lsigma = lsigmaf * max_sigma_not_bimodal(lmean)
-                ldist = beta_from_mean_std(lmean, lsigma)
-                rsg = get_si_sampler_for_paper(K, ldist, DN; rsg_kwargs...)
+    cis = CartesianIndices((numKs, numlmeans, numlsigmafs, num_repeats))
+    pb = Progress(num_runs)
+    @tasks for row_i in 1:num_runs
+        @set scheduler = :greedy
 
-                rows = row_i_:(row_i_+num_repeats-1)
-                @tasks for row_i in rows
-                    @set scheduler = :greedy
-                    ps = rsg()
-                    save_ps = save_all_ps
+        Ki, lmeani, lsigmafi, _ = Tuple(cis[row_i])
+        rsg = rsgs[Ki, lmeani, lsigmafi]
 
-                    prob = make_mmicrm_problem(ps.mmicrm_params, copy(u0), T)
-                    sol = solve(prob, solver();
-                        dense=false,
-                        save_everystep=false,
-                        callback=CallbackSet(
-                            make_timer_callback(maxtime),
-                            PositiveDomain(copy(u0); save=false),
-                            use_extinction_callback ? make_ode_extinction_exit_callback(N, extinction_threshold) : nothing,
-                        ),
-                        abstol=abstol,
-                        reltol=reltol,
-                    )
-                    ss = sol.u[end]
+        ps = rsg()
+        save_ps = save_all_ps
 
-                    retcodes[row_i] = sol.retcode
-                    final_Ts[row_i] = sol.t[end]
-                    maxresids[row_i] = mmicrmmaxresid(sol)
-                    num_iters[row_i] = sol.stats.naccept
-                    final_states[row_i] = ss
+        prob = make_mmicrm_problem(ps.mmicrm_params, copy(u0), T)
+        sol = solve(prob, solver();
+            dense=false,
+            save_everystep=false,
+            callback=CallbackSet(
+                make_timer_callback(maxtime),
+                PositiveDomain(copy(u0); save=false),
+                use_extinction_callback ? make_ode_extinction_exit_callback(N, extinction_threshold) : nothing,
+            ),
+            abstol=abstol,
+            reltol=reltol,
+        )
+        ss = sol.u[end]
 
-                    code = if sol.retcode != ReturnCode.Success
-                        save_ps = true
-                        -1
-                    elseif maxresids[row_i] > maxresid_threshold
-                        save_ps = true
-                        -3
-                    elseif maximum(ss[1:N]) < extinction_threshold
-                        1
-                    else # do linear stability analysis
-                        M1 = make_M1(ps, ss)
-                        if maximum(real, eigvals(M1)) > -ls_threshold # the system is ecologically unstable in the well-mixed case
-                            -2
-                        else
-                            ls_code = 2
-                            for k in lsks
-                                M_ = M1_to_M(M1, ps.Ds, k)
-                                if maximum(real, eigvals(M_)) > ls_threshold # found a spatial instability
-                                    ls_code = 3
-                                    break
-                                end
-                            end
-                            ls_code
-                        end
+        retcodes[row_i] = sol.retcode
+        final_Ts[row_i] = sol.t[end]
+        maxresids[row_i] = mmicrmmaxresid(sol)
+        num_iters[row_i] = sol.stats.naccept
+        final_states[row_i] = ss
+
+        code = if sol.retcode != ReturnCode.Success
+            save_ps = true
+            -1
+        elseif maxresids[row_i] > maxresid_threshold
+            save_ps = true
+            -3
+        elseif maximum(ss[1:N]) < extinction_threshold
+            1
+        else # do linear stability analysis
+            M1 = make_M1(ps, ss)
+            if maximum(real, eigvals(M1)) > -ls_threshold # the system is ecologically unstable in the well-mixed case
+                -2
+            else
+                ls_code = 2
+                for k in lsks
+                    M_ = M1_to_M(M1, ps.Ds, k)
+                    if maximum(real, eigvals(M_)) > ls_threshold # found a spatial instability
+                        ls_code = 3
+                        break
                     end
-
-                    Kis[row_i] = Ki
-                    lmeanis[row_i] = lmeani
-                    lsigmafis[row_i] = lsigmafi
-                    params[row_i] = save_ps ? ps : nothing
-                    codes[row_i] = code
                 end
-
-                @show (K, lmean, lsigmaf, countmap(codes[rows]))
-                flush(stdout)
-
-                row_i_ += num_repeats
+                ls_code
             end
         end
+
+        Kis[row_i] = Ki
+        lmeanis[row_i] = lmeani
+        lsigmafis[row_i] = lsigmafi
+        params[row_i] = save_ps ? ps : nothing
+        codes[row_i] = code
+
+        next!(pb)
+        flush(stdout)
     end
+    finish!(pb)
+    flush(stdout)
 
     df = DataFrame(;
         Kis,
@@ -173,7 +173,7 @@ function make_count_arrays(df)
     numlsigmafs = length(lsigmafis)
 
     codes = sort(unique(df.codes))
-    matrices = Dict{Int,Matrix{Int}}()
+    matrices = Dict{Int,Array{Int,3}}()
     for code in codes
         mat = matrices[code] = zeros(Int, numKs, numlmeans, numlsigmafs)
         for r in eachrow(df)
@@ -196,4 +196,18 @@ function main1()
         rsg_kwargs=(;)
     )
     jldsave("./main1.jld2"; df, metadata)
+end
+
+function main2()
+    Ks = 10 .^ range(0., 3.5, 30)
+    leak_xs = range(0.0, LeakageScale.ltox(0.999), 15)
+    lmeans = LeakageScale.l.(leak_xs)
+    lsigmafactors = range(3e-2, 1/sqrt(3), 4) .^ 2
+
+    df, metadata = do_run_Klrand2(Ks, lmeans, lsigmafactors, 150;
+        T=1e6,
+        maxtime=120,
+        rsg_kwargs=(;)
+    )
+    jldsave("./main2.jld2"; df, metadata)
 end
