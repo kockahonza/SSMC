@@ -42,3 +42,25 @@ function rsg_stats1(rsg)
     f
 end
 export rsg_stats1
+
+"""
+Uniform in logit space between lo and hi, for sampling l values near 1.
+Only quantile and pdf are defined, rand falls back on quantile.
+"""
+struct LogitUniform <: ContinuousUnivariateDistribution
+    lo::Float64
+    hi::Float64
+end
+_logit(p) = log(p / (1 - p))
+function Distributions.quantile(d::LogitUniform, q::Real)
+    llo, lhi = _logit(d.lo), _logit(d.hi)
+    1 / (1 + exp(-(llo + q * (lhi - llo))))
+end
+function Distributions.pdf(d::LogitUniform, x::Real)
+    if d.lo <= x <= d.hi
+        1 / ((_logit(d.hi) - _logit(d.lo)) * x * (1 - x))
+    else
+        0.0
+    end
+end
+export LogitUniform

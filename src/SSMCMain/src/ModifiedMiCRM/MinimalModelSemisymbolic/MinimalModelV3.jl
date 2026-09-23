@@ -158,27 +158,27 @@ function fr3_beta_viable(l, gamma)
 end
 export fr3_beta_viable
 
-function fr3_beta_c(l, gamma, p)
+function fr3_beta_s(l, gamma, p)
     xx = gamma - p * (1 - l)
     (gamma * l + p * (1 - l) * (gamma - 1)) / (p * (1 - l) * xx)
 end
-export fr3_beta_c
+export fr3_beta_s
 
-function fr3_beta_c_qualified(l, gamma, p)
+function fr3_beta_s_qualified(l, gamma, p)
     lstar = fr3_lstar(p, gamma)
     if l > lstar
-        fr3_beta_c(l, gamma, p)
+        fr3_beta_s(l, gamma, p)
     else
         missing
     end
 end
-export fr3_beta_c_qualified
+export fr3_beta_s_qualified
 
 """In the limit of gamma >> p(1-l)"""
-function fr3_beta_c_approx1(l, p)
+function fr3_beta_s_approx1(l, p)
     1 + l / (p * (1 - l))
 end
-export fr3_beta_c_approx1
+export fr3_beta_s_approx1
 
 ################################################################################
 # FR dispersion relation
