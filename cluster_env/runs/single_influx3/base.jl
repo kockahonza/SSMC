@@ -269,3 +269,71 @@ function main9_B4()
     )
     jldsave("./main9_B4.jld2"; df, metadata)
 end
+
+function main10_fs1_N5()
+    Ks = 10 .^ range(0., 3.5, 30)
+    leak_xs = range(0.0, LeakageScale.ltox(0.999), 10)
+    lis = LeakageScale.l.(leak_xs)
+
+    N = 5
+    s = (3 / 10) # a sparsity, same as pe (probability of eating) from before
+    B = s * N
+
+    df, metadata = do_Kli_run(Ks, lis, 120;
+        T=1e6,
+        maxtime=120,
+        rsg_kwargs=(; N=N, M=N, B=B)
+    )
+    jldsave("./main10_fs1_N5.jld2"; df, metadata)
+end
+
+function main11_fs1_N10()
+    Ks = 10 .^ range(0., 3.5, 30)
+    leak_xs = range(0.0, LeakageScale.ltox(0.999), 10)
+    lis = LeakageScale.l.(leak_xs)
+
+    N = 10
+    s = (3 / 10) # a sparsity, same as pe (probability of eating) from before
+    B = s * N
+
+    df, metadata = do_Kli_run(Ks, lis, 120;
+        T=1e6,
+        maxtime=120,
+        rsg_kwargs=(; N=N, M=N, B=B)
+    )
+    jldsave("./main11_fs1_N10.jld2"; df, metadata)
+end
+
+function main12_fs1_N15()
+    Ks = 10 .^ range(0., 3.5, 30)
+    leak_xs = range(0.0, LeakageScale.ltox(0.999), 10)
+    lis = LeakageScale.l.(leak_xs)
+
+    N = 15
+    s = (3 / 10) # a sparsity, same as pe (probability of eating) from before
+    B = s * N
+
+    df, metadata = do_Kli_run(Ks, lis, 120;
+        T=1e6,
+        maxtime=120,
+        rsg_kwargs=(; N=N, M=N, B=B)
+    )
+    jldsave("./main12_fs1_N15.jld2"; df, metadata)
+end
+
+function main13_fs1_N20()
+    Ks = 10 .^ range(0., 3.5, 30)
+    leak_xs = range(0.0, LeakageScale.ltox(0.999), 10)
+    lis = LeakageScale.l.(leak_xs)
+
+    N = 20
+    s = (3 / 10) # a sparsity, same as pe (probability of eating) from before
+    B = s * N
+
+    df, metadata = do_Kli_run(Ks, lis, 120;
+        T=1e6,
+        maxtime=120,
+        rsg_kwargs=(; N=N, M=N, B=B)
+    )
+    jldsave("./main13_fs1_N20.jld2"; df, metadata)
+end
