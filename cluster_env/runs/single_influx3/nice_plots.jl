@@ -282,8 +282,9 @@ Draw the per-leakage Unstable-outcome (code 3) proportion-vs-K lines
 (shaded `ci_level` Clopper-Pearson confidence bands, `HypothesisTests.jl`'s
 default `BinomialTest` interval) for outcome matrices `m` (from
 [`load_outcome_matrices`](@ref)) onto `ax`, colour-coded by
-`LeakageScale.ltox(li)`. Returns the `(lo, hi)` colour range used, for
-[`leakage_colorbar!`](@ref).
+`LeakageScale.ltox(li)`. Fixes `ax`'s y-limits to `(0, 1)` (a proportion),
+so plots are comparable across runs instead of each auto-scaling to its own
+peak. Returns the `(lo, hi)` colour range used, for [`leakage_colorbar!`](@ref).
 """
 function draw_unstable!(ax, m; cmap=:viridis, ci_level=0.95)
     Ks = m.Ks
@@ -303,6 +304,7 @@ function draw_unstable!(ax, m; cmap=:viridis, ci_level=0.95)
         band!(ax, Ks, los, his; color, colorrange=crange, colormap=cmap, alpha=0.25)
         lines!(ax, Ks, p; color, colorrange=crange, colormap=cmap)
     end
+    ylims!(ax, 0, 1)
     crange
 end
 
@@ -466,13 +468,14 @@ end
 """
 Data files for [`make_B_results_plots1`](@ref). Add more filenames here as
 new B runs finish — [`get_B`](@ref) sorts them into place automatically.
-Currently running and not yet added: main8_B2.jld2, main9_B4.jld2.
 """
 const B_RESULTS_FILES = [
     "main2_B5.jld2",
     "main5_B1.jld2",
     "main6_B10.jld2",
     "main7_B20.jld2",
+    "main8_B2.jld2",
+    "main9_B4.jld2",
 ]
 
 """
@@ -494,7 +497,7 @@ end
 """
 Data files for [`make_fs1_Nrun1`](@ref) — the fixed-sparsity (`s=0.3`),
 varying `N=M` runs. Add more filenames here as new N runs finish; sorted by
-`N` automatically. Currently running: main10-13 (N=5,10,15,20).
+`N` automatically.
 """
 const FS1_NRUN1_FILES = [
     "main10_fs1_N5.jld2",
