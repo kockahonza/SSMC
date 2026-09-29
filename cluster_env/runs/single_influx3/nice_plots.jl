@@ -468,13 +468,8 @@ end
 """
 Data files for [`make_B_results_plots1`](@ref). Add more filenames here as
 new B runs finish — [`get_B`](@ref) sorts them into place automatically.
-Includes main1.jld2 for the default B=3, even though its (K, leakage) grid
-is finer and wider-ranged (50x30 vs the others' 20x10) — `draw_outcome!`/
-`draw_unstable!` read each row's own `Ks`/`lis` from its own metadata, so
-mismatched grids between rows aren't a problem.
 """
 const B_RESULTS_FILES = [
-    "main1.jld2",
     "main2_B5.jld2",
     "main5_B1.jld2",
     "main6_B10.jld2",
