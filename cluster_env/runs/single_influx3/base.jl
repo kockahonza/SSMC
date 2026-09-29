@@ -204,3 +204,42 @@ function main4_NM50()
     )
     jldsave("./main4_NM50.jld2"; df, metadata)
 end
+
+function main5_B1()
+    Ks = 10 .^ range(0., 3.5, 20)
+    leak_xs = range(0.0, LeakageScale.ltox(0.999), 10)
+    lis = LeakageScale.l.(leak_xs)
+
+    df, metadata = do_Kli_run(Ks, lis, 120;
+        T=1e6,
+        maxtime=120,
+        rsg_kwargs=(; B=1)
+    )
+    jldsave("./main5_B1.jld2"; df, metadata)
+end
+
+function main6_B10()
+    Ks = 10 .^ range(0., 3.5, 20)
+    leak_xs = range(0.0, LeakageScale.ltox(0.999), 10)
+    lis = LeakageScale.l.(leak_xs)
+
+    df, metadata = do_Kli_run(Ks, lis, 120;
+        T=1e6,
+        maxtime=120,
+        rsg_kwargs=(; B=10)
+    )
+    jldsave("./main6_B10.jld2"; df, metadata)
+end
+
+function main7_B20()
+    Ks = 10 .^ range(0., 3.5, 20)
+    leak_xs = range(0.0, LeakageScale.ltox(0.999), 10)
+    lis = LeakageScale.l.(leak_xs)
+
+    df, metadata = do_Kli_run(Ks, lis, 120;
+        T=1e6,
+        maxtime=120,
+        rsg_kwargs=(; B=20)
+    )
+    jldsave("./main7_B20.jld2"; df, metadata)
+end
