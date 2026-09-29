@@ -1,0 +1,266 @@
+"""
+nice_plots.jl
+
+Standalone plotting for the (K, leakage) grid runs produced by `do_Kli_run` in
+`cluster_env/runs/single_influx3/base.jl` (and its siblings) — i.e. any
+`main*.jld2` file holding a `df` with `Kis`/`liis`/`codes` columns and a
+`metadata` with `Ks`/`lis`.
+
+Outcome codes, per `do_Kli_run`:
+  1  => extinct
+  2  => stable (well-mixed AND spatially stable)
+  3  => spatially unstable (well-mixed stable, unstable to some wavenumber)
+ -1  => solver did not return Success
+ -2  => well-mixed unstable
+ -3  => residual too high (not converged)
+`-1`/`-2`/`-3` are lumped together below as "Bad".
+
+Produces, into a single output directory named `<base>_plots` by default
+(`<base>` = the data file's name without extension):
+  - `<base>_outcomes.pdf`     ternary-coloured Extinct/Stable/Unstable scatter
+                              over the (K, leakage) grid, with the analytic
+                              beta_v/beta_s boundary curves overlaid
+  - `<base>_proportions.pdf`  grid of Extinct/Stable/Unstable/Bad proportion-vs-K
+                              panels, one panel per leakage value
+
+Use from the command line:
+
+    julia --project scripts/nice_plots.jl path/to/main2_B5.jld2 [outdir]
+
+or `include` this file into a notebook and call `outcome_plot`,
+`proportions_plot`, or `nice_plots` directly — including it does not run
+anything or touch the active Makie backend by itself; each plotting function
+switches to CairoMakie itself right before drawing (reactivate GLMakie
+afterwards if you need it for interactive work).
+"""
+
+using JLD2
+using DataFrames
+using CairoMakie
+using Printf
+using SSMCMain, SSMCMain.ModifiedMiCRM
+import SSMCMain.ModifiedMiCRM.MinimalModelV3
+
+const EXTINCT_CODE = 1
+const STABLE_CODE = 2
+const UNSTABLE_CODE = 3
+const BAD_CODES = (-1, -2, -3)
+
+# Plain colorant"..." strings and RGBf are re-exported by CairoMakie itself, so
+# these don't need Colors as a direct dependency — deliberately not reusing
+# scripts/ternary_colormap.jl here since its explicit `using Colors` fails
+# under cluster_env/Project.toml (Colors is only a transitive dependency
+# there), which is the environment these plots actually get made under.
+const extinct_color = colorant"#898989"
+const stable_color = colorant"#1b9e77"
+const unstable_color = colorant"#d95f02"
+const bad_color = colorant"#000000"
+
+"""
+    ternary_blend(e, s, u)
+
+Simple linear sRGB blend of the extinct/stable/unstable corner colours,
+weighted by the (non-negative) counts/fractions `e`, `s`, `u`.
+"""
+function ternary_blend(e, s, u)
+    total = e + s + u
+    total > 0 || throw(ArgumentError("e, s, u must not all be zero"))
+    w = (e, s, u) ./ total
+    RGBf((w[1] .* Tuple(extinct_color) .+ w[2] .* Tuple(stable_color) .+ w[3] .* Tuple(unstable_color))...)
+end
+
+"""
+    load_run(fname) -> (df, metadata)
+
+Load a `do_Kli_run`-style jld2 file, closing the file handle again afterwards.
+"""
+function load_run(fname)
+    jldopen(fname, "r") do f
+        (f["df"], f["metadata"])
+    end
+end
+
+"""
+    outcome_count_matrices(df) -> Dict{Int,Matrix{Int}}
+
+Count outcome codes per (K index, leakage index) grid cell. Each matrix is
+`numKs x numlis`, keyed by code.
+"""
+function outcome_count_matrices(df)
+    numKs = maximum(df.Kis)
+    numlis = maximum(df.liis)
+    mats = Dict{Int,Matrix{Int}}(code => zeros(Int, numKs, numlis) for code in unique(df.codes))
+    for r in eachrow(df)
+        mats[r.codes][r.Kis, r.liis] += 1
+    end
+    mats
+end
+
+"""
+    default_outdir(fname) -> String
+
+`<base>_plots`, where `<base>` is `fname`'s basename without extension.
+"""
+default_outdir(fname) = first(splitext(basename(fname))) * "_plots"
+
+"""
+    outcome_plot(fname; outdir=nothing, outname=nothing, gpcols=[(1., 1., :black)])
+
+Ternary-coloured Extinct/Stable/Unstable scatter of the (K, leakage) grid in
+`fname`, with the analytic viability (`beta_v`) and qualified-instability
+(`beta_s`) curves overlaid for each `(gamma, p, color)` in `gpcols`. Grid cells
+with no Extinct/Stable/Unstable repeats at all (i.e. every repeat was "Bad")
+are drawn in `bad_color` rather than erroring.
+
+Saves to `<outdir>/<base>_outcomes.pdf` (default `outdir` from
+[`default_outdir`](@ref)) and returns the `Figure`.
+"""
+function outcome_plot(fname;
+    outdir=nothing,
+    outname=nothing,
+    gpcols=[(1., 1., :black)],
+)
+    CairoMakie.activate!()
+
+    base = first(splitext(basename(fname)))
+    outdir = something(outdir, default_outdir(fname))
+    mkpath(outdir)
+    outpath = joinpath(outdir, something(outname, base * "_outcomes.pdf"))
+
+    df, metadata = load_run(fname)
+    Ks = metadata.Ks
+    leakxs = LeakageScale.ltox.(metadata.lis)
+
+    mats = outcome_count_matrices(df)
+    zeromat = zeros(Int, length(Ks), length(leakxs))
+    extinct_mat = get(mats, EXTINCT_CODE, zeromat)
+    stable_mat = get(mats, STABLE_CODE, zeromat)
+    unstable_mat = get(mats, UNSTABLE_CODE, zeromat)
+    safe_blend(e, s, u) = (e + s + u) > 0 ? ternary_blend(e, s, u) : bad_color
+    colors = safe_blend.(vec(extinct_mat'), vec(stable_mat'), vec(unstable_mat'))
+
+    fig = Figure()
+    ax = Axis(fig[1, 1];
+        xscale=log10,
+        title=(@sprintf "fname=%s" fname),
+        xlabel="Normalized energy supply rate",
+        ylabel="Supplied resource leakage",
+        xgridvisible=false,
+        ygridvisible=false,
+    )
+    eps_ticks = [0.5, 0.3, 0.1, 0.01, 0.001]
+    ax.yticks = (LeakageScale.etox.(eps_ticks), [(@sprintf "%.3g" (1 - e)) for e in eps_ticks])
+    ax.yminorticks = LeakageScale.exminorticks(eps_ticks, 4)
+
+    scatter!(ax, [(x, y) for x in Ks for y in leakxs]; markersize=20, color=colors)
+
+    for (gamma, p, color) in gpcols
+        ls2 = LeakageScale.l.(range(extrema(leakxs)..., 1000))
+        extline_Ks = MinimalModelV3.fr3_beta_viable.(ls2, gamma)
+        instabline_Ks = MinimalModelV3.fr3_beta_s_qualified.(ls2, gamma, p)
+        leakxs2 = LeakageScale.ltox.(ls2)
+
+        lines!(ax, extline_Ks, leakxs2; color, label=(@sprintf "beta_v with gamma=%.3g, p=%.3g" gamma p))
+        lines!(ax, instabline_Ks, leakxs2; color, linestyle=:dash, label=(@sprintf "beta_s with gamma=%.3g, p=%.3g" gamma p))
+    end
+    axislegend(ax; position=:rb)
+
+    CairoMakie.save(outpath, fig)
+    fig
+end
+
+"""
+    proportions_plot(fname; outdir=nothing, outname=nothing, ncols=nothing)
+
+Grid of Extinct/Stable/Unstable/Bad proportion-vs-K panels, one panel per
+leakage value in `fname`'s grid. `ncols` defaults to `min(numlis, 5)`.
+
+Saves to `<outdir>/<base>_proportions.pdf` and returns the `Figure`.
+"""
+function proportions_plot(fname;
+    outdir=nothing,
+    outname=nothing,
+    ncols=nothing,
+)
+    CairoMakie.activate!()
+
+    base = first(splitext(basename(fname)))
+    outdir = something(outdir, default_outdir(fname))
+    mkpath(outdir)
+    outpath = joinpath(outdir, something(outname, base * "_proportions.pdf"))
+
+    df, metadata = load_run(fname)
+    Ks = metadata.Ks
+    lis = metadata.lis
+    numlis = length(lis)
+
+    mats = outcome_count_matrices(df)
+    zeromat = zeros(Int, length(Ks), numlis)
+    extinct_mat = get(mats, EXTINCT_CODE, zeromat)
+    stable_mat = get(mats, STABLE_CODE, zeromat)
+    unstable_mat = get(mats, UNSTABLE_CODE, zeromat)
+    bad_mat = sum(get(mats, c, zeromat) for c in BAD_CODES)
+    total_mat = extinct_mat .+ stable_mat .+ unstable_mat .+ bad_mat
+    safe_total = replace(total_mat, 0 => 1) # avoid 0/0 for grid cells with no repeats at all
+
+    ncols = something(ncols, min(numlis, 5))
+    nrows = cld(numlis, ncols)
+
+    fig = Figure(size=(280 * ncols, 220 * nrows + 60))
+    series = [
+        ("Extinct", extinct_mat, extinct_color),
+        ("Stable", stable_mat, stable_color),
+        ("Unstable", unstable_mat, unstable_color),
+        ("Bad", bad_mat, bad_color),
+    ]
+    plots = nothing
+    for (li_i, li) in enumerate(lis)
+        row = div(li_i - 1, ncols) + 1
+        col = mod(li_i - 1, ncols) + 1
+        ax = Axis(fig[row, col];
+            xscale=log10,
+            title=(@sprintf "li=%.4g" li),
+            xlabel="K",
+            ylabel="Proportion",
+        )
+        plots = [
+            scatterlines!(ax, Ks, mat[:, li_i] ./ safe_total[:, li_i]; color, markersize=6, label=name)
+            for (name, mat, color) in series
+        ]
+    end
+    Legend(fig[nrows+1, 1:ncols], plots, first.(series); orientation=:horizontal, tellwidth=false)
+
+    CairoMakie.save(outpath, fig)
+    fig
+end
+
+"""
+    nice_plots(fname; outdir=nothing, gpcols=[(1., 1., :black)], ncols=nothing)
+
+Convenience wrapper producing both [`outcome_plot`](@ref) and
+[`proportions_plot`](@ref) for `fname` into the same output directory. Returns
+`(outcome=fig1, proportions=fig2)`.
+"""
+function nice_plots(fname; outdir=nothing, gpcols=[(1., 1., :black)], ncols=nothing)
+    outdir = something(outdir, default_outdir(fname))
+    (
+        outcome=outcome_plot(fname; outdir, gpcols),
+        proportions=proportions_plot(fname; outdir, ncols),
+    )
+end
+
+function main(args)
+    if isempty(args)
+        println(stderr, "usage: julia --project nice_plots.jl <datafile.jld2> [outdir]")
+        return 1
+    end
+    fname = args[1]
+    outdir = length(args) >= 2 ? args[2] : default_outdir(fname)
+    nice_plots(fname; outdir)
+    println("wrote plots for $fname to $outdir/")
+    return 0
+end
+
+if abspath(PROGRAM_FILE) == @__FILE__
+    exit(main(ARGS))
+end
