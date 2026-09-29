@@ -1,10 +1,9 @@
 """
 nice_plots.jl
 
-Standalone plotting for the (K, leakage) grid runs produced by `do_Kli_run` in
-`cluster_env/runs/single_influx3/base.jl` (and its siblings) — i.e. any
-`main*.jld2` file holding a `df` with `Kis`/`liis`/`codes` columns and a
-`metadata` with `Ks`/`lis`.
+Standalone plotting for this run directory's `do_Kli_run` output (see
+`base.jl`) — any `main*.jld2` file here holding a `df` with
+`Kis`/`liis`/`codes` columns and a `metadata` with `Ks`/`lis`.
 
 Outcome codes, per `do_Kli_run`:
   1  => extinct
@@ -25,7 +24,7 @@ Produces, into a single output directory named `<base>_plots` by default
 
 Use from the command line:
 
-    julia --project scripts/nice_plots.jl path/to/main2_B5.jld2 [outdir]
+    julia --project nice_plots.jl main2_B5.jld2 [outdir]
 
 or `include` this file into a notebook and call `outcome_plot`,
 `proportions_plot`, or `nice_plots` directly — including it does not run
@@ -38,6 +37,7 @@ using JLD2
 using DataFrames
 using CairoMakie
 using Printf
+using ArgParse
 using SSMCMain, SSMCMain.ModifiedMiCRM
 import SSMCMain.ModifiedMiCRM.MinimalModelV3
 
@@ -249,13 +249,25 @@ function nice_plots(fname; outdir=nothing, gpcols=[(1., 1., :black)], ncols=noth
     )
 end
 
-function main(args)
-    if isempty(args)
-        println(stderr, "usage: julia --project nice_plots.jl <datafile.jld2> [outdir]")
-        return 1
+function parse_cli_args(args)
+    s = ArgParseSettings(;
+        description="Produce the outcome-scatter and proportion plots for a do_Kli_run data file in this directory (e.g. main2_B5.jld2).",
+    )
+    @add_arg_table! s begin
+        "datafile"
+            help = "path to a main*.jld2 file produced by do_Kli_run"
+            required = true
+        "outdir"
+            help = "output directory for the two pdfs (default: <base>_plots)"
+            default = nothing
     end
-    fname = args[1]
-    outdir = length(args) >= 2 ? args[2] : default_outdir(fname)
+    parse_args(args, s)
+end
+
+function main(args)
+    parsed = parse_cli_args(args)
+    fname = parsed["datafile"]
+    outdir = something(parsed["outdir"], default_outdir(fname))
     nice_plots(fname; outdir)
     println("wrote plots for $fname to $outdir/")
     return 0
