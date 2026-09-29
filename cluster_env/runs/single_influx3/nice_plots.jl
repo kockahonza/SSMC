@@ -14,23 +14,30 @@ Outcome codes, per `do_Kli_run`:
  -3  => residual too high (not converged)
 `-1`/`-2`/`-3` are lumped together below as "Bad".
 
-Produces, into a single output directory named `<base>_plots` by default
-(`<base>` = the data file's name without extension):
+For each data file, produces (by default into its own `<base>_plots`
+directory, `<base>` = that file's name without extension):
   - `<base>_outcomes.pdf`     ternary-coloured Extinct/Stable/Unstable scatter
                               over the (K, leakage) grid, with the analytic
                               beta_v/beta_s boundary curves overlaid
   - `<base>_proportions.pdf`  grid of Extinct/Stable/Unstable/Bad proportion-vs-K
                               panels, one panel per leakage value
 
-Use from the command line:
+Use from the command line, with one or more data files at once (the
+plotting packages are only loaded once, not per file):
 
-    julia --project nice_plots.jl main2_B5.jld2 [outdir]
+    julia --project nice_plots.jl main2_B5.jld2 main6_B10.jld2 main7_B20.jld2
+
+By default each file gets its own `<base>_plots` directory; pass `-o`/
+`--outdir` to put every file's plots into one shared directory instead:
+
+    julia --project nice_plots.jl -o all_plots main2_B5.jld2 main6_B10.jld2
 
 or `include` this file into a notebook and call `outcome_plot`,
-`proportions_plot`, or `nice_plots` directly — including it does not run
-anything or touch the active Makie backend by itself; each plotting function
-switches to CairoMakie itself right before drawing (reactivate GLMakie
-afterwards if you need it for interactive work).
+`proportions_plot`, or `nice_plots` (single file or a vector of files)
+directly — including it does not run anything or touch the active Makie
+backend by itself; each plotting function switches to CairoMakie itself
+right before drawing (reactivate GLMakie afterwards if you need it for
+interactive work).
 """
 
 using JLD2
@@ -249,16 +256,29 @@ function nice_plots(fname; outdir=nothing, gpcols=[(1., 1., :black)], ncols=noth
     )
 end
 
+"""
+    nice_plots(fnames::AbstractVector; outdir=nothing, gpcols=[(1., 1., :black)], ncols=nothing)
+
+Same as the single-file method, run over several files (loading the plotting
+packages only once). `outdir` — if given — is shared by every file; otherwise
+each file gets its own `<base>_plots`. Returns a `Dict` from `fname` to its
+`(outcome=.., proportions=..)` result.
+"""
+function nice_plots(fnames::AbstractVector; outdir=nothing, gpcols=[(1., 1., :black)], ncols=nothing)
+    Dict(fname => nice_plots(fname; outdir, gpcols, ncols) for fname in fnames)
+end
+
 function parse_cli_args(args)
     s = ArgParseSettings(;
-        description="Produce the outcome-scatter and proportion plots for a do_Kli_run data file in this directory (e.g. main2_B5.jld2).",
+        description="Produce the outcome-scatter and proportion plots for one or more do_Kli_run data files in this directory (e.g. main2_B5.jld2).",
     )
     @add_arg_table! s begin
-        "datafile"
-            help = "path to a main*.jld2 file produced by do_Kli_run"
+        "datafiles"
+            help = "one or more main*.jld2 files produced by do_Kli_run"
+            nargs = '+'
             required = true
-        "outdir"
-            help = "output directory for the two pdfs (default: <base>_plots)"
+        "--outdir", "-o"
+            help = "put every file's plots here instead of each getting its own <base>_plots"
             default = nothing
     end
     parse_args(args, s)
@@ -266,10 +286,11 @@ end
 
 function main(args)
     parsed = parse_cli_args(args)
-    fname = parsed["datafile"]
-    outdir = something(parsed["outdir"], default_outdir(fname))
-    nice_plots(fname; outdir)
-    println("wrote plots for $fname to $outdir/")
+    outdir = parsed["outdir"]
+    for fname in parsed["datafiles"]
+        nice_plots(fname; outdir)
+        println("wrote plots for $fname to $(something(outdir, default_outdir(fname)))/")
+    end
     return 0
 end
 
