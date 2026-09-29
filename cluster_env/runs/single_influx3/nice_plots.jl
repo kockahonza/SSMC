@@ -403,48 +403,41 @@ default of 3 for runs that didn't override it (e.g. main1.jld2).
 get_B(metadata) = get(metadata.rsg_kwargs, :B, 3)
 
 """
-Data files for [`make_B_results_plots1`](@ref). Add more filenames here as
-new B runs finish —[`get_B`](@ref) sorts them into place automatically.
-Currently running and not yet added: main8_B2.jld2, main9_B4.jld2.
-"""
-const B_RESULTS_FILES = [
-    "main2_B5.jld2",
-    "main5_B1.jld2",
-    "main6_B10.jld2",
-    "main7_B20.jld2",
-]
+    make_grid_results_plot(outname, files; sort_key, label, outdir=nothing, gpcols=[(1., 1., :black)], cmap=:viridis, ci_level=0.95)
 
-"""
-    make_B_results_plots1(; outdir=nothing, files=B_RESULTS_FILES, gpcols=[(1., 1., :black)], cmap=:viridis, ci_level=0.95)
+Shared implementation behind the row-per-file preset plots: loads each of
+`files`, sorts them by `sort_key(metadata)`, and draws one grid row per
+file — the [`draw_outcome!`](@ref) phase diagram on the left, the
+[`draw_unstable!`](@ref) plot (with its `Colorbar`) on the right — titled
+by `label(metadata)`.
 
-Preset combined plot across `files` (default [`B_RESULTS_FILES`](@ref)),
-sorted by each file's `B` (via [`get_B`](@ref)): one grid row per file, the
-[`draw_outcome!`](@ref) phase diagram on the left and the
-[`draw_unstable!`](@ref) plot (with its `Colorbar`) on the right.
-
-Saves to `<outdir>/B_results_plots1.pdf` (`outdir` defaults to the current
+Saves to `<outdir>/<outname>.pdf` (`outdir` defaults to the current
 directory — this isn't tied to a single input file) and returns the `Figure`.
 """
-function make_B_results_plots1(;
+function make_grid_results_plot(outname, files;
+    sort_key,
+    label,
     outdir=nothing,
-    files=B_RESULTS_FILES,
     gpcols=[(1., 1., :black)],
     cmap=:viridis,
     ci_level=0.95,
 )
     CairoMakie.activate!()
 
-    runs = [(; fname, B=get_B(load_run(fname)[2]), m=load_outcome_matrices(fname)) for fname in files]
-    sort!(runs; by=r -> r.B)
+    runs = map(files) do fname
+        _, metadata = load_run(fname)
+        (; fname, key=sort_key(metadata), lbl=label(metadata), m=load_outcome_matrices(fname))
+    end
+    sort!(runs; by=r -> r.key)
 
     nrows = length(runs)
     fig = Figure(size=(1100, 340 * nrows))
-    Label(fig[0, 1:3], "B sweep: " * join(("B=$(r.B)" for r in runs), ", "); fontsize=14, font=:bold)
+    Label(fig[0, 1:3], join((r.lbl for r in runs), ", "); fontsize=14, font=:bold)
 
     for (row, r) in enumerate(runs)
         ax1 = Axis(fig[row, 1];
             xscale=log10,
-            title=(@sprintf "B=%g" r.B),
+            title=r.lbl,
             xlabel="Normalized energy supply rate",
             ylabel="Supplied resource leakage",
             xgridvisible=false,
@@ -465,9 +458,66 @@ function make_B_results_plots1(;
 
     outdir = something(outdir, ".")
     mkpath(outdir)
-    outpath = joinpath(outdir, "B_results_plots1.pdf")
+    outpath = joinpath(outdir, outname * ".pdf")
     CairoMakie.save(outpath, fig)
     fig
+end
+
+"""
+Data files for [`make_B_results_plots1`](@ref). Add more filenames here as
+new B runs finish — [`get_B`](@ref) sorts them into place automatically.
+Currently running and not yet added: main8_B2.jld2, main9_B4.jld2.
+"""
+const B_RESULTS_FILES = [
+    "main2_B5.jld2",
+    "main5_B1.jld2",
+    "main6_B10.jld2",
+    "main7_B20.jld2",
+]
+
+"""
+    make_B_results_plots1(; outdir=nothing, files=B_RESULTS_FILES, gpcols=[(1., 1., :black)], cmap=:viridis, ci_level=0.95)
+
+Preset combined plot across `files` (default [`B_RESULTS_FILES`](@ref)),
+sorted by each file's `B` (see [`make_grid_results_plot`](@ref)).
+
+Saves to `<outdir>/B_results_plots1.pdf` and returns the `Figure`.
+"""
+function make_B_results_plots1(; outdir=nothing, files=B_RESULTS_FILES, gpcols=[(1., 1., :black)], cmap=:viridis, ci_level=0.95)
+    make_grid_results_plot("B_results_plots1", files;
+        sort_key=get_B,
+        label=md -> (@sprintf "B=%g" get_B(md)),
+        outdir, gpcols, cmap, ci_level,
+    )
+end
+
+"""
+Data files for [`make_fs1_Nrun1`](@ref) — the fixed-sparsity (`s=0.3`),
+varying `N=M` runs. Add more filenames here as new N runs finish; sorted by
+`N` automatically. Currently running: main10-13 (N=5,10,15,20).
+"""
+const FS1_NRUN1_FILES = [
+    "main10_fs1_N5.jld2",
+    "main11_fs1_N10.jld2",
+    "main12_fs1_N15.jld2",
+    "main13_fs1_N20.jld2",
+]
+
+"""
+    make_fs1_Nrun1(; outdir=nothing, files=FS1_NRUN1_FILES, gpcols=[(1., 1., :black)], cmap=:viridis, ci_level=0.95)
+
+Same layout as [`make_B_results_plots1`](@ref), for `files` (default
+[`FS1_NRUN1_FILES`](@ref)) — the fixed-sparsity (`s=0.3`) runs sweeping
+`N=M` instead of `B` directly — sorted by each file's `N`.
+
+Saves to `<outdir>/fs1_Nrun1.pdf` and returns the `Figure`.
+"""
+function make_fs1_Nrun1(; outdir=nothing, files=FS1_NRUN1_FILES, gpcols=[(1., 1., :black)], cmap=:viridis, ci_level=0.95)
+    make_grid_results_plot("fs1_Nrun1", files;
+        sort_key=md -> md.N,
+        label=md -> (@sprintf "N=%d, B=%.3g" md.N get_B(md)),
+        outdir, gpcols, cmap, ci_level,
+    )
 end
 
 """
@@ -477,6 +527,7 @@ command line (see `--list-presets`). Each value takes only keyword arguments
 """
 const PRESETS = Dict{String,Function}(
     "B_results_plots1" => make_B_results_plots1,
+    "fs1_Nrun1" => make_fs1_Nrun1,
 )
 
 function parse_cli_args(args)
