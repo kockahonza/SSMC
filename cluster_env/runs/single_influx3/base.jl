@@ -243,3 +243,29 @@ function main7_B20()
     )
     jldsave("./main7_B20.jld2"; df, metadata)
 end
+
+function main8_B2()
+    Ks = 10 .^ range(0., 3.5, 20)
+    leak_xs = range(0.0, LeakageScale.ltox(0.999), 10)
+    lis = LeakageScale.l.(leak_xs)
+
+    df, metadata = do_Kli_run(Ks, lis, 120;
+        T=1e6,
+        maxtime=120,
+        rsg_kwargs=(; B=2)
+    )
+    jldsave("./main8_B2.jld2"; df, metadata)
+end
+
+function main9_B4()
+    Ks = 10 .^ range(0., 3.5, 20)
+    leak_xs = range(0.0, LeakageScale.ltox(0.999), 10)
+    lis = LeakageScale.l.(leak_xs)
+
+    df, metadata = do_Kli_run(Ks, lis, 120;
+        T=1e6,
+        maxtime=120,
+        rsg_kwargs=(; B=4)
+    )
+    jldsave("./main9_B4.jld2"; df, metadata)
+end
