@@ -135,14 +135,54 @@ function load_outcome_matrices(fname)
     (; Ks, lis, extinct, stable, unstable, bad, total=extinct .+ stable .+ unstable .+ bad)
 end
 
+const DEFAULT_EPS_TICKS = [0.5, 0.3, 0.1, 0.01, 0.001]
+
+"""
+    setup_leakage_yaxis!(ax; eps_ticks=DEFAULT_EPS_TICKS)
+
+Set `ax`'s y ticks/minor ticks to the `LeakageScale`-transformed leakage
+values in `eps_ticks`, as used by [`draw_outcome!`](@ref)'s leakage axis.
+"""
+function setup_leakage_yaxis!(ax; eps_ticks=DEFAULT_EPS_TICKS)
+    ax.yticks = (LeakageScale.etox.(eps_ticks), [(@sprintf "%.3g" (1 - e)) for e in eps_ticks])
+    ax.yminorticks = LeakageScale.exminorticks(eps_ticks, 4)
+end
+
+"""
+    draw_outcome!(ax, m; gpcols=[(1., 1., :black)])
+
+Draw the ternary-coloured Extinct/Stable/Unstable scatter of outcome
+matrices `m` (from [`load_outcome_matrices`](@ref)) onto `ax`, with the
+analytic viability (`beta_v`) and qualified-instability (`beta_s`) curves
+overlaid for each `(gamma, p, color)` in `gpcols`. Grid cells with no
+Extinct/Stable/Unstable repeats at all (i.e. every repeat was "Bad") are
+drawn in `bad_color` rather than erroring. Does not set axis attributes
+(scale, ticks, labels) — see [`setup_leakage_yaxis!`](@ref).
+"""
+function draw_outcome!(ax, m; gpcols=[(1., 1., :black)])
+    Ks = m.Ks
+    leakxs = LeakageScale.ltox.(m.lis)
+
+    safe_blend(e, s, u) = (e + s + u) > 0 ? ternary_blend(e, s, u) : bad_color
+    colors = safe_blend.(vec(m.extinct'), vec(m.stable'), vec(m.unstable'))
+    scatter!(ax, [(x, y) for x in Ks for y in leakxs]; markersize=20, color=colors)
+
+    for (gamma, p, color) in gpcols
+        ls2 = LeakageScale.l.(range(extrema(leakxs)..., 1000))
+        extline_Ks = MinimalModelV3.fr3_beta_viable.(ls2, gamma)
+        instabline_Ks = MinimalModelV3.fr3_beta_s_qualified.(ls2, gamma, p)
+        leakxs2 = LeakageScale.ltox.(ls2)
+
+        lines!(ax, extline_Ks, leakxs2; color, label=(@sprintf "beta_v with gamma=%.3g, p=%.3g" gamma p))
+        lines!(ax, instabline_Ks, leakxs2; color, linestyle=:dash, label=(@sprintf "beta_s with gamma=%.3g, p=%.3g" gamma p))
+    end
+end
+
 """
     outcome_plot(fname; outdir=nothing, outname=nothing, gpcols=[(1., 1., :black)])
 
 Ternary-coloured Extinct/Stable/Unstable scatter of the (K, leakage) grid in
-`fname`, with the analytic viability (`beta_v`) and qualified-instability
-(`beta_s`) curves overlaid for each `(gamma, p, color)` in `gpcols`. Grid cells
-with no Extinct/Stable/Unstable repeats at all (i.e. every repeat was "Bad")
-are drawn in `bad_color` rather than erroring.
+`fname` (see [`draw_outcome!`](@ref)).
 
 Saves to `<outdir>/<base>_outcomes.pdf` (default `outdir` from
 [`default_outdir`](@ref)) and returns the `Figure`.
@@ -160,11 +200,6 @@ function outcome_plot(fname;
     outpath = joinpath(outdir, something(outname, base * "_outcomes.pdf"))
 
     m = load_outcome_matrices(fname)
-    Ks = m.Ks
-    leakxs = LeakageScale.ltox.(m.lis)
-
-    safe_blend(e, s, u) = (e + s + u) > 0 ? ternary_blend(e, s, u) : bad_color
-    colors = safe_blend.(vec(m.extinct'), vec(m.stable'), vec(m.unstable'))
 
     fig = Figure()
     ax = Axis(fig[1, 1];
@@ -175,21 +210,8 @@ function outcome_plot(fname;
         xgridvisible=false,
         ygridvisible=false,
     )
-    eps_ticks = [0.5, 0.3, 0.1, 0.01, 0.001]
-    ax.yticks = (LeakageScale.etox.(eps_ticks), [(@sprintf "%.3g" (1 - e)) for e in eps_ticks])
-    ax.yminorticks = LeakageScale.exminorticks(eps_ticks, 4)
-
-    scatter!(ax, [(x, y) for x in Ks for y in leakxs]; markersize=20, color=colors)
-
-    for (gamma, p, color) in gpcols
-        ls2 = LeakageScale.l.(range(extrema(leakxs)..., 1000))
-        extline_Ks = MinimalModelV3.fr3_beta_viable.(ls2, gamma)
-        instabline_Ks = MinimalModelV3.fr3_beta_s_qualified.(ls2, gamma, p)
-        leakxs2 = LeakageScale.ltox.(ls2)
-
-        lines!(ax, extline_Ks, leakxs2; color, label=(@sprintf "beta_v with gamma=%.3g, p=%.3g" gamma p))
-        lines!(ax, instabline_Ks, leakxs2; color, linestyle=:dash, label=(@sprintf "beta_s with gamma=%.3g, p=%.3g" gamma p))
-    end
+    setup_leakage_yaxis!(ax)
+    draw_outcome!(ax, m; gpcols)
     axislegend(ax; position=:rb)
 
     CairoMakie.save(outpath, fig)
@@ -254,15 +276,58 @@ function proportions_plot(fname;
 end
 
 """
+    draw_unstable!(ax, m; cmap=:viridis, ci_level=0.95) -> crange
+
+Draw the per-leakage Unstable-outcome (code 3) proportion-vs-K lines
+(shaded `ci_level` Clopper-Pearson confidence bands, `HypothesisTests.jl`'s
+default `BinomialTest` interval) for outcome matrices `m` (from
+[`load_outcome_matrices`](@ref)) onto `ax`, colour-coded by
+`LeakageScale.ltox(li)`. Returns the `(lo, hi)` colour range used, for
+[`leakage_colorbar!`](@ref).
+"""
+function draw_unstable!(ax, m; cmap=:viridis, ci_level=0.95)
+    Ks = m.Ks
+    leakxs = LeakageScale.ltox.(m.lis)
+    crange = extrema(leakxs)
+
+    for li_i in eachindex(leakxs)
+        n = @view m.total[:, li_i]
+        k = @view m.unstable[:, li_i]
+        p = k ./ replace(n, 0 => 1)
+        los = similar(p)
+        his = similar(p)
+        for i in eachindex(n)
+            los[i], his[i] = n[i] > 0 ? confint(BinomialTest(k[i], n[i]); level=ci_level) : (0.0, 0.0)
+        end
+        color = leakxs[li_i]
+        band!(ax, Ks, los, his; color, colorrange=crange, colormap=cmap, alpha=0.25)
+        lines!(ax, Ks, p; color, colorrange=crange, colormap=cmap)
+    end
+    crange
+end
+
+"""
+    leakage_colorbar!(fig_pos, crange; cmap=:viridis, eps_ticks=DEFAULT_EPS_TICKS)
+
+A `Colorbar` at `fig_pos` (e.g. `fig[1, 2]`) matching [`draw_unstable!`](@ref)'s
+`crange`/`cmap`, ticked at the `LeakageScale`-transformed leakage values in
+`eps_ticks`.
+"""
+function leakage_colorbar!(fig_pos, crange; cmap=:viridis, eps_ticks=DEFAULT_EPS_TICKS)
+    Colorbar(fig_pos;
+        limits=crange,
+        colormap=cmap,
+        label="Supplied resource leakage",
+        ticks=(LeakageScale.etox.(eps_ticks), [(@sprintf "%.3g" (1 - e)) for e in eps_ticks]),
+    )
+end
+
+"""
     unstable_plot(fname; outdir=nothing, outname=nothing, cmap=:viridis, ci_level=0.95)
 
-Unstable-outcome (code 3) proportion vs K, one line per leakage value in
-`fname`'s grid, all on a single axis instead of `proportions_plot`'s
-one-panel-per-leakage grid. Lines are colour-coded by
-`LeakageScale.ltox(li)` — the same transform used for the y-axis in
-[`outcome_plot`](@ref) — with a matching `Colorbar`. Each line carries a
-shaded `ci_level` Clopper-Pearson confidence band (`HypothesisTests.jl`'s
-default `BinomialTest` interval).
+Unstable-outcome proportion vs K, one line per leakage value in `fname`'s
+grid, all on a single axis instead of `proportions_plot`'s
+one-panel-per-leakage grid (see [`draw_unstable!`](@ref)).
 
 Saves to `<outdir>/<base>_unstable.pdf` and returns the `Figure`.
 """
@@ -280,9 +345,6 @@ function unstable_plot(fname;
     outpath = joinpath(outdir, something(outname, base * "_unstable.pdf"))
 
     m = load_outcome_matrices(fname)
-    Ks = m.Ks
-    leakxs = LeakageScale.ltox.(m.lis)
-    crange = extrema(leakxs)
 
     fig = Figure()
     ax = Axis(fig[1, 1];
@@ -291,28 +353,8 @@ function unstable_plot(fname;
         xlabel="Normalized energy supply rate",
         ylabel="Unstable proportion",
     )
-
-    for li_i in eachindex(leakxs)
-        n = @view m.total[:, li_i]
-        k = @view m.unstable[:, li_i]
-        p = k ./ replace(n, 0 => 1)
-        los = similar(p)
-        his = similar(p)
-        for i in eachindex(n)
-            los[i], his[i] = n[i] > 0 ? confint(BinomialTest(k[i], n[i]); level=ci_level) : (0.0, 0.0)
-        end
-        color = leakxs[li_i]
-        band!(ax, Ks, los, his; color, colorrange=crange, colormap=cmap, alpha=0.25)
-        lines!(ax, Ks, p; color, colorrange=crange, colormap=cmap)
-    end
-
-    eps_ticks = [0.5, 0.3, 0.1, 0.01, 0.001]
-    Colorbar(fig[1, 2];
-        limits=crange,
-        colormap=cmap,
-        label="Supplied resource leakage",
-        ticks=(LeakageScale.etox.(eps_ticks), [(@sprintf "%.3g" (1 - e)) for e in eps_ticks]),
-    )
+    crange = draw_unstable!(ax, m; cmap, ci_level)
+    leakage_colorbar!(fig[1, 2], crange; cmap)
 
     CairoMakie.save(outpath, fig)
     fig
@@ -346,24 +388,145 @@ function nice_plots(fnames::AbstractVector; outdir=nothing, gpcols=[(1., 1., :bl
     Dict(fname => nice_plots(fname; outdir, gpcols, ncols, ci_level) for fname in fnames)
 end
 
+################################################################################
+# Preset combined plots — named, no-argument (besides outdir) plot functions
+# runnable from the command line via --preset. Register new ones in PRESETS.
+################################################################################
+
+"""
+    get_B(metadata)
+
+The cross-feeding-density `B` parameter for a `do_Kli_run` metadata, read
+from `metadata.rsg_kwargs`, falling back to `get_si_sampler_for_paper`'s own
+default of 3 for runs that didn't override it (e.g. main1.jld2).
+"""
+get_B(metadata) = get(metadata.rsg_kwargs, :B, 3)
+
+"""
+Data files for [`make_B_results_plots1`](@ref). Add more filenames here as
+new B runs finish —[`get_B`](@ref) sorts them into place automatically.
+Currently running and not yet added: main8_B2.jld2, main9_B4.jld2.
+"""
+const B_RESULTS_FILES = [
+    "main2_B5.jld2",
+    "main5_B1.jld2",
+    "main6_B10.jld2",
+    "main7_B20.jld2",
+]
+
+"""
+    make_B_results_plots1(; outdir=nothing, files=B_RESULTS_FILES, gpcols=[(1., 1., :black)], cmap=:viridis, ci_level=0.95)
+
+Preset combined plot across `files` (default [`B_RESULTS_FILES`](@ref)),
+sorted by each file's `B` (via [`get_B`](@ref)): one grid row per file, the
+[`draw_outcome!`](@ref) phase diagram on the left and the
+[`draw_unstable!`](@ref) plot (with its `Colorbar`) on the right.
+
+Saves to `<outdir>/B_results_plots1.pdf` (`outdir` defaults to the current
+directory — this isn't tied to a single input file) and returns the `Figure`.
+"""
+function make_B_results_plots1(;
+    outdir=nothing,
+    files=B_RESULTS_FILES,
+    gpcols=[(1., 1., :black)],
+    cmap=:viridis,
+    ci_level=0.95,
+)
+    CairoMakie.activate!()
+
+    runs = [(; fname, B=get_B(load_run(fname)[2]), m=load_outcome_matrices(fname)) for fname in files]
+    sort!(runs; by=r -> r.B)
+
+    nrows = length(runs)
+    fig = Figure(size=(1100, 340 * nrows))
+    Label(fig[0, 1:3], "B sweep: " * join(("B=$(r.B)" for r in runs), ", "); fontsize=14, font=:bold)
+
+    for (row, r) in enumerate(runs)
+        ax1 = Axis(fig[row, 1];
+            xscale=log10,
+            title=(@sprintf "B=%g" r.B),
+            xlabel="Normalized energy supply rate",
+            ylabel="Supplied resource leakage",
+            xgridvisible=false,
+            ygridvisible=false,
+        )
+        setup_leakage_yaxis!(ax1)
+        draw_outcome!(ax1, r.m; gpcols)
+        row == 1 && axislegend(ax1; position=:rb, labelsize=10)
+
+        ax2 = Axis(fig[row, 2];
+            xscale=log10,
+            xlabel="Normalized energy supply rate",
+            ylabel="Unstable proportion",
+        )
+        crange = draw_unstable!(ax2, r.m; cmap, ci_level)
+        leakage_colorbar!(fig[row, 3], crange; cmap)
+    end
+
+    outdir = something(outdir, ".")
+    mkpath(outdir)
+    outpath = joinpath(outdir, "B_results_plots1.pdf")
+    CairoMakie.save(outpath, fig)
+    fig
+end
+
+"""
+Registry of named preset plot functions, runnable via `--preset NAME` on the
+command line (see `--list-presets`). Each value takes only keyword arguments
+(including `outdir`) and saves to `<outdir>/<name>.pdf`.
+"""
+const PRESETS = Dict{String,Function}(
+    "B_results_plots1" => make_B_results_plots1,
+)
+
 function parse_cli_args(args)
     s = ArgParseSettings(;
-        description="Produce the outcome-scatter and proportion plots for one or more do_Kli_run data files in this directory (e.g. main2_B5.jld2).",
+        description="Produce the outcome-scatter and proportion plots for one or more do_Kli_run data files in this directory (e.g. main2_B5.jld2), or run a named preset plot with --preset.",
     )
     @add_arg_table! s begin
         "datafiles"
-            help = "one or more main*.jld2 files produced by do_Kli_run"
-            nargs = '+'
-            required = true
+            help = "one or more main*.jld2 files produced by do_Kli_run (ignored if --preset is given)"
+            nargs = '*'
+            default = String[]
         "--outdir", "-o"
-            help = "put every file's plots here instead of each getting its own <base>_plots"
+            help = "put every file's plots here instead of each getting its own <base>_plots (also where --preset saves its output)"
             default = nothing
+        "--preset"
+            help = "run a named preset plot instead of per-file plots; see --list-presets"
+            default = nothing
+        "--list-presets"
+            help = "list available preset plots and exit"
+            action = :store_true
     end
     parse_args(args, s)
 end
 
 function main(args)
     parsed = parse_cli_args(args)
+
+    if parsed["list-presets"]
+        println("available presets:")
+        for name in sort(collect(keys(PRESETS)))
+            println("  ", name)
+        end
+        return 0
+    end
+
+    if !isnothing(parsed["preset"])
+        name = parsed["preset"]
+        if !haskey(PRESETS, name)
+            println(stderr, "error: unknown preset \"$name\" (see --list-presets)")
+            return 1
+        end
+        PRESETS[name](; outdir=parsed["outdir"])
+        println("wrote preset \"$name\" to $(joinpath(something(parsed["outdir"], "."), name * ".pdf"))")
+        return 0
+    end
+
+    if isempty(parsed["datafiles"])
+        println(stderr, "error: no data files given (pass some, or use --preset/--list-presets)")
+        return 1
+    end
     outdir = parsed["outdir"]
     for fname in parsed["datafiles"]
         nice_plots(fname; outdir)
