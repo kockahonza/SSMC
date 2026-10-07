@@ -188,3 +188,22 @@ function main4()
         )
     end
 end
+
+function main5_pd_cov1()
+    Ks = 10 .^ range(0., 4.0, 20)
+    leak_xs = range(0.0, LeakageScale.ltox(0.999), 10)
+    lis = LeakageScale.l.(leak_xs)
+
+    Klps_to_run = [(K, l, p) for p in [0.01, 0.1, 1.] for l in lis for K in Ks]
+
+    mkpath("main5_pd_cov1")
+    for (gi, (K, l, p)) in enumerate(Klps_to_run)
+        @printf("Running %d/%d: K=%.3f, l=%.3f, p=%.3f\n", gi, length(Klps_to_run), K, l, p)
+        flush(stdout)
+
+        solve_si_odes("main5_pd_cov1/gi$(gi).jld2", 100,
+            K, l, p,
+            1e8, 1e-9,
+        )
+    end
+end
