@@ -130,6 +130,82 @@ function fit_mm_d(si_params, si_fs, si_Ds, K, l, p, ks, kweight=1e5;
     (; fit_d=d, si_mrls, mmls, si_k, mm_k, si_h, mm_h)
 end
 
+function process_outdir1(dirpath, ks, kweight=0., DN=0.;
+    out_fname=nothing,
+    thr_maxresid=1e-5,
+    thr_hss_mrl=1e-9,
+)
+    processing_params = (;
+        dirpath, ks, kweight, DN, thr_maxresid, thr_hss_mrl
+    )
+
+    # Find all relevant files
+    files = filter(readdir(dirpath; join=true)) do f
+        endswith(f, ".jld2") && !endswith(f, "_fit.jld2")
+    end
+    sort!(files; by=f -> parse(Int, match(r"gi(\d+)", basename(f))[1]))
+    @printf "Reading %d files\n" length(files)
+
+    # Combine data from all files into one df
+    adf = mapreduce(vcat, files) do fname
+        metadata, df = load(fname, "metadata", "df")
+        insertcols!(df, 1,
+            :file => basename(fname),
+            :row_id => 1:nrow(df),
+            :K => metadata.K,
+            :l => metadata.l,
+            :p => metadata.p,
+        )
+    end
+    @printf "Files have nrow(adf) = %d runs\n" nrow(adf)
+
+    # Calculate hss stability for later use
+    adf.hss_mrl = map(eachrow(adf)) do r
+        M1 = Matrix{Float64}(undef, sum(get_Ns(r.params)), sum(get_Ns(r.params)))
+        make_M1!(M1, r.params, r.final_states)
+        maximum(real, eigvals!(M1))
+    end
+
+    # Filter for good data only
+    keep_row = map(eachrow(adf)) do r
+        (r.retcodes == ReturnCode.Success) &&
+            (r.maxresids < thr_maxresid) &&
+            (r.hss_mrl < thr_hss_mrl) &&
+            (r.num_surv > 0)
+    end
+    adf = adf[keep_row, :];
+    @printf "Keeping %d of them after filtering for successful solves, small maxresids, hss stability and non-extinctions\n" count(keep_row)
+
+    # Set the strain diffusion rates
+    for r in eachrow(adf)
+        N = get_Ns(r.params)[1]
+        r.Dss[1:N] .= DN
+    end
+
+    # Do the MM fits
+    fits = Vector{Any}(undef, nrow(adf))
+    prog = Progress(nrow(adf))
+    @localize adf @tasks for i in 1:nrow(adf)
+        r = adf[i, :]
+        fits[i] = if (r.retcodes == ReturnCode.Success) && (r.num_surv != 0)
+            fit_mm_d(r.params, r.final_states, r.Dss, r.K, r.l, r.p, ks, kweight; DN)
+        end
+        next!(prog)
+    end
+    finish!(prog)
+
+    for c in (:fit_d, :si_k, :mm_k, :si_h, :mm_h, :si_mrls, :mmls)
+        adf[!, c] = [isnothing(f) ? missing : getproperty(f, c) for f in fits] # fit_mm_d returns nothing when the SI system is not spatially unstable
+    end
+    @printf "Of the %d filtered runs, %d were spatiall unstable and have a MM fit\n" nrow(adf) count(!ismissing, adf.fit_d)
+
+    if !isnothing(out_fname)
+        jldsave(out_fname; adf, processing_params)
+    end
+
+    adf, processing_params
+end
+
 ################################################################################
 # Runs
 ################################################################################

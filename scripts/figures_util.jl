@@ -1,3 +1,6 @@
+using Revise
+includet("./ternary_colormap.jl")
+
 # figure sizes for publication
 single_col_width = 324 * 1.051437737 # corresponds to 511 pdf pt which is ~9cm
 double_col_width = single_col_width * 2
@@ -19,6 +22,7 @@ default_fig_kwargs = (;
 module PaperColors
 using ColorSchemes
 using Makie
+using ..TernaryColormaps
 
 extinct1() = ColorSchemes.Blues[5]
 extinct2() = ColorSchemes.Blues[7]
@@ -32,6 +36,8 @@ other() = ColorSchemes.Dark2_4[end]
 extinct() = colorant"#898989"
 stable() = colorant"#1b9e77"
 unstable() = colorant"#d95f02"
+
+outcome_ternary_colormap() = TernaryColormap(PaperColors.extinct(), PaperColors.stable(), PaperColors.unstable())
 
 function mma_coloring_full(code)
     map_ = Dict(
@@ -67,4 +73,31 @@ twomms_1() = ColorSchemes.Reds[end-2]
 twomms_2() = ColorSchemes.Blues[end-2]
 twomms_coexistence() = colorant"#b53296"
 
+end
+
+function paper_figure_setup_reference()
+    fig = Figure(;
+        size=(double_col_width * 0.35, 0.43 * double_col_width / golden_ratio),
+        figure_padding=(2., 2., 2., 6.),
+    )
+
+    ax = Axis(fig[1, 1];
+        # labels
+        xlabel="X label",
+        ylabel="Y label",
+        xlabelsize=8fontsize_pt,
+        ylabelsize=8fontsize_pt,
+        xlabelpadding=0.,
+        ylabelpadding=0.,
+        # ticks style
+        xticklabelsize=7fontsize_pt,
+        yticklabelsize=7fontsize_pt,
+        xticklabelpad=0.,
+        yticklabelpad=0.,
+        # setup log scale ticks with minors
+        xscale=log10,
+        xticks=log10ticks(0:3),
+        xminorticksvisible=true,
+        xminorticks=IntervalsBetween(10),
+    )
 end
