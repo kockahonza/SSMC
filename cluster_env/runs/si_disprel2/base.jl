@@ -283,3 +283,17 @@ function main5_pd_cov1()
         )
     end
 end
+
+function main6_on_Klp_point()
+    Klps_to_run = [(K, l, p) for p in [1.] for l in [0.999] for K in [10.]]
+    mkpath("main6_on_Klp_point")
+    for (gi, (K, l, p)) in enumerate(Klps_to_run)
+        @printf("Running %d/%d: K=%.3f, l=%.3f, p=%.3f\n", gi, length(Klps_to_run), K, l, p)
+        flush(stdout)
+
+        solve_si_odes("main6_on_Klp_point/gi$(gi).jld2", 3000,
+            K, l, p,
+            1e8, 1e-9,
+        )
+    end
+end
