@@ -69,14 +69,15 @@ function make_fits_and_setup(;
         sN = only(unique(si_df.sN))
         u0 = perturb_u0_uniform_prop(1, 2, expand_u0_to_size((sN,), hss), epsilon)
         for (p_i, p) in enumerate(ps)
-            sir = only(eachrow(si_df[(si_df.sys_i.==f.sys_i).&(si_df.p.==p), :]))
+            si_i = only(findall((si_df.sys_i .== f.sys_i) .& (si_df.p .== p)))
+            sir = si_df[si_i, :]
             ls = mm_peak_k(mmp, DN, DI, p, hss[1], peak_ks)
             push!(rows, (;
                 p_i, p, rep=1,
                 f.sys_i, f.df_row, f.fit_p, f.fit_d,
                 mmp, mmicrm_params, Ds=[DN, DI, p],
                 hss, peak_k=ls.peak_k, peak_h=ls.peak_h, mm_unstable=ls.unstable, peak_at_edge=ls.at_edge,
-                si_pde_df_row=rownumber(sir),
+                si_pde_df_row=si_i, # the 9394f6b setup.jld2 has this wrong (all 1s, rownumber of a subset)
                 L=sir.L, sN, T=sir.T, u0,
             ))
         end
