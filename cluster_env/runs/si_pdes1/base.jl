@@ -483,3 +483,111 @@ function load_pde_states(outdir, i)
         (; ts=d["saved_ts"], us=d["saved_us"])
     end
 end
+
+################################################################################
+# Main functions
+################################################################################
+"""
+Solves loads of random system ODEs so that they can them be used for PDE runs
+without resolving the ODEs each time
+"""
+function solve_more_si_odes()
+    K = 10.
+    l = 0.999
+    T = 1e8
+    tol = 1e-9
+    @time df = solve_si_odes("ode_solves.jld2", 10000,
+        K, l,
+        T, tol,
+    );
+    @show count(df.good), nrow(df)
+end
+
+"""
+Picks `num_systems` random good ODE systems unstable at every p,
+sizes L to fit `num_peaks` peaks of each (system, p)'s peak k and writes the setup
+file `run_pde_setup` reads.
+"""
+function make_pde_setup(ode_fname, out_fname,
+    num_systems, ks, ps, DN, DI, num_peaks, sN;
+    epsilon=1e-2,
+    seed=1,
+    extinction_threshold=1e-6,
+)
+    Random.seed!(seed)
+
+    # Load ODE solves from before
+    f = jldopen(ode_fname)
+    fmd = f["metadata"]
+    df = f["df"]
+    close(f)
+    (; K, l, T) = fmd
+    @printf("ODE file: %d/%d good, K=%g l=%g T=%g\n", count(df.good), nrow(df), K, l, T)
+    println("  good = Success && maxresid<1e-8 && hss mrl<1e-12 && num_surv>0 (mark_good! defaults)")
+
+    # Remove extinct strains from PDE runs
+    df = df[df.good, [:params, :final_states]]
+    df.df_row = 1:nrow(df)
+    for r in eachrow(df)
+        xx = reduce_extinct(r.params, r.final_states, extinction_threshold)
+        r.params = xx.params
+        r.final_states = xx.final_state
+    end
+    Nss = first.(get_Ns.(df.params))
+    maxresids = [mmicrmmaxresid(r.final_states, r.params) for r in eachrow(df)]
+    @printf("after reduce_extinct: Ns in %s, maxresid in %s\n", extrema(Nss), extrema(maxresids))
+
+    # Compute dispersion relations for all (system, p) combinations
+    (; mrls, peak_ks, peak_hs, at_edge) = disprel_peak_ks(df, ks, DN, DI, ps)
+
+    # Randomly pick systems that are unstable at all ps
+    keep = findall([all(!ismissing, peak_ks[i, :]) for i in 1:nrow(df)])
+    @printf("unstable at every p: %d/%d, peaks at the edge of ks: %d\n",
+        length(keep), nrow(df), count(at_edge[keep, :]))
+    keep = keep[sample(1:length(keep), num_systems; replace=false)]
+    df = df[keep, :]
+    mrls = mrls[keep, :]
+    peak_ks = disallowmissing(peak_ks[keep, :])
+    peak_hs = disallowmissing(peak_hs[keep, :])
+    @printf("picked %d systems\n", nrow(df))
+
+    # Choose L for each (system, p) combination
+    Ls = choose_L.(peak_ks, num_peaks)
+    dxs = Ls ./ sN
+    for j in eachindex(ps)
+        # unstable ks past Nyquist, pi/dx, are not resolved by the grid
+        num_unres = count(i -> any(mrls[i, j][ks.>pi/dxs[i, j]] .> 0), 1:nrow(df))
+        @printf("p=%g: peak k in %s, peak h in %s, L in %s, dx in %s, unstable past Nyquist %d\n",
+            ps[j], extrema(peak_ks[:, j]), extrema(peak_hs[:, j]),
+            extrema(Ls[:, j]), extrema(dxs[:, j]), num_unres)
+    end
+
+    # Prepare u0s with random perturbations
+    u0s = map(1:nrow(df)) do i
+        Ns, Nr = get_Ns(df.params[i])
+        perturb_u0_uniform_prop(Ns, Nr, expand_u0_to_size((sN,), df.final_states[i]), epsilon)
+    end
+
+    # Prepare a dataframe with the setup
+    sysjs = [(i, j) for i in 1:nrow(df) for j in eachindex(ps)]
+    pde_df = DataFrame(;
+        df_row=[df.df_row[i] for (i, _) in sysjs],
+        sys_i=getindex.(sysjs, 1),
+        p=[ps[j] for (_, j) in sysjs],
+        params=[df.params[i] for (i, _) in sysjs],
+        ode_params=[df.params[i] for (i, _) in sysjs],
+        ode_hss=[df.final_states[i] for (i, _) in sysjs],
+        Ds=[make_si_Ds(df.params[i], DN, DI, ps[j]) for (i, j) in sysjs],
+        L=[Ls[i, j] for (i, j) in sysjs],
+        sN=fill(sN, length(sysjs)),
+        T=fill(T, length(sysjs)),
+        u0=[u0s[i] for (i, _) in sysjs],
+        mrls=[mrls[i, j] for (i, j) in sysjs],
+    )
+
+    metadata = (; K, l, ks, ps, DN, DI, num_peaks, sN, epsilon, seed)
+    jldsave(out_fname; metadata, pde_df)
+    @printf("wrote %d rows to %s, %.1f MB\n", nrow(pde_df), out_fname, filesize(out_fname) / 1e6)
+
+    (; df, pde_df, metadata, mrls, peak_ks, peak_hs, Ls)
+end
