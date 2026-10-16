@@ -803,17 +803,9 @@ export plot_spatial_fs!, plot_spatial_fs
 # Space-time plots of 1D many strain solutions
 ################################################################################
 """
-    centres_to_edges(cs; closed=true, geometric=false)
-
-`length(cs)+1` cell edges from `length(cs)` cell centres, the way `heatmap` wants
-them. Interior edges sit at the midpoint of neighbouring centres, the geometric
-mean of them if `geometric` (the midpoint an axis drawn on a log scale shows).
-When `closed` the two outer edges are the outermost centres themselves so the plot
-never extends past the data - this is what keeps the first edge of a log time axis
-positive, at the cost of drawing the first and last cells at half width. Otherwise
-they are extrapolated half a cell outwards, which for `geometric` also stays
-positive but can drag a log axis a long way down if the first two points are close
-together.
+Cell edges for `heatmap` from cell centres. Interior edges at (geometric if
+`geometric`) midpoints; outer edges at the outermost centres if `closed`, else
+extrapolated half a cell out.
 """
 function centres_to_edges(cs; closed=true, geometric=false)
     n = length(cs)
@@ -838,17 +830,8 @@ end
 export centres_to_edges
 
 """
-    log_spaced_indices(xs, n)
-
-`n` indices into the increasing, strictly positive `xs`, picked so the values kept
-are as evenly spaced in log space as the data allows. The first and last are
-always kept, and `n === nothing` (or an `n` past `length(xs)`) keeps everything.
-
-Whatever budget is left over after that - `xs` being far from log spaced itself
-means several evenly spaced targets can land on the same point - is then spent by
-repeatedly splitting whichever log gap between neighbouring kept values is
-currently the widest. So the full `n` points always get used, with the extra ones
-going where `xs` is densest in log space rather than being dropped.
+`n` indices into increasing positive `xs`, as evenly spaced in log as possible,
+always keeping the first and last. `n=nothing` keeps everything.
 """
 function log_spaced_indices(xs, n)
     N = length(xs)
@@ -872,6 +855,7 @@ function log_spaced_indices(xs, n)
     end
     unique!(is)
 
+    # spend any leftover budget splitting the widest log gaps
     while length(is) < n
         besti, bestgap, bestj = 0, 0.0, 0
         for k in 1:(length(is)-1)
@@ -906,18 +890,9 @@ end
     spacetime_data(ts, us, Ns, dx; kwargs...)
     spacetime_data(sol::ODESolution; kwargs...)
 
-Boil a 1D solution (`us` being the states at `ts`, each fields x space) down to
-what a space-time heatmap of its strains needs, as
-`(; tedges, xedges, ts, strains)`. `strains` is an `Ns x nx x nt` array of strain
-concentrations and the two edge vectors are ready to be passed straight to
-`heatmap`.
-
-Times not strictly greater than `tmin` (`0` by default) are dropped as they cannot
-go on a log axis. The grid is then downsampled to at most `max_nt` times, picked
-evenly in log time to match how they get drawn, and `max_nx` spatial cells, each
-the average of a contiguous block of the original ones. Pass `nothing` for either
-to keep the full resolution - the defaults are only meant to keep the number of
-heatmap cells in the range a laptop can render.
+Space-time heatmap data for a 1D solution, `(; tedges, xedges, ts, strains)` with
+`strains` an `Ns x nx x nt` array. Drops `t <= tmin`, then downsamples to at most
+`max_nt` log-spaced times and `max_nx` block-averaged cells (`nothing` keeps all).
 """
 function spacetime_data(ts, us, Ns, dx;
     tmin=nothing, max_nt=1500, max_nx=1000, quiet=false
@@ -995,16 +970,8 @@ const SPACETIME_AXIS_DEFAULTS = (;
     plot_spacetime_biomass!(where, sol::ODESolution; kwargs...)
     plot_spacetime_biomass(args...; figure=(;), kwargs...)
 
-Space-time heatmap of the total biomass (all `Ns` strains summed) of a 1D
-solution, time running up a log axis. Returns `(; ax, hm, cb, data)`, or the
-`Figure` for the non `!` version.
-
-`data` is what [`spacetime_data`](@ref) returns - pass it directly when the states
-are too big to keep around or are being plotted more than once, otherwise hand
-over the solution itself and the `tmin`, `max_nt` and `max_nx` kwargs go there.
-`axis` is merged over `SPACETIME_AXIS_DEFAULTS`. With a non identity `colorscale`
-(eg `log10`) the data is clamped into `colorrange`, which by default then only
-covers the strictly positive values.
+Space-time heatmap of total biomass on a log time axis. `data` is from
+`spacetime_data`. Returns `(; ax, hm, cb, data)`.
 """
 function plot_spacetime_biomass!(where, data::NamedTuple;
     axis=(;),
@@ -1104,25 +1071,8 @@ function _mix_in_space(xs, cols::AbstractVector{C}, q=1.0) where {C}
 end
 
 """
-    mix_composition_color(xs, strain_colors=ColorSchemes.tab20; blend=:srgb, q=1.0)
-
-The colour of a community made up of `xs`: the per strain colours averaged
-componentwise, weighted by relative abundance. `strain_colors` is either indexed
-by strain (cycling if there are more strains than colours) or called with the
-strain index.
-
-`blend` is the space that average is taken in - `:srgb` mixes the gamma encoded
-channels directly (which is what folding the strains in one at a time through a
-two colour gradient does, only this does it in one pass), `:oklab` or `:lab` mix
-perceptually, so equal shifts in abundance move the colour by equal perceived
-amounts and mixtures do not darken or drift the way sRGB ones do.
-
-`q` reweights the strains as `xᵢ^q` before normalising, the Hill exponent from
-diversity indices. It is scale invariant for any `q`, unlike weighting by
-`log(xᵢ)` - which also goes negative below 1 and diverges at 0. `q = 1` is plain
-relative abundance, `q < 1` (say `0.3` to `0.5`) pulls the mix away from the
-dominant strain so subdominant ones actually show, and `q > 1` sharpens towards
-whoever is winning.
+Colour of a community `xs`: strain colours averaged in `blend` space (`:srgb`,
+`:oklab`, `:lab`), weighted by `xᵢ^q`. `q < 1` makes subdominant strains show more.
 """
 function mix_composition_color(xs, strain_colors=ColorSchemes.tab20;
     blend=:srgb, q=1.0
@@ -1135,31 +1085,10 @@ end
 export mix_composition_color
 
 """
-    composition_colors(strains; kwargs...)
-
-Turn an `Ns x nx x nt` array of strain concentrations, as
-[`spacetime_data`](@ref) returns, into the `nx x nt` matrix of colours where hue
-shows the community composition ([`mix_composition_color`](@ref) of the local
-strain mix, see there for `blend`, `q` and `strain_colors`) and the total biomass
-sets how strongly that colour is shown.
-
-`alphanorm` sets what the biomass is measured against - `:global` the largest
-total anywhere in the run, `:time` the largest total across space at that same
-time (which keeps the shape of the pattern visible even while everything is still
-small), or `:none` to take the totals as already being on a 0 to 1 scale.
-`alpha_transform` is applied to the normalised value before it is clamped into
-`[0, 1]`, eg `a -> a^0.4` or `a -> log1p(99a) / log1p(99)` to lift the faint end
-of a biomass that spans decades.
-
-`biomass` then says which channel that value drives:
-
-  - `:alpha` leaves the mixed colour alone and puts it in the opacity, so what
-    ends up on screen depends on whatever the axis is drawn on top of.
-  - `:lightness` interpolates from `background` to the mixed colour inside
-    `blend`'s space and returns opaque colours. With `blend=:oklab` that is a
-    proper bivariate map - perceptual lightness carries the biomass, hue and
-    chroma the composition, with the two staying separable - and it survives
-    being saved to a vector format without any transparency.
+`nx x nt` colours from an `Ns x nx x nt` strains array: hue from
+`mix_composition_color`, total biomass (normalised per `alphanorm`: `:global`,
+`:time` or `:none`, then `alpha_transform`) shown as opacity (`biomass=:alpha`)
+or as a blend from `background` (`biomass=:lightness`, opaque).
 """
 function composition_colors(strains;
     blend=:srgb, biomass=:alpha, background=RGB{Float64}(1.0, 1.0, 1.0), q=1.0,
@@ -1226,21 +1155,8 @@ end
     plot_spacetime_composition!(where, sol::ODESolution; kwargs...)
     plot_spacetime_composition(args...; figure=(;), kwargs...)
 
-Space-time heatmap of a 1D solution showing both who is there and how much of
-them, time running up a log axis: colour is the local community composition and
-opacity the total biomass. Returns `(; ax, hm, data, colors)`, or the `Figure` for
-the non `!` version.
-
-Every kwarg other than `axis` is passed on to [`composition_colors`](@ref) -
-`blend`, `q`, `biomass`, `alphanorm`, `alpha_transform`, `strain_colors` and
-`background` - and `axis` is merged over `SPACETIME_AXIS_DEFAULTS`. `data` is what
-[`spacetime_data`](@ref) returns - pass it directly when the states are too big to
-keep around or are being plotted more than once, otherwise hand over the solution
-itself and the `tmin`, `max_nt` and `max_nx` kwargs go there.
-
-The default `biomass=:alpha` draws with transparency, against whatever is behind
-the axis; `biomass=:lightness` (best with `blend=:oklab`) bakes the background in
-and returns opaque colours instead.
+Space-time heatmap on a log time axis, colour = composition, intensity = biomass.
+Kwargs other than `axis` go to `composition_colors`. Returns `(; ax, hm, data, colors)`.
 """
 function plot_spacetime_composition!(where, data::NamedTuple; axis=(;), kwargs...)
     colors = composition_colors(data.strains; kwargs...)

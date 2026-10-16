@@ -13,13 +13,7 @@ function mmv3_get_hss_extinct(mmp::MMParams{F}) where {F}
 end
 
 """
-    quadratic_roots(a, b, c) -> (x1, x2)
-
-Real roots of `a*x^2 + b*x + c`, ascending, assuming `a != 0`. Returns
-`(NaN, NaN)` when the roots are complex; since `NaN > 0` is `false`, callers
-filtering for positive roots need no separate check.
-
-`b == 0` and `c == 0` are handled by the general formulas, no branch needed.
+Real roots of `a*x^2 + b*x + c` in ascending order, `(NaN, NaN)` if complex.
 """
 function quadratic_roots(a::F, b::F, c::F) where {F}
     disc = b^2 - 4 * a * c

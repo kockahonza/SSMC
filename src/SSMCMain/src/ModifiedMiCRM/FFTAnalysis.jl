@@ -73,6 +73,22 @@ function get_fftfactor1(ys, dx)
 end
 export get_fftfactor1
 
+# first time index where the strongest mode has amplitude A >= threshold, nothing if never
+function first_strong_mode(Ns, L; threshold=1.0)
+    for ti in eachindex(Ns)
+        sN = length(Ns[ti])
+        F = rfft(Ns[ti])[2:end] # skip the mean
+        Fmax, i = findmax(abs.(F))
+        A = 2 * Fmax / sN
+        if A >= threshold
+            freqs = rfftfreq(sN, sN / L)[2:end]
+            return (ti, A, lengthscale=1 / freqs[i])
+        end
+    end
+    nothing
+end
+export first_strong_mode
+
 function get_maxreldiff(u::AbstractMatrix, ode_ss::AbstractVector)
     maximum(abs, (u .- ode_ss) ./ ode_ss)
 end

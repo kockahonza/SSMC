@@ -24,6 +24,7 @@ using ColorSchemes
 using Makie
 using ..TernaryColormaps
 
+# Setting colours for the different outcomes
 extinct1() = ColorSchemes.Blues[5]
 extinct2() = ColorSchemes.Blues[7]
 extinct3() = ColorSchemes.Blues[9]
@@ -72,6 +73,28 @@ mm_instabline() = ColorSchemes.Dark2_6[end-3]
 twomms_1() = ColorSchemes.Reds[end-2]
 twomms_2() = ColorSchemes.Blues[end-2]
 twomms_coexistence() = colorant"#b53296"
+
+# Defining a single p colormap to use throughout
+p_colormap = ColorScheme(ColorSchemes.Blues[5:end])
+p_range = (1e-1, 2)
+p_logrange = log10.(p_range)
+
+p_color1(p) = get(p_colormap, log10(p), p_logrange)
+
+# for a Colorbar labelled in p rather than log10(p)
+p_colorbar1_kwargs(ps) = (;
+    colormap=p_colormap,
+    colorrange=p_logrange,
+    ticks=(log10.(ps), [rich("10", superscript(string(Int(log10(p))))) for p in ps]),
+)
+function p_colorbar1(ps=10.0 .^ (-2:1))
+    fig = Figure(; size=(200, 50))
+    Makie.Colorbar(fig[1, 1];
+        vertical=false,
+        p_colorbar1_kwargs(ps)...
+    )
+    fig
+end
 
 end
 

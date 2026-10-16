@@ -153,6 +153,18 @@ function clamp_for_log(xx)
 end
 export clamp_for_log
 
+"""
+Jensen-Shannon divergence (log2, so in [0, 1]) of two abundance vectors, normalised first.
+"""
+function jsdiv(u, v)
+    a = u ./ sum(u)
+    b = v ./ sum(v)
+    m = (a .+ b) ./ 2
+    kl(x) = sum(xi == 0 ? 0.0 : xi * log2(xi / mi) for (xi, mi) in zip(x, m))
+    (kl(a) + kl(b)) / 2
+end
+export jsdiv
+
 ################################################################################
 # Various callbacks
 ################################################################################
@@ -220,6 +232,29 @@ function make_progress_callback(T; t0=0.0)
     )
 end
 export make_progress_callback
+
+"""
+Prints t, dt, step count and elapsed time every `every` seconds of wall clock.
+Holds state, so make a fresh one per run.
+"""
+function make_walltime_progress_callback(label; every=60.0)
+    t0 = time()
+    nextat, nsteps = Ref(t0 + every), Ref(0)
+    DiscreteCallback(
+        function (u, t, _)
+            nsteps[] += 1
+            time() >= nextat[]
+        end,
+        function (i)
+            @printf("[%s] t=%.3e  dt=%.3e  steps=%d  elapsed=%.0fs\n",
+                label, i.t, i.dt, nsteps[], time() - t0)
+            flush(stdout)
+            nextat[] = time() + every
+        end;
+        save_positions=(false, false),
+    )
+end
+export make_walltime_progress_callback
 
 function make_ode_extinction_exit_callback(Ns, threshold=eps(); returncode=ReturnCode.Success)
     cond! = let Ns=Ns, threshold=threshold

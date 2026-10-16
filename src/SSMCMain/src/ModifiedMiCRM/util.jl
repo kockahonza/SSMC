@@ -93,32 +93,8 @@ end
 export num_survivors_in_space
 
 """
-    reduce_extinct(ps, hss, threshold)
-
-Drop every strain whose homogeneous steady state abundance is below `threshold`,
-then drop every resource that none of the surviving strains either takes up or
-produces. Returns `(; params, hss, keep_s, keep_r)` for the reduced system.
-
-Zeroing a dead strain in the initial condition is not enough to keep it out: the
-solver reintroduces it at roundoff level and any strain with a positive invasion
-fitness grows that back to O(1) over a long run. Taking it out of the state
-vector is the only hard guarantee.
-
-Resource `a` counts as used by strain `i` if `i` takes it up (`c[i,a] != 0`) or
-leaks into it from something it does take up (`D[i,a,b] * l[i,b] * c[i,b] != 0`
-for some `b`, matching the production term in `mmicrmfunc!`). The second test
-already implies `b` itself is kept, since `c[i,b] != 0` is exactly the uptake
-test, so a single pass suffices - no iterating to a fixed point.
-
-Note this also drops an influx resource (`K[a] != 0`) that no survivor touches.
-Such a resource is decoupled from the rest of the system and just sits at
-`K[a]/r[a]`, so removing it does not change any other field's dynamics, but it
-does mean `keep_r` is needed to map reduced resource indices back to the
-original ones.
-
-`hss` is the full `[strains; resources]` state vector; the returned one is that
-same state restricted to the kept indices, so it remains a steady state of the
-reduced system.
+Drops strains below `threshold` in `final_state` and resources no survivor takes
+up or produces. Returns `(; params, final_state, keep_s, keep_r)`.
 """
 function reduce_extinct(ps::BMMiCRMParams, final_state, threshold)
     Ns, Nr = get_Ns(ps)
@@ -146,15 +122,8 @@ end
 export reduce_extinct
 
 """
-    make_stagnation_callback(ps, resid_floor; check_every, t_start)
-
-Terminate with `ReturnCode.Stalled` once the residual stops falling. Every
-`check_every` steps we track the smallest `max|du|` seen so far and each time `t`
-crosses another decade we give up if that minimum has not dropped 10x and is
-still above `resid_floor`. Comparing across decades of `t` rather than fixed
-windows keeps slow transients from tripping it, and gating on `resid_floor`
-means it can never cut short a run whose residual is already good enough.
-Holds mutable state, so make a fresh one per run.
+Terminates with `ReturnCode.Stalled` if the min `max|du|` hasn't dropped 10x over
+a decade of `t` and is still above `resid_floor`. Make a fresh one per run.
 """
 function make_stagnation_callback(ps, resid_floor; check_every=1000, t_start=10.)
     du = zeros(sum(get_Ns(ps)))
@@ -174,3 +143,36 @@ function make_stagnation_callback(ps, resid_floor; check_every=1000, t_start=10.
     )
 end
 export make_stagnation_callback
+
+"""
+Peaks of a 1d periodic field using Peaks.jl. The field is rotated so its global
+min is at the array edge, which makes prominences and widths exact, and padded
+with `w` wrapped points each side so findmaxima sees every point's full window.
+`edges` are fractional gridpoint indices with `left` in [1, sN+1), `right` can
+go past sN if it wraps.
+"""
+function find_peaks_periodic(N;
+    w=1, min_prom=nothing, min_width=nothing, relheight=0.5, min_height=nothing
+)
+    sN = length(N)
+    nopeaks = (; indices=Int[], heights=Float64[], proms=Float64[], widths=Float64[],
+        edges=Tuple{Float64,Float64}[])
+
+    s = argmin(N) - 1
+    Np = N[mod1.(((1-w):(sN+w)) .+ s, sN)] # padded index p is original index p - w + s
+
+    # strict=false so plateaus get a prominence and width rather than 0 and NaN
+    pks = findmaxima(Np, w) |> peakproms!(; min=min_prom, strict=false)
+    isempty(pks.indices) && return nopeaks # peakwidths! errors on no peaks
+    pks = pks |> peakwidths!(; min=min_width, relheight, strict=false) |> peakheights!(; min=min_height)
+
+    # drop the copies found in the padding
+    keep = findall(p -> w < p <= sN + w, pks.indices)
+    edges = map(pks.edges[keep]) do (l, r)
+        k = fld(l - w + s - 1, sN)
+        (l - w + s - k * sN, r - w + s - k * sN)
+    end
+    (; indices=mod1.(pks.indices[keep] .- w .+ s, sN), heights=pks.heights[keep],
+        proms=pks.proms[keep], widths=pks.widths[keep], edges)
+end
+export find_peaks_periodic

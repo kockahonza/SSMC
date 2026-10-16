@@ -180,6 +180,23 @@ function diagram_sfss_v3(p::AbstractMMiCRMParams, ss=nothing;
 end
 export diagram_sfss_v3
 
+"""
+    diagram_image(g; dpi=150)
+
+Render a graphviz diagram (eg from `diagram_sfss_v3`) to an image matrix that
+Makie's `image!` shows the right way up, via a temp png.
+"""
+function diagram_image(g; dpi=150)
+    f = tempname() * ".png"
+    open(pipeline(`$(GraphvizDotLang.Graphviz_jll.dot()) -Tpng -Gdpi=$dpi -o $f`), "w", stdout) do io
+        print(io, g)
+    end
+    img = Makie.FileIO.load(f)
+    rm(f)
+    rotr90(img)
+end
+export diagram_image
+
 ################################################################################
 # Work in progress
 ################################################################################

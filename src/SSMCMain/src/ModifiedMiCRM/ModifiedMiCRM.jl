@@ -11,10 +11,12 @@ using ChunkSplitters
 using StatsBase
 using Interpolations
 using Polynomials
+using Peaks
 
 using ADTypes, SparseConnectivityTracer
 
 using GraphvizDotLang: digraph, subgraph, node, edge, attr, save
+import GraphvizDotLang
 using Colors
 using ColorSchemes
 
@@ -299,10 +301,7 @@ exticks(es; fmt="%.2f") = (etox.(es), [Printf.format(Printf.Format(fmt), e) for 
 lxticks(ls; fmt="%.2f") = (ltox.(ls), [Printf.format(Printf.Format(fmt), l) for l in ls])
 
 """
-`n` minor ticks between each pair of neighbouring major ticks, spaced linearly in
-leakage so they bunch up where the scale compresses, showing how it distorts
-space. Pass the same values used for the major ticks, along with
-`yminorticksvisible=true`, eg `yminorticks=LeakageScale.lxminorticks(lticks, 4)`.
+`n` minor ticks between each pair of major ticks `ls`, spaced linearly in leakage.
 """
 lxminorticks(ls, n=9) = [ltox(x) for (lo, hi) in zip(ls[1:(end-1)], ls[2:end])
                          for x in range(lo, hi, n + 2)[2:(end-1)]]
@@ -321,17 +320,8 @@ using Makie
 using Printf
 
 """
-    scale(linthresh)
-
-Symlog-style Makie scale, `y -> sign(y) * log10(1 + |y|/linthresh)`, so both signs
-and many decades of magnitude fit on one axis. Note this is one smooth function
-rather than a piecewise linear-then-log join, so it is only *asymptotically*
-linear below `linthresh` and *asymptotically* one unit of axis space per factor of
-10 above it: at `linthresh=1` the core `0 -> 1` spans 0.301 units with its ends
-stretched 1.9x relative to each other, and the decades above it get 0.740, 0.963,
-0.996, 0.9996 units. Pair with `ticks`/`MinorTicks` (or just use `kwargs`) -
-Makie's automatic ticks fall back to linearly spaced values for any non-log scale,
-which is what makes a bare symlog axis look wrong.
+Smooth symlog Makie scale, `y -> sign(y) * log10(1 + |y|/linthresh)`. Use with
+`ticks`/`MinorTicks`, or just `kwargs`.
 """
 function scale(linthresh)
     t = float(linthresh)
@@ -356,20 +346,13 @@ function ticklabel(v)
 end
 
 """
-    ticks(vals)
-
-Major ticks at exactly `vals`, labelled by `ticklabel`. Use when you want them
-somewhere the `linthresh` method cannot reach - it steps whole decades, so it
-never places more than one tick per decade.
+Major ticks at exactly `vals`.
 """
 ticks(vals::AbstractVector) = (vals, ticklabel.(vals))
 
 """
-    ticks(linthresh; max_ticks=11, trim=0.)
-
-Ticks at 0 and ±10^n from `linthresh` up, thinned to at most `max_ticks`. Nonzero
-ticks with `|v| <= trim * linthresh` are dropped, for when the ones closest to the
-linear region crowd each other.
+Ticks at 0 and ±10^n from `linthresh` up, at most `max_ticks`, dropping nonzero
+ones with `|v| <= trim * linthresh`.
 """
 function ticks(linthresh::Real; max_ticks=11, trim=0.)
     e0 = round(Int, log10(float(linthresh)))
@@ -388,15 +371,7 @@ function ticks(linthresh::Real; max_ticks=11, trim=0.)
 end
 
 """
-    MinorTicks(n=9)
-
-`n` minor ticks between every pair of neighbouring major ticks, evenly spaced in
-data space - so the step is constant within each major tick interval, and how much
-they bunch up in the plot shows how far the scale distorts data space there. Use as
-`yminorticks=CustomSymlogScale.MinorTicks(4)` along with `yminorticksvisible=true`,
-or via `kwargs`. Takes the major ticks as Makie computes them, so it follows
-`max_ticks` and `trim` - the wider apart those leave the majors, the more extreme
-the bunching.
+`n` minor ticks between each pair of major ticks, evenly spaced in data space.
 """
 struct MinorTicks
     n::Int
@@ -411,10 +386,7 @@ function Makie.get_minor_tickvalues(mt::MinorTicks, _, tickvalues, vmin, vmax)
 end
 
 """
-    guess_linthresh(vals...; floor_frac=1e-6)
-
-Pick a linthresh for `vals`: the nearest decade to the smallest nonzero magnitude,
-but never more than `floor_frac` below the largest one.
+Nearest decade to the smallest nonzero `|vals|`, but at least `floor_frac` times the largest.
 """
 function guess_linthresh(vals...; floor_frac=1e-6)
     as = filter(>(0.), abs.(reduce(vcat, map(collect, vals))))
@@ -423,10 +395,7 @@ function guess_linthresh(vals...; floor_frac=1e-6)
 end
 
 """
-    kwargs(linthresh; dim=:y, kwargs...)
-
-All the `Axis` kwargs needed for a symlog `dim` axis at once, e.g.
-`Axis(fig[1,1]; CustomSymlogScale.kwargs(1e-6)...)`.
+All `Axis` kwargs for a symlog `dim` axis, eg `Axis(fig[1,1]; CustomSymlogScale.kwargs(1e-6)...)`.
 """
 function kwargs(linthresh; dim=:y, max_ticks=11, trim=0., nminor=9, minorgrid=false)
     kws = (;
