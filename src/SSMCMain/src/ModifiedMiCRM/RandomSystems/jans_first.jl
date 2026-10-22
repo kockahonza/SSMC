@@ -225,10 +225,10 @@ function (ms::Marsland2)()
                 if ff * ms.MA > ms.Nr
                     # ensure that the last block is not larger than the matrix
                     block = random_binary_matrix(ms.SA, M_overlap, p)
-                    c[Int(1 + ms.SA * (tt - 1)):Int(tt * ms.SA), Int(1 + ms.MA * (ff - 1)):Int(ms.Nr)] .= block
+                    c[Int(1+ms.SA*(tt-1)):Int(tt*ms.SA), Int(1+ms.MA*(ff-1)):Int(ms.Nr)] .= block
                 else
                     block = random_binary_matrix(ms.SA, ms.MA, p)
-                    c[Int(1 + ms.SA * (tt - 1)):Int(tt * ms.SA), Int(1 + ms.MA * (ff - 1)):Int(ff * ms.MA)] .= block
+                    c[Int(1+ms.SA*(tt-1)):Int(tt*ms.SA), Int(1+ms.MA*(ff-1)):Int(ff*ms.MA)] .= block
                 end
 
             else
@@ -242,11 +242,11 @@ function (ms::Marsland2)()
 
                 if S_overlap != 0
                     block = random_binary_matrix(S_overlap, ms.Nr, p)
-                    c[Int(1 + ms.SA * (tt - 1)):Int(ms.Ns), :] .= block
+                    c[Int(1+ms.SA*(tt-1)):Int(ms.Ns), :] .= block
                 else
 
                     block = random_binary_matrix(ms.SA, ms.Nr, p)
-                    c[Int(1 + ms.SA * (tt - 1)):Int(tt * ms.SA), :] .= block
+                    c[Int(1+ms.SA*(tt-1)):Int(tt*ms.SA), :] .= block
                 end
             end
         end
@@ -282,7 +282,7 @@ function (ms::Marsland2)()
                 else
                     #the within class resource
                     upper_limit = minimum(((strain_class - 1) * ms.MA + ms.MA, ms.Nr))
-                    p[1+(strain_class-1)*ms.MA:upper_limit] .= ms.fs
+                    p[(1+(strain_class-1)*ms.MA):upper_limit] .= ms.fs
 
                     # the waste resources
                     if M_overlap != 0
@@ -330,7 +330,7 @@ function (ms::Marsland2)()
     Ds = fill(0.0, (ms.Ns + ms.M))
     Ds[1:ms.Ns] .= 1e-5
     Ds[1+ms.Ns] = 100
-    Ds[ms.Ns+2:ms.Ns+ms.M] .= 10
+    Ds[(ms.Ns+2):(ms.Ns+ms.M)] .= 10
 
     g = fill(1.0, ms.Ns)
     w = fill(1.0, ms.M)
@@ -503,11 +503,157 @@ function (rsg::JansSampler3)()
 end
 export JansSampler3
 
-function single_influx_resource_sampler(Ns, Nr;
-    kwargs...
-)
-    rsg = RSGJans1(Ns, Nr; kwargs...)
-    function ()
-        ps = rsg()
+"""
+Just like the above but the metabolic byproducts are fully determined by the uptaken resource
+and not dependent on the strain which produced the byproducts. This mimics behaviour from
+some previous articles.
+"""
+struct JansSampler3_resdep_byproducts
+    Ns::Int # number of strains
+    Nr::Int # number of resources
+
+    m::Distribution
+    r::Distribution
+
+    num_influx_resources::Distribution
+    K::Distribution
+
+    prob_eating::Float64
+    prob_eating_influx::Float64
+    num_byproducts::Distribution
+
+    c::Distribution
+    l::Distribution
+    cinflux::Distribution
+    linflux::Distribution
+
+    Ds::Distribution
+    Dr::Distribution
+    Drinflux::Distribution
+
+    usenthreads::Union{Nothing,Int}
+    function JansSampler3_resdep_byproducts(Ns, Nr;
+        m=1.0, r=1.0,
+        num_influx_resources=1, K=1.0,
+        prob_eating=1.0, prob_eating_influx=1.0, num_byproducts=0,
+        c=1.0, l=0.5, cinflux=c, linflux=l,
+        Ds=1e-12, Dr=1.0, Drinflux=Dr,
+        usenthreads=nothing
+    )
+        if isa(m, Number)
+            m = Dirac(m)
+        elseif isa(m, Tuple) && length(m) == 2
+            m = Normal(m[1], m[2])
+        end
+        if isa(r, Number)
+            r = Dirac(r)
+        elseif isa(r, Tuple) && length(r) == 2
+            r = Normal(r[1], r[2])
+        end
+        if isa(num_influx_resources, Integer)
+            num_influx_resources = Dirac(num_influx_resources)
+        end
+        if isa(K, Number)
+            K = Dirac(K)
+        elseif isa(K, Tuple) && length(K) == 2
+            K = Normal(K[1], K[2])
+        end
+        if isa(num_byproducts, Integer)
+            num_byproducts = Dirac(num_byproducts)
+        end
+        if isa(c, Number)
+            c = Dirac(c)
+        elseif isa(c, Tuple) && length(c) == 2
+            c = Normal(c[1], c[2])
+        end
+        if isa(l, Number)
+            l = Dirac(l)
+        elseif isa(l, Tuple) && length(l) == 2
+            l = Normal(l[1], l[2])
+        end
+        if isnothing(cinflux)
+            cinflux = c
+        elseif isa(cinflux, Number)
+            cinflux = Dirac(cinflux)
+        elseif isa(cinflux, Tuple) && length(cinflux) == 2
+            cinflux = Normal(cinflux[1], cinflux[2])
+        end
+        if isnothing(linflux)
+            linflux = l
+        elseif isa(linflux, Number)
+            linflux = Dirac(linflux)
+        elseif isa(linflux, Tuple) && length(linflux) == 2
+            linflux = Normal(linflux[1], linflux[2])
+        end
+        if isa(Ds, Number)
+            Ds = Dirac(Ds)
+        elseif isa(Ds, Tuple) && length(Ds) == 2
+            Ds = Normal(Ds[1], Ds[2])
+        end
+        if isa(Dr, Number)
+            Dr = Dirac(Dr)
+        elseif isa(Dr, Tuple) && length(Dr) == 2
+            Dr = Normal(Dr[1], Dr[2])
+        end
+        if isnothing(Drinflux)
+            Drinflux = Dr
+        elseif isa(Drinflux, Number)
+            Drinflux = Dirac(Drinflux)
+        elseif isa(Drinflux, Tuple) && length(Drinflux) == 2
+            Drinflux = Normal(Drinflux[1], Drinflux[2])
+        end
+
+        new(Ns, Nr, m, r, num_influx_resources, K, prob_eating, prob_eating_influx, num_byproducts, c, l, cinflux, linflux, Ds, Dr, Drinflux, usenthreads)
     end
 end
+function (rsg::JansSampler3_resdep_byproducts)()
+    # as usual
+    g = fill(1.0, rsg.Ns)
+    w = fill(1.0, rsg.Nr)
+
+    m = clamp.(rand(rsg.m, rsg.Ns), 0.0, Inf)
+    r = clamp.(rand(rsg.r, rsg.Nr), 0.0, Inf)
+
+    K = fill(0.0, rsg.Nr)
+    num_influx_resources = rand(rsg.num_influx_resources)
+    influx_resources = sample(1:rsg.Nr, num_influx_resources; replace=false)
+    for a in influx_resources
+        K[a] = clamp(rand(rsg.K), 0.0, Inf)
+    end
+
+    l = fill(0.0, (rsg.Ns, rsg.Nr))
+    c = fill(0.0, (rsg.Ns, rsg.Nr))
+    D = fill(0.0, (rsg.Ns, rsg.Nr, rsg.Nr))
+    for a in 1:rsg.Nr
+        isinflux = !iszero(K[a])
+
+        # bit of a dummy, we just use this to generate the l value and D
+        ldist = isinflux ? rsg.linflux : rsg.l
+        _, l_res, D_res = get_random_metabolic_process(Inf, rsg.c, ldist, rand(rsg.num_byproducts), rsg.Nr)
+
+        for i in 1:rsg.Ns
+            cdist = isinflux ? rsg.cinflux : rsg.c
+            prob_eating = isinflux ? rsg.prob_eating_influx : rsg.prob_eating
+            if rand() < prob_eating
+                c[i, a] = clamp(rand(cdist), 0.0, Inf)
+                l[i, a] = l_res
+                D[i, :, a] .= D_res
+            else
+                c[i, a] = 0.
+                l[i, a] = 0.
+                D[i, :, a] .= fill(0.0, rsg.Nr)
+            end
+        end
+    end
+
+    Ds = clamp.(rand(rsg.Ds, rsg.Ns), 0.0, Inf)
+    Dr = clamp.(rand(rsg.Dr, rsg.Nr), 0.0, Inf)
+    for a in influx_resources
+        Dr[a] = clamp(rand(rsg.Drinflux), 0.0, Inf)
+    end
+    Ds = vcat(Ds, Dr)
+
+    mmicrm_params = BMMiCRMParams(g, w, m, K, r, l, c, D, rsg.usenthreads)
+    BSMMiCRMParams(mmicrm_params, Ds)
+end
+export JansSampler3_resdep_byproducts
