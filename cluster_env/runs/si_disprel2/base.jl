@@ -3,6 +3,8 @@ using SSMCMain.ModifiedMiCRM, SSMCMain.ModifiedMiCRM.MinimalModelV3
 
 include("../../../scripts/single_influx.jl")
 
+BLAS.set_num_threads(1)
+
 using Base.Threads, OhMyThreads
 using Printf
 using ProgressMeter
@@ -24,14 +26,15 @@ function solve_si_odes(
     N=20, M=20,
     si_u0=[fill(1., N); fill(0., M)],
     solver=TRBDF2,
-    maxtime=30.,
+    maxtime=120.,
+    use_extinction_callback=false,
     extinction_threshold=abstol,
 )
     rsg = get_si_sampler_for_paper(K, l, DN; DR=p, N, M)
     N = rsg.Ns
     metadata = (;
         num_runs, K, l, p, T, abstol, reltol, DN, N, M, si_u0, solver, maxtime,
-        extinction_threshold,
+        use_extinction_callback, extinction_threshold,
         rsg,
     )
 
@@ -45,6 +48,7 @@ function solve_si_odes(
 
     prog = Progress(num_runs)
     @tasks for i in 1:num_runs
+        @set scheduler = :greedy
         gen_ps = rsg()
         si_ps = gen_ps.mmicrm_params
         si_Ds = gen_ps.Ds
@@ -53,7 +57,11 @@ function solve_si_odes(
         si_s = solve(si_p, solver();
             dense=false,
             save_everystep=false,
-            callback=CallbackSet(make_timer_callback(maxtime), make_ode_extinction_exit_callback(N, extinction_threshold), PositiveDomain(copy(si_u0); save=false)),
+            callback=CallbackSet(
+                make_timer_callback(maxtime),
+                PositiveDomain(copy(si_u0); save=false),
+                use_extinction_callback ? make_ode_extinction_exit_callback(N, extinction_threshold) : nothing,
+            ),
             abstol=abstol,
             reltol=reltol,
         )
@@ -294,6 +302,21 @@ function main6_on_Klp_point()
         solve_si_odes("main6_on_Klp_point/gi$(gi).jld2", 3000,
             K, l, p,
             1e8, 1e-9,
+        )
+    end
+end
+
+function main7_final()
+    Klps_to_run = [(K, l, p) for p in [0.01, 0.1, 1.] for l in [0.999] for K in [10.]]
+    mkpath("main7_final")
+    for (gi, (K, l, p)) in enumerate(Klps_to_run)
+        @printf("Running %d/%d: K=%.3f, l=%.3f, p=%.3f\n", gi, length(Klps_to_run), K, l, p)
+        flush(stdout)
+
+        solve_si_odes("main7_final/gi$(gi).jld2", 1000,
+            K, l, p,
+            1e6, 1e-9;
+            extinction_threshold=1e-6,
         )
     end
 end
